@@ -69,7 +69,7 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
         if (iglesia.logoUrl != null) // Si la iglesia subió un logo en el panel...
           Image.network(iglesia.logoUrl!, height: 96) // ...lo muestra
         else // Si no...
-          const Icon(Icons.church, size: 80, color: doradoCanaan), // ...ícono dorado de iglesia
+          Image.asset('assets/imagenes/canaan-icono.png', height: 96), // ...el ícono oficial dorado de Canaán (va dentro de la app)
         const SizedBox(height: 16), // Espacio
         Text( // Nombre de la iglesia (viene del panel)
           iglesia.nombre, // Texto

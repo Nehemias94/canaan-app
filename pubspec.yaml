@@ -35,6 +35,8 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   http: ^1.6.0
+  uuid: ^4.6.0
+  flutter_secure_storage: ^11.2.0
 
 dev_dependencies:
   flutter_test:
@@ -46,6 +48,21 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4 # Genera el ícono de la app en todos los tamaños (comando: dart run flutter_launcher_icons)
+
+# Configuración del ícono de la app (después de cambiar algo aquí, correr: dart run flutter_launcher_icons)
+flutter_launcher_icons:
+  image_path: "assets/iconos/icono-app.png" # Ícono base de 1024 px: dorado sobre fondo marino
+  android: true # Genera los íconos de Android
+  adaptive_icon_background: "#00223E" # Android moderno: fondo marino de Canaán (el teléfono le da forma de círculo, gota, etc.)
+  adaptive_icon_foreground: "assets/iconos/icono-primer-plano.png" # Android moderno: el dorado solo, con margen para que no se recorte
+  ios: true # Genera los íconos de iPhone
+  remove_alpha_ios: true # iPhone no acepta íconos con transparencia
+  web:
+    generate: true # Genera el ícono de la pestaña y los de la versión web
+    image_path: "assets/iconos/icono-app.png" # Mismo ícono base
+    background_color: "#00223E" # Color de fondo al abrir la versión web instalada
+    theme_color: "#004B82" # Color de la barra del navegador en el teléfono (azul Canaán)
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -57,6 +74,10 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Imágenes que van DENTRO de la app (no se descargan de internet)
+  assets:
+    - assets/imagenes/ # Carpeta con el ícono oficial de Canaán (canaan-icono.png)
 
   # To add assets to your application, add an assets section, like this:
   # assets:
