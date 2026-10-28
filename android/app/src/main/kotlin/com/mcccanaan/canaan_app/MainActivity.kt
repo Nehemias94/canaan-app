@@ -1,0 +1,5 @@
+package com.mcccanaan.canaan_app
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity()
