@@ -9,9 +9,20 @@ import 'package:canaan_app/modelos/predica.dart'; // Molde de una prédica
 import 'package:canaan_app/servicios/api.dart'; // La API real (de ella se hereda la falsa)
 import 'package:canaan_app/servicios/registro.dart'; // Registro del teléfono
 import 'package:canaan_app/pantallas/video.dart'; // Pantalla del video (para cambiar el reproductor por uno de prueba)
+import 'package:canaan_app/servicios/geocerca.dart'; // Geocerca (distancia)
+import 'package:canaan_app/servicios/ubicacion.dart'; // Servicio de ubicación (para cambiarlo por uno de prueba)
 import 'package:canaan_app/servicios/radio.dart'; // Control de la radio (para cambiarlo por uno de prueba)
 import 'dart:async'; // StreamController (estados de la radio de mentira)
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Caja fuerte (en pruebas, una de mentira en memoria)
+
+class UbicacionFalsa implements ServicioUbicacion { // Ubicación de mentira: siempre responde el mismo punto
+  UbicacionFalsa(this.punto); // Constructor
+  Coordenadas? punto; // Dónde "está" el teléfono (null = sin permiso)
+  int consultas = 0; // Cuántas veces se pidió la ubicación
+
+  @override // Cumple la plantilla
+  Future<Coordenadas?> posicionActual() async { consultas++; return punto; } // Devuelve el punto
+} // Fin de UbicacionFalsa
 
 class RadioFalsa implements ControlRadio { // Radio de mentira: no suena, solo anota lo que le piden
   final _estados = StreamController<EstadoRadio>.broadcast(); // Canal por donde avisa sus cambios
@@ -37,6 +48,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
   final bool falla; // ¿Simular error?
   final bool radioAlAire; // ¿La radio está al aire en el panel falso?
   bool enVivoEnPanel = true; // ¿Hay transmisión en vivo en el panel falso? (se puede cambiar a mitad de la prueba)
+  bool anuncioAreaAhora = false; // ¿Hay un anuncio "Solo área" en su ventana ahora mismo?
 
   @override // Reemplaza el método real
   Future<List<Anuncio>> obtenerAnuncios() async { // Anuncios falsos
@@ -44,6 +56,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
     return [ // Tres anuncios:
       Anuncio.desdeJson({'id': 1, 'titulo': 'Ayuno congregacional', 'mensaje': 'Este sábado de 6 am a 12 md.', 'tipo': 'todos', 'programacion': {'fecha_inicio': '2026-10-31', 'fecha_fin': '2026-10-31'}, 'visible_hasta': null}), // Para todos: SE MUESTRA
       Anuncio.desdeJson({'id': 2, 'titulo': 'Bienvenido al templo', 'mensaje': 'Gracias por venir.', 'tipo': 'area'}), // Solo área: NO se muestra (geocerca, Paso 10)
+      if (anuncioAreaAhora) Anuncio.desdeJson({'id': 9, 'titulo': 'Santa Cena hoy', 'mensaje': 'Pasa al frente al terminar la prédica.', 'tipo': 'area', 'ventana': {'inicia_en': DateTime.now().subtract(const Duration(hours: 1)).toIso8601String(), 'termina_en': DateTime.now().add(const Duration(hours: 2)).toIso8601String()}}), // De área, en su ventana
       Anuncio.desdeJson({'id': 3, 'titulo': 'Anuncio vencido', 'mensaje': 'Ya pasó.', 'tipo': 'todos', 'visible_hasta': '2020-01-01T00:00:00-06:00'}), // Vencido: NO se muestra
     ]; // Fin de la lista
   } // Fin de obtenerAnuncios
@@ -96,6 +109,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
     if (falla) throw Exception('sin internet'); // Simula el error
     return Iglesia.desdeJson({ // JSON igual al de la API
       'nombre': 'Ministerio Cristiano Canaán', // Nombre
+      'ubicacion': {'latitud': 13.6929, 'longitud': -89.2182, 'radio_metros': 200}, // Templo en San Salvador, radio 200 m
       'en_vivo': {'activo': enVivoEnPanel, 'titulo': 'Culto dominical', 'youtube_id': 'envivo123'}, // Transmisión activa
       if (radioAlAire) 'radio': {'disponible': true, 'titulo': 'Culto dominical', 'stream_url': 'https://radio.ejemplo/canaan', 'modo': 'siempre'}, // Radio 24/7
  // Transmisión activa
@@ -321,4 +335,43 @@ void main() { // Punto de arranque de las pruebas
     await tester.pumpAndSettle(); // Espera
     expect(find.text('Ver transmisión'), findsNothing); // Al volver se actualizó enseguida: ya no hay botón
   }); // Fin de la prueba 13
+  test('Distancia: 100 m al norte del templo están a ~100 m', () { // Prueba 14 (fórmula)
+    final metros = Geocerca.distanciaMetros(13.6929, -89.2182, 13.6929 + 0.000899, -89.2182); // 0.000899° de latitud ≈ 100 m
+    expect(metros, closeTo(100, 2)); // 100 m ± 2
+  }); // Fin de la prueba 14
+
+  testWidgets('Geocerca: sin anuncios de área NO pide la ubicación', (WidgetTester tester) async { // Prueba 15
+    final gps = UbicacionFalsa(const Coordenadas(13.6929, -89.2182)); // "En el templo"
+    ServicioUbicacion.crear = () => gps; // La app usará la de mentira
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Sin anuncio de área en ventana
+    await tester.pumpAndSettle(); // Espera
+    expect(gps.consultas, 0); // Nunca pidió la ubicación
+  }); // Fin de la prueba 15
+
+  testWidgets('Geocerca: en el templo muestra la bienvenida UNA vez y deja la tarjeta', (WidgetTester tester) async { // Prueba 16
+    final gps = UbicacionFalsa(const Coordenadas(13.6930, -89.2183)); // ~15 m del templo
+    ServicioUbicacion.crear = () => gps; // Ubicación de mentira
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa()..anuncioAreaAhora = true)); // Con anuncio de área en ventana
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('¡Qué bueno que estás aquí!'), findsOneWidget); // Ventana de bienvenida
+    expect(find.descendant(of: find.byType(AlertDialog), matching: find.text('Pasa al frente al terminar la prédica.')), findsOneWidget); // Con el anuncio dentro de la ventana
+    await tester.tap(find.text('Entendido')); // La cierra
+    await tester.pumpAndSettle(); // Espera
+    await tester.scrollUntilVisible(find.text('📍 En la iglesia'), 200); // Baja hasta la tarjeta
+    expect(find.text('Santa Cena hoy'), findsOneWidget); // La tarjeta quedó en Inicio
+    await tester.pump(const Duration(seconds: 91)); // Siguiente actualización automática...
+    await tester.pumpAndSettle(); // ...
+    expect(find.text('¡Qué bueno que estás aquí!'), findsNothing); // ...NO repite la bienvenida
+    expect(gps.consultas, 1); // ...ni vuelve a pedir la ubicación (ya se mostró)
+  }); // Fin de la prueba 16
+
+  testWidgets('Geocerca: lejos del templo no muestra nada', (WidgetTester tester) async { // Prueba 17
+    final gps = UbicacionFalsa(const Coordenadas(13.7100, -89.2182)); // ~1.9 km al norte
+    ServicioUbicacion.crear = () => gps; // Ubicación de mentira
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa()..anuncioAreaAhora = true)); // Con anuncio de área en ventana
+    await tester.pumpAndSettle(); // Espera
+    expect(gps.consultas, 1); // Sí pidió la ubicación (había anuncio de área)
+    expect(find.text('¡Qué bueno que estás aquí!'), findsNothing); // Pero está lejos: nada
+    expect(find.text('Santa Cena hoy'), findsNothing); // Ni tarjeta
+  }); // Fin de la prueba 17
 } // Fin de main

@@ -6,6 +6,11 @@ class Iglesia { // Molde con los datos que usa la app
   final EnVivo enVivo; // Datos de la transmisión en vivo
   final AvisoUrgente avisoUrgente; // Aviso urgente (si hay uno activo)
   final RadioIglesia radio; // Datos de la radio en línea
+  final double? latitud; // Ubicación del templo (para la geocerca; null si no se ha configurado)
+  final double? longitud; // Ubicación del templo
+  final int radioMetros; // Distancia que cuenta como "estar en la iglesia"
+
+  bool get tieneUbicacion => latitud != null && longitud != null; // ¿Se configuró la ubicación en el panel?
 
   bool get radioDisponible => radio.disponible; // Atajo: true si la radio está al aire en la app
 
@@ -15,6 +20,9 @@ class Iglesia { // Molde con los datos que usa la app
     required this.enVivo, // Obligatorio
     required this.avisoUrgente, // Obligatorio
     required this.radio, // Obligatorio
+    this.latitud, // Opcional
+    this.longitud, // Opcional
+    this.radioMetros = 200, // Por defecto 200 m
   }); // Fin del constructor
 
   factory Iglesia.desdeJson(Map<String, dynamic> json) { // Convierte el JSON de la API en un objeto Iglesia
@@ -23,7 +31,10 @@ class Iglesia { // Molde con los datos que usa la app
       logoUrl: json['logo_url'] as String?, // ...el logo (puede ser null)
       enVivo: EnVivo.desdeJson(json['en_vivo'] as Map<String, dynamic>? ?? {}), // ...el bloque en_vivo (si falta, vacío)
       avisoUrgente: AvisoUrgente.desdeJson(json['aviso_urgente'] as Map<String, dynamic>? ?? {}), // ...el aviso urgente
-      radio: RadioIglesia.desdeJson(json['radio'] as Map<String, dynamic>? ?? {}), // ...y la radio
+      radio: RadioIglesia.desdeJson(json['radio'] as Map<String, dynamic>? ?? {}), // ...la radio
+      latitud: ((json['ubicacion'] as Map<String, dynamic>?)?['latitud'] as num?)?.toDouble(), // ...la latitud del templo (num → decimal)
+      longitud: ((json['ubicacion'] as Map<String, dynamic>?)?['longitud'] as num?)?.toDouble(), // ...la longitud
+      radioMetros: ((json['ubicacion'] as Map<String, dynamic>?)?['radio_metros'] as num?)?.toInt() ?? 200, // ...y el radio en metros
     ); // Fin del objeto
   } // Fin de desdeJson
 } // Fin de Iglesia
