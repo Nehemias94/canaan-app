@@ -5,14 +5,16 @@ class Iglesia { // Molde con los datos que usa la app
   final String? logoUrl; // Enlace del logo (null si no se ha subido; el "?" significa que puede venir vacío)
   final EnVivo enVivo; // Datos de la transmisión en vivo
   final AvisoUrgente avisoUrgente; // Aviso urgente (si hay uno activo)
-  final bool radioDisponible; // true si la radio está al aire en la app
+  final RadioIglesia radio; // Datos de la radio en línea
+
+  bool get radioDisponible => radio.disponible; // Atajo: true si la radio está al aire en la app
 
   const Iglesia({ // Constructor: pide todos los datos con su nombre
     required this.nombre, // Obligatorio
     required this.logoUrl, // Obligatorio (aunque puede ser null)
     required this.enVivo, // Obligatorio
     required this.avisoUrgente, // Obligatorio
-    required this.radioDisponible, // Obligatorio
+    required this.radio, // Obligatorio
   }); // Fin del constructor
 
   factory Iglesia.desdeJson(Map<String, dynamic> json) { // Convierte el JSON de la API en un objeto Iglesia
@@ -21,7 +23,7 @@ class Iglesia { // Molde con los datos que usa la app
       logoUrl: json['logo_url'] as String?, // ...el logo (puede ser null)
       enVivo: EnVivo.desdeJson(json['en_vivo'] as Map<String, dynamic>? ?? {}), // ...el bloque en_vivo (si falta, vacío)
       avisoUrgente: AvisoUrgente.desdeJson(json['aviso_urgente'] as Map<String, dynamic>? ?? {}), // ...el aviso urgente
-      radioDisponible: (json['radio'] as Map<String, dynamic>?)?['disponible'] == true, // ...y si la radio está disponible
+      radio: RadioIglesia.desdeJson(json['radio'] as Map<String, dynamic>? ?? {}), // ...y la radio
     ); // Fin del objeto
   } // Fin de desdeJson
 } // Fin de Iglesia
@@ -59,3 +61,23 @@ class AvisoUrgente { // Aviso urgente que el panel puede mostrar en la app
     ); // Fin del objeto
   } // Fin de desdeJson
 } // Fin de AvisoUrgente
+
+class RadioIglesia { // Radio en línea de la iglesia (bloque "radio" de /api/iglesia)
+  final bool disponible; // true = está al aire en la app (24/7, o encendida desde el panel)
+  final String? titulo; // Ej: "Culto dominical" o "Radio Canaán"
+  final String? streamUrl; // Enlace del audio (lo que se reproduce)
+  final String? modo; // "manual" (solo en cultos) o "siempre" (24/7)
+  final DateTime? hasta; // Hora en que se apaga sola (solo en modo manual)
+
+  const RadioIglesia({required this.disponible, this.titulo, this.streamUrl, this.modo, this.hasta}); // Constructor
+
+  factory RadioIglesia.desdeJson(Map<String, dynamic> json) { // Convierte el JSON en RadioIglesia
+    return RadioIglesia( // Crea el objeto
+      disponible: json['disponible'] == true, // ¿Al aire?
+      titulo: json['titulo'] as String?, // Título
+      streamUrl: json['stream_url'] as String?, // Enlace del audio
+      modo: json['modo'] as String?, // Modo
+      hasta: DateTime.tryParse(json['hasta'] as String? ?? '')?.toLocal(), // Hora de apagado, convertida a la hora del teléfono (null si no hay)
+    ); // Fin del objeto
+  } // Fin de desdeJson
+} // Fin de RadioIglesia

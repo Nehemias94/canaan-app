@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 
+import '../servicios/api.dart'; // Llamadas a la API (se pasa al formulario de peticiones)
 import '../servicios/registro.dart'; // Registro del teléfono en el panel
 import '../tema.dart'; // Colores de Canaán
+import 'peticion.dart'; // Formulario "Petición de oración"
+import 'radio.dart'; // Pantalla de la radio
 
 class PantallaMas extends StatefulWidget { // Pestaña "Más": opciones extra (se irán activando en los próximos pasos)
-  const PantallaMas({super.key, required this.registro}); // Constructor: recibe el registro del teléfono
+  const PantallaMas({super.key, required this.api, required this.registro}); // Constructor: recibe la API y el registro del teléfono
 
+  final Api api; // Para enviar peticiones de oración
   final RegistroDispositivo registro; // Para mostrar si el teléfono quedó registrado
 
   @override // Reemplaza createState
@@ -25,12 +29,6 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
     setState(() => _registro = widget.registro.reintentar()); // Nuevo intento y redibuja
   } // Fin de _reintentar
 
-  void _proximamente(String que) { // Muestra un aviso abajo para lo que aún no está hecho
-    ScaffoldMessenger.of(context).showSnackBar( // Barra de aviso temporal
-      SnackBar(content: Text('$que estará disponible pronto.')), // Texto del aviso
-    ); // Fin del aviso
-  } // Fin de _proximamente
-
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
     return Scaffold( // Estructura de la pantalla
@@ -41,13 +39,18 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
             leading: const Icon(Icons.headphones, color: azulCanaan), // Ícono de audífonos
             title: const Text('Escuchar radio'), // Texto
             subtitle: const Text('Radio en línea de la iglesia'), // Explicación
-            onTap: () => _proximamente('La radio'), // Al tocar: "próximamente"
+            trailing: const Icon(Icons.chevron_right), // Flechita: abre otra pantalla
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaRadio(api: widget.api))), // Al tocar, abre la radio
           ), // Fin de la opción
           ListTile( // Opción: Peticiones de oración
             leading: const Icon(Icons.volunteer_activism, color: azulCanaan), // Ícono de manos
             title: const Text('Petición de oración'), // Texto
             subtitle: const Text('Envía tu petición (puede ser anónima)'), // Explicación
-            onTap: () => _proximamente('El envío de peticiones'), // Al tocar: "próximamente"
+            trailing: const Icon(Icons.chevron_right), // Flechita: indica que abre otra pantalla
+            onTap: () => Navigator.push( // Al tocar, abre el formulario encima (con flecha para volver)
+              context, // Desde aquí
+              MaterialPageRoute(builder: (context) => PantallaPeticion(api: widget.api, registro: widget.registro)), // Pantalla a abrir
+            ), // Fin de Navigator.push
           ), // Fin de la opción
           const Divider(), // Línea separadora
           FutureBuilder<void>( // Fila del estado del registro: cambia según cómo va

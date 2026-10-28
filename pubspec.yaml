@@ -37,6 +37,8 @@ dependencies:
   http: ^1.6.0
   uuid: ^4.6.0
   flutter_secure_storage: ^11.2.0
+  youtube_player_iframe: ^6.0.2
+  just_audio: ^0.10.6
 
 dev_dependencies:
   flutter_test:

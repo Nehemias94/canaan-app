@@ -3,12 +3,16 @@ import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 import '../componentes/estados.dart'; // Vistas compartidas: Cargando, ErrorConexion
 import '../modelos/iglesia.dart'; // Molde de los datos de la iglesia
 import '../servicios/api.dart'; // Llamadas a la API
+import '../servicios/registro.dart'; // Registro del teléfono (para las señales del en vivo)
 import '../tema.dart'; // Colores de Canaán
+import 'radio.dart'; // Pantalla de la radio
+import 'video.dart'; // Pantalla del video (transmisión en vivo)
 
 class PantallaInicio extends StatefulWidget { // Pestaña "Inicio"; "Stateful" porque cambia (cargando → datos o error)
-  const PantallaInicio({super.key, required this.api}); // Constructor: recibe la API (en pruebas, una falsa)
+  const PantallaInicio({super.key, required this.api, required this.registro}); // Constructor: recibe la API (en pruebas, una falsa) y el registro
 
   final Api api; // De dónde se sacan los datos
+  final RegistroDispositivo registro; // Para las señales del en vivo
 
   @override // Reemplaza createState
   State<PantallaInicio> createState() => _PantallaInicioState(); // Crea el estado de la pantalla
@@ -46,7 +50,7 @@ class _PantallaInicioState extends State<PantallaInicio> { // Estado de la pesta
             if (estado.hasError) return ErrorConexion(alReintentar: _recargar, claro: true); // Falló
             return RefreshIndicator( // Permite "jalar hacia abajo" para actualizar
               onRefresh: _recargar, // Qué hacer al jalar
-              child: _DatosIglesia(iglesia: estado.data!), // Los datos ("!" = seguro que no es null)
+              child: _DatosIglesia(iglesia: estado.data!, api: widget.api, registro: widget.registro), // Los datos ("!" = seguro que no es null)
             ); // Fin de RefreshIndicator
           }, // Fin de builder
         ), // Fin de FutureBuilder
@@ -56,9 +60,11 @@ class _PantallaInicioState extends State<PantallaInicio> { // Estado de la pesta
 } // Fin de _PantallaInicioState
 
 class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando llegaron los datos
-  const _DatosIglesia({required this.iglesia}); // Constructor
+  const _DatosIglesia({required this.iglesia, required this.api, required this.registro}); // Constructor
 
   final Iglesia iglesia; // Datos de la iglesia
+  final Api api; // Se pasa a la pantalla del video
+  final RegistroDispositivo registro; // Se pasa a la pantalla del video
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
@@ -83,8 +89,33 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
             fondo: Colors.red, // Rojo
             letras: Colors.white, // Letras blancas
           ), // Fin de la etiqueta
+        if (iglesia.enVivo.activo && iglesia.enVivo.youtubeId != null) // Si hay en vivo y tiene video de YouTube...
+          Padding( // ...botón grande para verlo
+            padding: const EdgeInsets.only(top: 4, bottom: 12), // Separación
+            child: Center( // Centrado
+              child: FilledButton.icon( // Botón relleno
+                style: FilledButton.styleFrom(backgroundColor: doradoCanaan, foregroundColor: marinoCanaan, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)), // Dorado con letras marino, grande
+                icon: const Icon(Icons.play_circle_fill), // Ícono de reproducir
+                label: const Text('Ver transmisión', style: TextStyle(fontWeight: FontWeight.bold)), // Texto
+                onPressed: () => Navigator.push( // Abre el video encima
+                  context, // Desde aquí
+                  MaterialPageRoute(builder: (context) => PantallaVideo( // Pantalla del video
+                    api: api, // API
+                    registro: registro, // Registro del teléfono
+                    youtubeId: iglesia.enVivo.youtubeId!, // Video de la transmisión
+                    titulo: iglesia.enVivo.titulo ?? 'Transmisión en vivo', // Título (o uno genérico)
+                    subtitulo: iglesia.nombre, // Nombre de la iglesia
+                    enVivo: true, // Es en vivo: manda señales y muestra cuántos ven
+                  )), // Fin de la ruta
+                ), // Fin de Navigator.push
+              ), // Fin del botón
+            ), // Fin del centrado
+          ), // Fin del margen
         if (iglesia.radioDisponible) // Si la radio está al aire...
-          const _Etiqueta(texto: '🎧 Radio al aire', fondo: doradoCanaan, letras: marinoCanaan), // ...etiqueta dorada
+          GestureDetector( // ...etiqueta dorada que se puede tocar
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaRadio(api: api))), // Al tocar, abre la radio
+            child: const _Etiqueta(texto: '🎧 Radio al aire · Escuchar', fondo: doradoCanaan, letras: marinoCanaan), // Etiqueta dorada
+          ), // Fin de GestureDetector
         if (iglesia.avisoUrgente.activo) // Si hay un aviso urgente vigente...
           Card( // ...tarjeta blanca con el aviso
             margin: const EdgeInsets.only(top: 12), // Separación arriba

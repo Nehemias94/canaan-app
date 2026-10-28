@@ -32,10 +32,10 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
       body: IndexedStack( // Muestra solo la pestaña elegida, pero MANTIENE las otras vivas (no se recargan al volver)
         index: _pestana, // Cuál mostrar
         children: [ // Las 4 pestañas, en el mismo orden que el menú
-          PantallaInicio(api: widget.api), // 0: Inicio
-          PantallaPredicas(api: widget.api), // 1: Prédicas
+          PantallaInicio(api: widget.api, registro: widget.registro), // 0: Inicio
+          PantallaPredicas(api: widget.api, registro: widget.registro), // 1: Prédicas
           PantallaHorario(api: widget.api), // 2: Horario
-          PantallaMas(registro: widget.registro), // 3: Más (muestra si el teléfono está registrado)
+          PantallaMas(api: widget.api, registro: widget.registro), // 3: Más (peticiones de oración y estado del teléfono)
         ], // Fin de las pestañas
       ), // Fin de IndexedStack
       bottomNavigationBar: NavigationBar( // Menú de abajo (estilo Material 3)

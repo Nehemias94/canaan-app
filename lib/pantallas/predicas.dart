@@ -3,12 +3,15 @@ import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 import '../componentes/estados.dart'; // Vistas compartidas: Cargando, ErrorConexion, Vacio
 import '../modelos/predica.dart'; // Molde de una prédica
 import '../servicios/api.dart'; // Llamadas a la API
+import '../servicios/registro.dart'; // Registro del teléfono (para contar las vistas)
 import '../tema.dart'; // Colores y fechaCorta()
+import 'video.dart'; // Pantalla del video
 
 class PantallaPredicas extends StatefulWidget { // Pestaña "Prédicas"
-  const PantallaPredicas({super.key, required this.api}); // Constructor: recibe la API
+  const PantallaPredicas({super.key, required this.api, required this.registro}); // Constructor: recibe la API y el registro
 
   final Api api; // De dónde se sacan los datos
+  final RegistroDispositivo registro; // Para contar las vistas
 
   @override // Reemplaza createState
   State<PantallaPredicas> createState() => _PantallaPredicasState(); // Crea el estado
@@ -68,7 +71,7 @@ class _PantallaPredicasState extends State<PantallaPredicas> { // Estado de la p
                       : ListView.builder( // No: lista (builder = solo dibuja las que se ven, más rápido)
                           padding: const EdgeInsets.all(12), // Margen
                           itemCount: predicas.length, // Cuántas hay
-                          itemBuilder: (context, i) => _TarjetaPredica(predica: predicas[i]), // Dibuja la tarjeta número i
+                          itemBuilder: (context, i) => _TarjetaPredica(predica: predicas[i], api: widget.api, registro: widget.registro), // Dibuja la tarjeta número i
                         ), // Fin de la lista
                 ); // Fin de RefreshIndicator
               }, // Fin de builder
@@ -81,9 +84,27 @@ class _PantallaPredicasState extends State<PantallaPredicas> { // Estado de la p
 } // Fin de _PantallaPredicasState
 
 class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la lista
-  const _TarjetaPredica({required this.predica}); // Constructor
+  const _TarjetaPredica({required this.predica, required this.api, required this.registro}); // Constructor
 
   final Predica predica; // Datos de la prédica
+  final Api api; // Se pasa a la pantalla del video
+  final RegistroDispositivo registro; // Se pasa a la pantalla del video
+
+  void _abrir(BuildContext context) { // Al tocar la tarjeta
+    if (predica.youtubeId == null) return _verDetalle(context); // Sin video: solo muestra la descripción
+    Navigator.push( // Con video: abre el reproductor encima
+      context, // Desde aquí
+      MaterialPageRoute(builder: (context) => PantallaVideo( // Pantalla del video
+        api: api, // API
+        registro: registro, // Registro del teléfono
+        youtubeId: predica.youtubeId!, // Video
+        titulo: predica.titulo, // Título
+        subtitulo: _subtitulo(), // Predicador · fecha
+        descripcion: predica.descripcion, // Descripción
+        predicaId: predica.id, // Para contar la vista
+      )), // Fin de la ruta
+    ); // Fin de Navigator.push
+  } // Fin de _abrir
 
   void _verDetalle(BuildContext context) { // Muestra el detalle en una hoja que sube desde abajo
     showModalBottomSheet( // Hoja inferior
@@ -101,11 +122,6 @@ class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la
             Text(_subtitulo(), style: const TextStyle(color: Colors.black54)), // Predicador · fecha
             const SizedBox(height: 16), // Espacio
             Text(predica.descripcion ?? 'Sin descripción.'), // Descripción
-            const SizedBox(height: 16), // Espacio
-            const Text( // Aviso temporal
-              'El reproductor de video llegará en un próximo paso.', // Se hará con el reproductor de YouTube
-              style: TextStyle(color: Colors.black45, fontStyle: FontStyle.italic), // Gris y en cursiva
-            ), // Fin del aviso
           ], // Fin de los elementos
         ), // Fin de la columna
       ), // Fin del contenido
@@ -126,7 +142,7 @@ class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la
           ? RoundedRectangleBorder(side: const BorderSide(color: doradoCanaan, width: 2), borderRadius: BorderRadius.circular(12)) // Sí: borde dorado
           : null, // No: borde normal
       child: InkWell( // Hace que la tarjeta reaccione al toque (efecto de onda)
-        onTap: () => _verDetalle(context), // Al tocar, muestra el detalle
+        onTap: () => _abrir(context), // Al tocar: abre el video (o la descripción si no tiene video)
         child: Column( // Imagen arriba y textos abajo
           crossAxisAlignment: CrossAxisAlignment.start, // Alineados a la izquierda
           children: [ // Elementos

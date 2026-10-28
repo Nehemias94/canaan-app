@@ -46,6 +46,17 @@ class RegistroDispositivo { // Se encarga de que el teléfono esté siempre regi
     numero = await api.verificarToken(nuevoToken); // Confirma que funciona y anota el número del teléfono
   } // Fin de _registrar
 
+  Future<T> conLlave<T>(Future<T> Function(String token) accion) async { // Ejecuta una llamada que necesita la llave; si el panel la rechaza (401), se registra de nuevo y repite UNA vez ("T" = cualquier tipo de respuesta)
+    await iniciar(); // Se asegura de que el teléfono esté registrado
+    try { // Primer intento
+      return await accion((await token())!); // Llama con la llave guardada ("!" = ya existe porque iniciar() terminó bien)
+    } on ErrorApi catch (error) { // Si el panel respondió con error...
+      if (error.codigo != 401) rethrow; // ...y NO es "llave inválida", se avisa tal cual
+      await reintentar(); // Llave inválida: se registra de nuevo...
+      return accion((await token())!); // ...y repite con la llave nueva
+    } // Fin del try
+  } // Fin de conLlave
+
   Future<void> asegurar() async { // Lo que se llama al abrir la app: deja el teléfono registrado
     final guardado = await token(); // ¿Ya hay llave guardada?
     if (guardado == null) return _registrar(); // No: primera vez → registrarse
