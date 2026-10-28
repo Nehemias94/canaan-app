@@ -1,6 +1,8 @@
+import 'package:firebase_messaging/firebase_messaging.dart'; // RemoteMessage (una notificación recibida)
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 
 import '../servicios/api.dart'; // Llamadas a la API (se pasa a cada pestaña)
+import '../servicios/notificaciones.dart'; // Notificaciones (Firebase)
 import '../servicios/registro.dart'; // Registro del teléfono en el panel
 import 'horario.dart'; // Pestaña Horario
 import 'inicio.dart'; // Pestaña Inicio
@@ -23,8 +25,28 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
   @override // Reemplaza initState
   void initState() { // Se ejecuta una vez, al abrir la app
     super.initState(); // Lo de Flutter por defecto
-    widget.registro.iniciar().catchError((_) {}); // Registra el teléfono en segundo plano (si falla, Más lo muestra y deja reintentar)
+    widget.registro.iniciar().then((_) => ServicioNotificaciones.iniciar( // Registra el teléfono en segundo plano y, al terminar, activa las notificaciones
+          api: widget.api, // API
+          registro: widget.registro, // Registro
+          alRecibir: _mostrarNotificacion, // Llega con la app abierta: aviso abajo
+          alTocar: (_) => _irAInicio(), // La tocó: abre Inicio
+        )).catchError((_) {}); // Si falla el registro, Más lo muestra y deja reintentar (las notificaciones se activarán la próxima vez)
   } // Fin de initState
+
+  void _irAInicio() { // Cambia a la pestaña Inicio (ahí se ven el en vivo, el aviso urgente y los anuncios)
+    if (mounted) setState(() => _pestana = 0); // Pestaña 0 = Inicio
+  } // Fin de _irAInicio
+
+  void _mostrarNotificacion(RemoteMessage mensaje) { // Con la app abierta, el teléfono NO muestra la notificación: la mostramos nosotros
+    if (!mounted) return; // Si la pantalla ya no existe, nada
+    final titulo = mensaje.notification?.title ?? 'Canaán'; // Título (o el nombre de la app)
+    final texto = mensaje.notification?.body ?? ''; // Texto
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar( // Barra de aviso abajo
+      content: Text(texto.isEmpty ? titulo : '$titulo\n$texto'), // Título y texto en dos líneas
+      duration: const Duration(seconds: 8), // Visible 8 segundos
+      action: SnackBarAction(label: 'Ver', onPressed: _irAInicio), // Botón "Ver" → Inicio
+    )); // Fin del aviso
+  } // Fin de _mostrarNotificacion
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve

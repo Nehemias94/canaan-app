@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permisos que pide la app -->
+    <uses-permission android:name="android.permission.INTERNET" /> <!-- Conectarse al panel, YouTube y la radio (sin esto, el APK final no tendría internet) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" /> <!-- Mostrar notificaciones (Android 13 o más nuevo pregunta a la persona) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" /> <!-- Ubicación precisa: saber si está en la iglesia (anuncios "Solo área", Paso 10) -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" /> <!-- Ubicación aproximada (si la persona no permite la precisa) -->
     <application
         android:label="Canaán"
         android:name="${applicationName}"

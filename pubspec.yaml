@@ -39,6 +39,8 @@ dependencies:
   flutter_secure_storage: ^11.2.0
   youtube_player_iframe: ^6.0.2
   just_audio: ^0.10.6
+  firebase_core: ^5.1.0
+  firebase_messaging: ^17.0.1
 
 dev_dependencies:
   flutter_test:

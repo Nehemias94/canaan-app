@@ -119,6 +119,17 @@ class Api { // Todas las llamadas a la API del panel se hacen desde aquí
     await _enviarConToken('en-vivo/salir', token); // Avisa al panel
   } // Fin de salirEnVivo
 
+  Future<void> guardarFcmToken({required String token, required String? fcmToken}) async { // Envía al panel la dirección de notificaciones (POST /api/dispositivos/notificaciones)
+    final respuesta = await http // Hace la petición...
+        .post( // ...de tipo POST
+          Uri.parse('$apiBase/dispositivos/notificaciones'), // Dirección
+          headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': 'Bearer $token'}, // JSON + llave del teléfono
+          body: jsonEncode({'fcm_token': fcmToken}), // La dirección de Firebase (null = sin notificaciones)
+        ) // Fin del post
+        .timeout(tiempoMaximoEspera); // Tiempo máximo
+    _revisar(respuesta); // Revisa (lanza ErrorApi si falló)
+  } // Fin de guardarFcmToken
+
   Future<int> verificarToken(String token) async { // Comprueba que el token sigue sirviendo (GET /api/dispositivos/yo); devuelve el número del teléfono
     final json = await _leer('dispositivos/yo', null, token); // Pide los datos del teléfono con su llave (401 si no sirve)
     return json['id'] as int; // Número del teléfono en el panel
