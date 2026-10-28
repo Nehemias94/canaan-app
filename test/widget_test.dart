@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart'; // Herramientas de pruebas auto
 
 import 'package:canaan_app/main.dart'; // Nuestra app
 import 'package:canaan_app/modelos/actividad.dart'; // Molde de una actividad
+import 'package:canaan_app/modelos/anuncio.dart'; // Molde de un anuncio
 import 'package:canaan_app/modelos/iglesia.dart'; // Molde de los datos de la iglesia
 import 'package:canaan_app/modelos/predica.dart'; // Molde de una prédica
 import 'package:canaan_app/servicios/api.dart'; // La API real (de ella se hereda la falsa)
@@ -35,6 +36,17 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
 
   final bool falla; // ¿Simular error?
   final bool radioAlAire; // ¿La radio está al aire en el panel falso?
+  bool enVivoEnPanel = true; // ¿Hay transmisión en vivo en el panel falso? (se puede cambiar a mitad de la prueba)
+
+  @override // Reemplaza el método real
+  Future<List<Anuncio>> obtenerAnuncios() async { // Anuncios falsos
+    if (falla) throw Exception('sin internet'); // Simula el error
+    return [ // Tres anuncios:
+      Anuncio.desdeJson({'id': 1, 'titulo': 'Ayuno congregacional', 'mensaje': 'Este sábado de 6 am a 12 md.', 'tipo': 'todos', 'programacion': {'fecha_inicio': '2026-10-31', 'fecha_fin': '2026-10-31'}, 'visible_hasta': null}), // Para todos: SE MUESTRA
+      Anuncio.desdeJson({'id': 2, 'titulo': 'Bienvenido al templo', 'mensaje': 'Gracias por venir.', 'tipo': 'area'}), // Solo área: NO se muestra (geocerca, Paso 10)
+      Anuncio.desdeJson({'id': 3, 'titulo': 'Anuncio vencido', 'mensaje': 'Ya pasó.', 'tipo': 'todos', 'visible_hasta': '2020-01-01T00:00:00-06:00'}), // Vencido: NO se muestra
+    ]; // Fin de la lista
+  } // Fin de obtenerAnuncios
   int registros = 0; // Cuántas veces se registró el teléfono
   final tokensValidos = <String>{}; // Llaves que el panel falso acepta
 
@@ -84,7 +96,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
     if (falla) throw Exception('sin internet'); // Simula el error
     return Iglesia.desdeJson({ // JSON igual al de la API
       'nombre': 'Ministerio Cristiano Canaán', // Nombre
-      'en_vivo': {'activo': true, 'titulo': 'Culto dominical', 'youtube_id': 'envivo123'}, // Transmisión activa
+      'en_vivo': {'activo': enVivoEnPanel, 'titulo': 'Culto dominical', 'youtube_id': 'envivo123'}, // Transmisión activa
       if (radioAlAire) 'radio': {'disponible': true, 'titulo': 'Culto dominical', 'stream_url': 'https://radio.ejemplo/canaan', 'modo': 'siempre'}, // Radio 24/7
  // Transmisión activa
     }); // Fin de los datos
@@ -283,4 +295,30 @@ void main() { // Punto de arranque de las pruebas
     await tester.pumpAndSettle(); // Espera
     expect(api.salidas, 0); // No hace falta avisar "salir" (la transmisión ya terminó)
   }); // Fin de la prueba 11
+  testWidgets('Inicio muestra solo los anuncios para todos y vigentes', (WidgetTester tester) async { // Prueba 12
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    await tester.scrollUntilVisible(find.text('Ayuno congregacional'), 200); // Baja hasta el anuncio
+    expect(find.text('ANUNCIOS'), findsOneWidget); // Encabezado de la sección
+    expect(find.text('Este sábado de 6 am a 12 md.'), findsOneWidget); // Su mensaje
+    expect(find.text('31 oct 2026'), findsOneWidget); // Su fecha (un solo día)
+    expect(find.text('Bienvenido al templo'), findsNothing); // El de área NO
+    expect(find.text('Anuncio vencido'), findsNothing); // El vencido NO
+  }); // Fin de la prueba 12
+
+  testWidgets('Inicio se actualiza solo: aparece el en vivo sin tocar nada', (WidgetTester tester) async { // Prueba 13
+    final api = ApiFalsa()..enVivoEnPanel = false; // Panel SIN transmisión al abrir
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Ver transmisión'), findsNothing); // No hay botón
+    api.enVivoEnPanel = true; // En el panel: "Iniciar en vivo"
+    await tester.pump(const Duration(seconds: 91)); // Pasan 91 segundos (la app revisa cada 90)...
+    await tester.pumpAndSettle(); // ...y se redibuja
+    expect(find.text('Ver transmisión'), findsOneWidget); // Apareció el botón solo
+    api.enVivoEnPanel = false; // En el panel: "Finalizar"
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive); // La persona sale de la app...
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed); // ...y vuelve
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Ver transmisión'), findsNothing); // Al volver se actualizó enseguida: ya no hay botón
+  }); // Fin de la prueba 13
 } // Fin de main

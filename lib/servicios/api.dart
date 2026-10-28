@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http; // Paquete para hacer peticiones a inte
 
 import '../config.dart'; // Dirección de la API y tiempo máximo de espera
 import '../modelos/actividad.dart'; // Molde de una actividad del horario
+import '../modelos/anuncio.dart'; // Molde de un anuncio
 import '../modelos/iglesia.dart'; // Molde de los datos de la iglesia
 import '../modelos/predica.dart'; // Molde de una prédica
 
@@ -137,6 +138,13 @@ class Api { // Todas las llamadas a la API del panel se hacen desde aquí
         .map((p) => Predica.desdeJson(p as Map<String, dynamic>)) // ...cada elemento se convierte en Predica...
         .toList(); // ...y se devuelve como lista
   } // Fin de obtenerPredicas
+
+  Future<List<Anuncio>> obtenerAnuncios() async { // Anuncios visibles (GET /api/anuncios), los más recientes primero
+    final json = await _leer('anuncios'); // Pide la lista
+    return (json['data'] as List) // La lista viene dentro de "data"...
+        .map((a) => Anuncio.desdeJson(a as Map<String, dynamic>)) // ...cada elemento se convierte en Anuncio...
+        .toList(); // ...y se devuelve como lista
+  } // Fin de obtenerAnuncios
 
   Future<List<Actividad>> obtenerActividades() async { // Horario de cultos (GET /api/actividades), ya ordenado por día y hora
     final json = await _leer('actividades'); // Pide la lista

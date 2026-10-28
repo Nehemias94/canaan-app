@@ -1,6 +1,10 @@
+import 'dart:async'; // Timer (actualizar cada 90 s)
+
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 
 import '../componentes/estados.dart'; // Vistas compartidas: Cargando, ErrorConexion
+import '../config.dart'; // intervaloActualizacion
+import '../modelos/anuncio.dart'; // Molde de un anuncio
 import '../modelos/iglesia.dart'; // Molde de los datos de la iglesia
 import '../servicios/api.dart'; // Llamadas a la API
 import '../servicios/registro.dart'; // Registro del teléfono (para las señales del en vivo)
@@ -18,19 +22,53 @@ class PantallaInicio extends StatefulWidget { // Pestaña "Inicio"; "Stateful" p
   State<PantallaInicio> createState() => _PantallaInicioState(); // Crea el estado de la pantalla
 } // Fin de PantallaInicio
 
-class _PantallaInicioState extends State<PantallaInicio> { // Estado de la pestaña Inicio
-  late Future<Iglesia> _peticion; // Petición en curso ("late": se le da valor en initState)
+class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObserver { // Estado de Inicio; "WidgetsBindingObserver" = se entera cuando la app vuelve a primer plano
+  Iglesia? _iglesia; // Últimos datos de la iglesia (null hasta la primera respuesta)
+  List<Anuncio> _anuncios = []; // Últimos anuncios recibidos
+  bool _fallo = false; // true si la PRIMERA carga falló (luego, si falla, se conservan los datos anteriores)
+  Timer? _reloj; // Reloj que vuelve a preguntar al panel cada 90 s
 
   @override // Reemplaza initState
   void initState() { // Se ejecuta una sola vez, al crear la pantalla
     super.initState(); // Lo que hace Flutter por defecto
-    _peticion = widget.api.obtenerIglesia(); // Empieza a pedir los datos apenas se abre
+    WidgetsBinding.instance.addObserver(this); // Empieza a escuchar si la app se minimiza o vuelve
+    _cargar(); // Primera carga
+    _reloj = Timer.periodic(intervaloActualizacion, (_) => _cargar()); // Luego, cada 90 s, en silencio
   } // Fin de initState
 
-  Future<void> _recargar() async { // Vuelve a pedir los datos (botón Reintentar o jalar hacia abajo)
-    setState(() => _peticion = widget.api.obtenerIglesia()); // Nueva petición y redibuja
-    try { await _peticion; } catch (_) {} // Espera a que termine (si falla, el FutureBuilder ya muestra el error)
-  } // Fin de _recargar
+  @override // Reemplaza dispose
+  void dispose() { // Al cerrar la pantalla
+    _reloj?.cancel(); // Detiene el reloj
+    WidgetsBinding.instance.removeObserver(this); // Deja de escuchar
+    super.dispose(); // Lo de Flutter por defecto
+  } // Fin de dispose
+
+  @override // Reemplaza didChangeAppLifecycleState
+  void didChangeAppLifecycleState(AppLifecycleState estado) { // Se llama cuando la app cambia de estado (minimizada, de vuelta…)
+    if (estado == AppLifecycleState.resumed) _cargar(); // Al volver a la app, actualiza enseguida (pudo empezar un en vivo)
+  } // Fin de didChangeAppLifecycleState
+
+  Future<void> _cargar() async { // Pide iglesia y anuncios al mismo tiempo y actualiza la pantalla
+    try { // Intenta
+      final iglesia = widget.api.obtenerIglesia(); // Arranca la petición de la iglesia...
+      final anuncios = widget.api.obtenerAnuncios().catchError((_) => <Anuncio>[]); // ...y la de anuncios a la vez (si esta falla, sin anuncios: no tumba Inicio)
+      final datos = await iglesia; // Espera la iglesia
+      final lista = await anuncios; // Espera los anuncios
+      if (!mounted) return; // Si la pantalla ya se cerró, no hace nada
+      setState(() { // Redibuja con lo nuevo
+        _iglesia = datos; // Datos de la iglesia
+        _anuncios = lista.where((a) => a.esParaTodos && a.vigente(DateTime.now())).toList(); // Solo los de "Todos" que siguen vigentes
+        _fallo = false; // Sin error
+      }); // Fin de setState
+    } catch (_) { // Falló (sin internet, servidor dormido)
+      if (mounted && _iglesia == null) setState(() => _fallo = true); // Solo muestra el error si no había nada en pantalla
+    } // Fin del try
+  } // Fin de _cargar
+
+  Future<void> _reintentar() async { // Botón "Reintentar"
+    setState(() => _fallo = false); // Vuelve a mostrar "Conectando…"
+    await _cargar(); // Intenta otra vez
+  } // Fin de _reintentar
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
@@ -43,26 +81,24 @@ class _PantallaInicioState extends State<PantallaInicio> { // Estado de la pesta
         ), // Fin del degradado
       ), // Fin del fondo
       child: SafeArea( // Evita la cámara y la barra del teléfono
-        child: FutureBuilder<Iglesia>( // Dibuja según el estado de la petición
-          future: _peticion, // La petición que vigila
-          builder: (context, estado) { // Se llama cada vez que cambia
-            if (estado.connectionState != ConnectionState.done) return const Cargando(claro: true); // Esperando
-            if (estado.hasError) return ErrorConexion(alReintentar: _recargar, claro: true); // Falló
-            return RefreshIndicator( // Permite "jalar hacia abajo" para actualizar
-              onRefresh: _recargar, // Qué hacer al jalar
-              child: _DatosIglesia(iglesia: estado.data!, api: widget.api, registro: widget.registro), // Los datos ("!" = seguro que no es null)
-            ); // Fin de RefreshIndicator
-          }, // Fin de builder
-        ), // Fin de FutureBuilder
+        child: _fallo // ¿Falló la primera carga?
+            ? ErrorConexion(alReintentar: _reintentar, claro: true) // Sí: mensaje y Reintentar
+            : _iglesia == null // ¿Todavía no hay datos?
+                ? const Cargando(claro: true) // Sí: "Conectando…"
+                : RefreshIndicator( // Hay datos: permite "jalar hacia abajo" para actualizar
+                    onRefresh: _cargar, // Qué hacer al jalar
+                    child: _DatosIglesia(iglesia: _iglesia!, anuncios: _anuncios, api: widget.api, registro: widget.registro), // Los datos
+                  ), // Fin de RefreshIndicator
       ), // Fin de SafeArea
     ); // Fin del Container
   } // Fin de build
 } // Fin de _PantallaInicioState
 
 class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando llegaron los datos
-  const _DatosIglesia({required this.iglesia, required this.api, required this.registro}); // Constructor
+  const _DatosIglesia({required this.iglesia, required this.anuncios, required this.api, required this.registro}); // Constructor
 
   final Iglesia iglesia; // Datos de la iglesia
+  final List<Anuncio> anuncios; // Anuncios vigentes (solo "Todos")
   final Api api; // Se pasa a la pantalla del video
   final RegistroDispositivo registro; // Se pasa a la pantalla del video
 
@@ -125,16 +161,69 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
               subtitle: Text(iglesia.avisoUrgente.mensaje ?? ''), // Mensaje
             ), // Fin de la fila
           ), // Fin de la tarjeta
-        if (!iglesia.enVivo.activo && !iglesia.radioDisponible && !iglesia.avisoUrgente.activo) // Si no hay nada de lo anterior...
+        if (!iglesia.enVivo.activo && !iglesia.radioDisponible && !iglesia.avisoUrgente.activo && anuncios.isEmpty) // Si no hay nada que mostrar...
           const Text( // ...confirma que la conexión funciona
             '✓ Conectado con el panel', // Texto
             textAlign: TextAlign.center, // Centrado
             style: TextStyle(color: Colors.white70), // Blanco suave
           ), // Fin del texto
+        if (anuncios.isNotEmpty) // Si hay anuncios...
+          const Padding( // ...encabezado de la sección
+            padding: EdgeInsets.only(top: 24, bottom: 4), // Separación
+            child: Text( // Texto
+              'ANUNCIOS', // Título de la sección
+              style: TextStyle(color: doradoCanaan, fontWeight: FontWeight.bold, letterSpacing: 1.5), // Dorado, negrita, letras separadas
+            ), // Fin del texto
+          ), // Fin del encabezado
+        for (final anuncio in anuncios) _TarjetaAnuncio(anuncio: anuncio), // Una tarjeta por anuncio
       ], // Fin de los elementos
     ); // Fin de la lista
   } // Fin de build
 } // Fin de _DatosIglesia
+
+class _TarjetaAnuncio extends StatelessWidget { // Tarjeta blanca de un anuncio
+  const _TarjetaAnuncio({required this.anuncio}); // Constructor
+
+  final Anuncio anuncio; // Datos del anuncio
+
+  String _fechas() { // "5 oct 2026" o "5 oct 2026 – 12 oct 2026" (según el rango del panel)
+    final inicio = fechaCorta(anuncio.fechaInicio); // Primer día
+    final fin = fechaCorta(anuncio.fechaFin); // Último día
+    if (inicio.isEmpty) return fin; // Sin inicio: solo el fin (o nada)
+    if (fin.isEmpty || fin == inicio) return inicio; // Un solo día
+    return '$inicio – $fin'; // Rango
+  } // Fin de _fechas
+
+  @override // Reemplaza build
+  Widget build(BuildContext context) { // Describe cómo se ve
+    final fechas = _fechas(); // Texto de las fechas
+    return Card( // Tarjeta blanca
+      margin: const EdgeInsets.only(top: 8), // Separación
+      child: Padding( // Margen interno
+        padding: const EdgeInsets.all(14), // 14 por lado
+        child: Column( // Elementos uno debajo del otro
+          crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
+          children: [ // Elementos
+            Row( // Ícono y título en fila
+              children: [ // Elementos
+                const Icon(Icons.campaign_outlined, color: azulCanaan), // Megáfono azul
+                const SizedBox(width: 8), // Espacio
+                Expanded(child: Text(anuncio.titulo, style: Theme.of(context).textTheme.titleMedium)), // Título (ocupa el resto)
+              ], // Fin de los elementos
+            ), // Fin de la fila
+            const SizedBox(height: 6), // Espacio
+            Text(anuncio.mensaje), // Texto del anuncio
+            if (fechas.isNotEmpty) // Si hay fechas...
+              Padding( // ...las muestra en gris
+                padding: const EdgeInsets.only(top: 6), // Separación
+                child: Text(fechas, style: const TextStyle(color: Colors.black54, fontSize: 12)), // Gris pequeño
+              ), // Fin de las fechas
+          ], // Fin de los elementos
+        ), // Fin de la columna
+      ), // Fin del margen
+    ); // Fin de la tarjeta
+  } // Fin de build
+} // Fin de _TarjetaAnuncio
 
 class _Etiqueta extends StatelessWidget { // Etiqueta redondeada de color (EN VIVO, Radio)
   const _Etiqueta({required this.texto, required this.fondo, required this.letras}); // Constructor
