@@ -162,7 +162,7 @@ class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la
                 children: [ // Elementos
                   if (predica.destacada) // Si es la destacada...
                     const Text('★ DESTACADA', style: TextStyle(color: Color(0xFFB07A00), fontWeight: FontWeight.bold, fontSize: 12)), // ...etiqueta dorada oscura (legible sobre blanco)
-                  Text(predica.titulo, style: Theme.of(context).textTheme.titleMedium), // Título
+                  Text(predica.titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan)), // Título en negrita marino (igual que los anuncios de Inicio)
                   const SizedBox(height: 2), // Espacio
                   Text(_subtitulo(), style: const TextStyle(color: Colors.black54)), // Predicador · fecha
                   if (predica.reproducciones > 0) // Si alguien la ha visto...

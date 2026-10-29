@@ -89,7 +89,7 @@ class _FilaActividad extends StatelessWidget { // Una actividad dentro del horar
           actividad.seTransmite ? Icons.live_tv : Icons.event, // Televisor si se transmite; calendario si no
           color: actividad.seTransmite ? Colors.red : azulCanaan, // Rojo o azul
         ), // Fin del ícono
-        title: Text(actividad.nombre), // Nombre, ej: "Culto general"
+        title: Text(actividad.nombre, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan)), // Nombre en negrita marino, ej: "Culto general"
         subtitle: Text( // Detalles
           [detalles, if (actividad.descripcion != null) actividad.descripcion!].join('\n'), // Horario · lugar y, en otra línea, la descripción
         ), // Fin de los detalles
