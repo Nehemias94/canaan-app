@@ -72,9 +72,9 @@ class _PantallaHorarioState extends State<PantallaHorario> { // Estado de la pes
   List<Widget> _armarLista(List<Actividad> actividades) { // Intercala un encabezado cada vez que cambia el día
     final elementos = <Widget>[ // Lista que se va llenando; arriba, los eventos especiales
       if (_eventos.isNotEmpty) // Si hay eventos...
-        const Padding( // ...encabezado
+        Padding( // ...encabezado
           padding: EdgeInsets.fromLTRB(16, 20, 16, 0), // Margen
-          child: Text('EVENTOS ESPECIALES', style: TextStyle(color: moradoEvento, fontWeight: FontWeight.bold, letterSpacing: 1.2)), // Morado
+          child: Text('EVENTOS ESPECIALES', style: TextStyle(color: context.cc.morado, fontWeight: FontWeight.bold, letterSpacing: 1.2)), // Morado
         ), // Fin del encabezado
       for (final evento in _eventos) Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: TarjetaEvento(evento: evento)), // Una tarjeta por evento
     ]; // Fin del inicio de la lista
@@ -85,7 +85,7 @@ class _PantallaHorarioState extends State<PantallaHorario> { // Estado de la pes
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 6), // Margen
           child: Text( // Nombre del día
             actividad.dia.toUpperCase(), // En mayúsculas, ej: "DOMINGO"
-            style: const TextStyle(color: azulCanaan, fontWeight: FontWeight.bold, letterSpacing: 1.2), // Azul, negrita, letras separadas
+            style: TextStyle(color: context.cc.azul, fontWeight: FontWeight.bold, letterSpacing: 1.2), // Azul, negrita, letras separadas
           ), // Fin del texto
         )); // Fin del encabezado
         diaAnterior = actividad.diaSemana; // Recuerda el día actual
@@ -113,7 +113,7 @@ class _FilaActividad extends StatelessWidget { // Una actividad dentro del horar
           actividad.seTransmite ? Icons.live_tv : Icons.event, // Televisor si se transmite; calendario si no
           color: actividad.seTransmite ? Colors.red : azulCanaan, // Rojo o azul
         ), // Fin del ícono
-        title: Text(actividad.nombre, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan)), // Nombre en negrita marino, ej: "Culto general"
+        title: Text(actividad.nombre, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cc.titulo)), // Nombre en negrita marino, ej: "Culto general"
         subtitle: Text( // Detalles
           [detalles, if (actividad.descripcion != null) actividad.descripcion!].join('\n'), // Horario · lugar y, en otra línea, la descripción
         ), // Fin de los detalles
@@ -161,7 +161,7 @@ class _Campanita extends StatelessWidget { // Botón 🔔 de recordatorio de un 
         return IconButton( // Botón
           tooltip: activo ? 'Quitar recordatorio' : 'Recordarme 30 minutos antes', // Texto de ayuda
           iconSize: 28, // Grande
-          icon: Icon(activo ? Icons.notifications_active : Icons.notifications_none, color: activo ? doradoOscuro : Colors.black45), // Dorada si está activa
+          icon: Icon(activo ? Icons.notifications_active : Icons.notifications_none, color: activo ? context.cc.dorado : context.cc.suave), // Dorada si está activa
           onPressed: () => _alternar(context, activo), // Al tocar
         ); // Fin del botón
       }, // Fin del builder

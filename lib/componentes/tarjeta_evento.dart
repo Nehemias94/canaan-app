@@ -26,19 +26,19 @@ class TarjetaEvento extends StatelessWidget { // Tarjeta de un evento especial (
             Padding(padding: const EdgeInsets.only(bottom: 10), child: ImagenRed(url: evento.imagenUrl!, altoMaximo: 220)), // ...arriba, más baja que en el detalle
           Text( // Cuándo
             evento.enCurso ? '● AHORA' : evento.cuandoTexto().toUpperCase(), // "● AHORA" o "SÁBADO, 20 DE NOVIEMBRE · 8:00 AM"
-            style: TextStyle(color: evento.enCurso ? Colors.green.shade700 : moradoEvento, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.8), // Pequeño y en color
+            style: TextStyle(color: evento.enCurso ? Colors.green.shade700 : context.cc.morado, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.8), // Pequeño y en color
           ), // Fin del texto
           const SizedBox(height: 4), // Espacio
           Row( // Ícono y nombre
             children: [ // Elementos
-              const Icon(Icons.celebration_outlined, color: moradoEvento, size: 24), // Ícono de celebración
+              Icon(Icons.celebration_outlined, color: context.cc.morado, size: 24), // Ícono de celebración
               const SizedBox(width: 8), // Espacio
-              Expanded(child: Text(evento.titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan))), // Nombre
-              const Icon(Icons.chevron_right, color: Colors.black38), // Flechita: se puede tocar
+              Expanded(child: Text(evento.titulo, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cc.titulo))), // Nombre
+              Icon(Icons.chevron_right, color: context.cc.tenue), // Flechita: se puede tocar
             ], // Fin de los elementos
           ), // Fin de la fila
           if (evento.lugar != null && evento.lugar!.isNotEmpty) // Si tiene lugar...
-            Padding(padding: const EdgeInsets.only(top: 4), child: Text('📍 ${evento.lugar}', style: const TextStyle(fontSize: 15, color: Colors.black54))), // ...con pin
+            Padding(padding: const EdgeInsets.only(top: 4), child: Text('📍 ${evento.lugar}', style: TextStyle(fontSize: 15, color: context.cc.suave))), // ...con pin
           if (evento.seTransmite) // Si se transmite...
             Padding(padding: const EdgeInsets.only(top: 4), child: Text('🔴 Se transmite en vivo en la app', style: TextStyle(fontSize: 14, color: Colors.red.shade700, fontWeight: FontWeight.w600))), // ...aviso rojo
         ], // Fin de los elementos

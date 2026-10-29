@@ -120,7 +120,7 @@ class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la
           children: [ // Elementos
             Text(predica.titulo, style: Theme.of(context).textTheme.titleLarge), // Título grande
             const SizedBox(height: 4), // Espacio
-            Text(_subtitulo(), style: const TextStyle(color: Colors.black54)), // Predicador · fecha
+            Text(_subtitulo(), style: TextStyle(color: context.cc.suave)), // Predicador · fecha
             const SizedBox(height: 16), // Espacio
             Text(predica.descripcion ?? 'Sin descripción.'), // Descripción
           ], // Fin de los elementos
@@ -166,11 +166,11 @@ class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la
                   Row( // Título y botón compartir
                     crossAxisAlignment: CrossAxisAlignment.start, // Arriba
                     children: [ // Elementos
-                      Expanded(child: Text(predica.titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan))), // Título en negrita marino (igual que los anuncios de Inicio)
+                      Expanded(child: Text(predica.titulo, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cc.titulo))), // Título en negrita marino (igual que los anuncios de Inicio)
                       IconButton( // Compartir
                         tooltip: 'Compartir prédica', // Texto de ayuda
                         visualDensity: VisualDensity.compact, // Compacto
-                        icon: const Icon(Icons.share, color: azulCanaan), // Ícono
+                        icon: Icon(Icons.share, color: context.cc.azul), // Ícono
                         onPressed: () => Compartir.texto([ // Título, predicador y enlace de YouTube
                           '🎥 ${predica.titulo}', // Título
                           if (_subtitulo().isNotEmpty) _subtitulo(), // Predicador · fecha
@@ -180,9 +180,9 @@ class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la
                     ], // Fin de los elementos
                   ), // Fin de la fila
                   const SizedBox(height: 2), // Espacio
-                  Text(_subtitulo(), style: const TextStyle(color: Colors.black54)), // Predicador · fecha
+                  Text(_subtitulo(), style: TextStyle(color: context.cc.suave)), // Predicador · fecha
                   if (predica.reproducciones > 0) // Si alguien la ha visto...
-                    Text('${predica.reproducciones} vistas', style: const TextStyle(color: Colors.black45, fontSize: 12)), // ...cuántas veces
+                    Text('${predica.reproducciones} vistas', style: TextStyle(color: context.cc.suave, fontSize: 12)), // ...cuántas veces
                 ], // Fin de los elementos
               ), // Fin de la columna
             ), // Fin del margen

@@ -225,7 +225,7 @@ class _Botonera extends StatelessWidget { // Fila de botones grandes: Atrás · 
             message: ayuda, // Ej: "Letra más grande"
             child: TextButton( // Botón
               onPressed: alTocar, // Qué hace (null = gris/apagado)
-              style: TextButton.styleFrom(minimumSize: const Size(0, 60), foregroundColor: marinoCanaan), // Alto 60 (fácil de tocar), color marino
+              style: TextButton.styleFrom(minimumSize: const Size(0, 60), foregroundColor: context.cc.titulo), // Alto 60 (fácil de tocar), color marino
               child: Column( // Ícono arriba, texto abajo
                 mainAxisSize: MainAxisSize.min, // Solo lo necesario
                 children: [ // Elementos
@@ -237,13 +237,13 @@ class _Botonera extends StatelessWidget { // Fila de botones grandes: Atrás · 
           ), // Fin de la ayuda
         ); // Fin de boton
     return Material( // Fondo de la botonera
-      color: Colors.white, // Blanca, como las tarjetas de la app (la página de la Biblia también es blanca)
-      shape: const Border(bottom: BorderSide(color: bordeCanaan)), // Línea suave abajo que la separa del texto
+      color: context.cc.tarjeta, // Blanca, como las tarjetas de la app (la página de la Biblia también es blanca)
+      shape: Border(bottom: BorderSide(color: context.cc.borde)), // Línea suave abajo que la separa del texto
       child: Row( // Botones en fila
         children: [ // Botones
           boton('Atrás', Icons.arrow_back, alAtras, 'Volver a la página anterior'), // Atrás
           boton('A−', null, alAchicar, 'Letra más pequeña'), // Achicar
-          Text('$tamano %', style: const TextStyle(fontSize: 14, color: Colors.black54)), // Tamaño actual
+          Text('$tamano %', style: TextStyle(fontSize: 14, color: context.cc.suave)), // Tamaño actual
           boton('A+', null, alAgrandar, 'Letra más grande'), // Agrandar
           boton('Buscar', Icons.search, alBuscar, 'Buscar palabras en la Biblia'), // Buscar
         ], // Fin de los botones
@@ -265,7 +265,7 @@ class _SinNavegador extends StatelessWidget { // En el navegador (o en las prueb
         child: Column( // Uno debajo del otro
           mainAxisSize: MainAxisSize.min, // Solo lo necesario
           children: [ // Elementos
-            const Icon(Icons.menu_book, size: 72, color: azulCanaan), // Libro grande
+            Icon(Icons.menu_book, size: 72, color: context.cc.azul), // Libro grande
             const SizedBox(height: 16), // Espacio
             const Text('La Biblia se abre en YouVersion (Reina-Valera 1960).', textAlign: TextAlign.center, style: TextStyle(fontSize: 20)), // Explicación
             const SizedBox(height: 20), // Espacio
@@ -295,7 +295,7 @@ class _SinInternet extends StatelessWidget { // Mensaje cuando no se pudo cargar
         child: Column( // Uno debajo del otro
           mainAxisSize: MainAxisSize.min, // Solo lo necesario
           children: [ // Elementos
-            const Icon(Icons.wifi_off, size: 64, color: Colors.black45), // Ícono sin internet
+            Icon(Icons.wifi_off, size: 64, color: context.cc.suave), // Ícono sin internet
             const SizedBox(height: 16), // Espacio
             const Text('No pudimos abrir la Biblia. Revisa tu conexión a internet.', textAlign: TextAlign.center, style: TextStyle(fontSize: 20)), // Mensaje
             const SizedBox(height: 20), // Espacio

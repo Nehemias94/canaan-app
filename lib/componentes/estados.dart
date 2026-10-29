@@ -9,7 +9,7 @@ class Cargando extends StatelessWidget { // Vista "Conectando…" mientras llega
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
-    final colorTexto = claro ? Colors.white : Colors.black87; // Letras blancas sobre fondo oscuro, negras sobre fondo claro
+    final colorTexto = claro ? Colors.white : context.cc.texto; // Letras blancas sobre fondo oscuro, negras sobre fondo claro
     return Center( // Centrado
       child: Padding( // Margen
         padding: const EdgeInsets.all(24), // 24 puntos por lado
@@ -40,7 +40,7 @@ class ErrorConexion extends StatelessWidget { // Vista cuando no se pudo conecta
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
-    final colorTexto = claro ? Colors.white : Colors.black87; // Color de las letras según el fondo
+    final colorTexto = claro ? Colors.white : context.cc.texto; // Color de las letras según el fondo
     return Center( // Centrado
       child: Padding( // Margen
         padding: const EdgeInsets.all(24), // 24 puntos por lado
@@ -82,7 +82,7 @@ class Vacio extends StatelessWidget { // Vista cuando la lista no tiene nada (ej
         const SizedBox(height: 60), // Espacio arriba
         Icon(icono, size: 64, color: Colors.black26), // Ícono gris claro
         const SizedBox(height: 12), // Espacio
-        Text(mensaje, textAlign: TextAlign.center, style: const TextStyle(color: Colors.black54, fontSize: 16)), // Mensaje gris
+        Text(mensaje, textAlign: TextAlign.center, style: TextStyle(color: context.cc.suave, fontSize: 16)), // Mensaje gris
       ], // Fin de los elementos
     ); // Fin de la lista
   } // Fin de build

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart'; // Componentes visuales (para buscar íc
 import 'package:flutter_test/flutter_test.dart'; // Herramientas de pruebas automáticas de Flutter
 
 import 'package:canaan_app/main.dart'; // Nuestra app
+import 'package:canaan_app/tema.dart'; // Colores (fondo oscuro)
 import 'package:canaan_app/modelos/actividad.dart'; // Molde de una actividad
 import 'package:canaan_app/modelos/anuncio.dart'; // Molde de un anuncio
 import 'package:canaan_app/modelos/evento.dart'; // Molde de un evento especial
@@ -150,6 +151,12 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
   } // Fin de obtenerActividades
 } // Fin de ApiFalsa
 
+void pantallaAlta(WidgetTester tester) { // Agranda la pantalla de prueba (para ver listas largas sin desplazarse)
+  tester.view.physicalSize = const Size(800, 2000); // 800 x 2000 puntos
+  tester.view.devicePixelRatio = 1; // 1 píxel = 1 punto
+  addTearDown(tester.view.reset); // Al terminar la prueba, vuelve al tamaño normal
+} // Fin de pantallaAlta
+
 void main() { // Punto de arranque de las pruebas
   setUp(() { // Antes de cada prueba:
     FlutterSecureStorage.setMockInitialValues({}); // Caja fuerte vacía y en memoria
@@ -182,6 +189,7 @@ void main() { // Punto de arranque de las pruebas
   }); // Fin de la prueba 2
 
   testWidgets('Muestra Reintentar si no hay conexión', (WidgetTester tester) async { // Prueba 3
+    pantallaAlta(tester); // Pantalla alta: la lista de Servicios cabe completa
     await tester.pumpWidget(CanaanApp(api: ApiFalsa(falla: true))); // Dibuja la app con una API que falla
     await tester.pumpAndSettle(); // Espera
     expect(find.text('Reintentar'), findsWidgets); // Sale el botón Reintentar
@@ -191,6 +199,7 @@ void main() { // Punto de arranque de las pruebas
   }); // Fin de la prueba 3
 
   testWidgets('Al abrir, registra el teléfono y Más lo muestra', (WidgetTester tester) async { // Prueba 4
+    pantallaAlta(tester); // Pantalla alta: la lista de Servicios cabe completa
     final api = ApiFalsa(); // API falsa (para revisar cuántas veces se registró)
     await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
     await tester.pumpAndSettle(); // Espera
@@ -215,6 +224,7 @@ void main() { // Punto de arranque de las pruebas
   }); // Fin de la prueba 5
 
   testWidgets('Petición de oración: valida, envía y respeta el límite de 3', (WidgetTester tester) async { // Prueba 6
+    pantallaAlta(tester); // Pantalla alta: la lista de Servicios cabe completa
     final api = ApiFalsa(); // Panel falso
     await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
     await tester.pumpAndSettle(); // Espera
@@ -591,4 +601,21 @@ void main() { // Punto de arranque de las pruebas
     await tester.pumpAndSettle(); // Espera
     expect(find.text('Inscríbete'), findsOneWidget); // Botón en la tarjeta
   }); // Fin de la prueba 32
+
+  testWidgets('Modo oscuro: se elige en Servicios y cambia los colores', (WidgetTester tester) async { // Prueba 33
+    tester.view.physicalSize = const Size(800, 2000); // Pantalla alta: cabe toda la lista de Servicios
+    tester.view.devicePixelRatio = 1; // 1 píxel = 1 punto
+    addTearDown(tester.view.reset); // Al terminar, tamaño normal
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Servicios'))); // Pestaña Servicios
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Apariencia'), findsOneWidget); // Selector
+    await tester.tap(find.text('Oscuro')); // Elige oscuro
+    await tester.pumpAndSettle(); // Redibuja con el tema oscuro
+    final tema = Theme.of(tester.element(find.text('Apariencia'))); // Tema en uso
+    Preferencias.apariencia.value = 'sistema'; // Lo deja como estaba (para las demás pruebas)
+    expect(tema.brightness, Brightness.dark); // Tema oscuro
+    expect(tema.scaffoldBackgroundColor, fondoOscuro); // Fondo oscuro
+  }); // Fin de la prueba 33
 } // Fin de main

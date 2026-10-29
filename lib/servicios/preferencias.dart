@@ -9,6 +9,7 @@ class Preferencias { // Todo junto en un solo lugar
   static const _almacen = FlutterSecureStorage(); // Caja fuerte
 
   static final ValueNotifier<bool> letraGrande = ValueNotifier<bool>(false); // ¿Agrandar toda la letra de la app?
+  static final ValueNotifier<String> apariencia = ValueNotifier<String>('sistema'); // 'sistema' (como el teléfono), 'claro' u 'oscuro'
   static final ValueNotifier<bool> avisosEnVivo = ValueNotifier<bool>(true); // ¿Recibir "¡Estamos en vivo!"?
   static final ValueNotifier<bool> avisosAnuncios = ValueNotifier<bool>(true); // ¿Recibir los anuncios?
   static final ValueNotifier<bool> avisosVersiculo = ValueNotifier<bool>(true); // ¿Recibir el versículo del día como notificación?
@@ -20,6 +21,7 @@ class Preferencias { // Todo junto en un solo lugar
   static Future<void> cargar() async { // Lee lo guardado (se llama al abrir la app)
     try { // Si la caja fuerte falla, se quedan los valores por defecto
       letraGrande.value = await _almacen.read(key: 'pref_letra_grande') == 'si'; // Letra grande
+      apariencia.value = await _almacen.read(key: 'pref_apariencia') ?? 'sistema'; // Claro / oscuro / como el teléfono
       avisosEnVivo.value = await _almacen.read(key: 'pref_avisos_en_vivo') != 'no'; // En vivo (encendido si nunca se tocó)
       avisosAnuncios.value = await _almacen.read(key: 'pref_avisos_anuncios') != 'no'; // Anuncios (encendido si nunca se tocó)
       avisosVersiculo.value = await _almacen.read(key: 'pref_avisos_versiculo') != 'no'; // Versículo del día (encendido si nunca se tocó)
@@ -34,6 +36,11 @@ class Preferencias { // Todo junto en un solo lugar
     letraGrande.value = valor; // Avisa a la app (se redibuja con el tamaño nuevo)
     await _guardar('pref_letra_grande', valor ? 'si' : 'no'); // Lo recuerda
   } // Fin de cambiarLetraGrande
+
+  static Future<void> cambiarApariencia(String valor) async { // Selector "Apariencia"
+    apariencia.value = valor; // Avisa (la app cambia de colores al instante)
+    await _guardar('pref_apariencia', valor); // Lo recuerda
+  } // Fin de cambiarApariencia
 
   static Future<void> cambiarAvisosEnVivo(bool valor) async { // Interruptor "Avisarme cuando estemos en vivo"
     avisosEnVivo.value = valor; // Avisa

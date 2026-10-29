@@ -121,7 +121,7 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
             margin: EdgeInsets.zero, // Sin margen extra (lo da la lista)
             child: Column(children: [ // Opciones una debajo de otra
           ListTile( // Opción: Radio
-            leading: const Icon(Icons.headphones, color: azulCanaan), // Ícono de audífonos
+            leading: Icon(Icons.headphones, color: context.cc.azul), // Ícono de audífonos
             title: const Text('Escuchar radio'), // Texto
             subtitle: const Text('Radio en línea de la iglesia'), // Explicación
             trailing: const Icon(Icons.chevron_right), // Flechita: abre otra pantalla
@@ -129,14 +129,14 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
           ), // Fin de la opción
           if (_iglesia?.ofrendas.mostrar ?? false) // Si el panel tiene marcada "Ofrendas y diezmos"...
             ListTile( // ...opción para verlas
-              leading: const Icon(Icons.savings, color: azulCanaan), // Alcancía
+              leading: Icon(Icons.savings, color: context.cc.azul), // Alcancía
               title: const Text('Ofrendas y diezmos'), // Texto
               subtitle: const Text('Cuentas para dar y código QR'), // Explicación
               trailing: const Icon(Icons.chevron_right), // Flechita
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaOfrendas(ofrendas: _iglesia!.ofrendas))), // Abre la pantalla
             ), // Fin de la opción
           ListTile( // Opción: Peticiones de oración
-            leading: const Icon(Icons.volunteer_activism, color: azulCanaan), // Ícono de manos
+            leading: Icon(Icons.volunteer_activism, color: context.cc.azul), // Ícono de manos
             title: const Text('Petición de oración'), // Texto
             subtitle: const Text('Envía tu petición (puede ser anónima)'), // Explicación
             trailing: const Icon(Icons.chevron_right), // Flechita: indica que abre otra pantalla
@@ -149,7 +149,7 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
             SwitchListTile( // Interruptor: aviso al llegar a la iglesia
               secondary: _cambiandoAviso // Ícono de la izquierda...
                   ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)) // ...rueda mientras pide permisos
-                  : const Icon(Icons.location_on, color: azulCanaan), // ...o un pin
+                  : Icon(Icons.location_on, color: context.cc.azul), // ...o un pin
               title: const Text('Avisarme al llegar a la iglesia'), // Texto
               subtitle: const Text('Aunque la app esté cerrada. Tu ubicación no sale del teléfono.'), // Explicación
               value: _avisoIglesia, // Encendido o apagado
@@ -161,10 +161,30 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
             clipBehavior: Clip.antiAlias, // Esquinas redondeadas
             margin: EdgeInsets.zero, // Sin margen extra
             child: Column(children: [ // Interruptores
+              ValueListenableBuilder<String>( // Escucha "apariencia"
+                valueListenable: Preferencias.apariencia, // Preferencia
+                builder: (context, apariencia, _) => ListTile( // Renglón con el selector
+                  leading: Icon(Icons.dark_mode_outlined, color: context.cc.azul), // Ícono de luna
+                  title: const Text('Apariencia'), // Texto
+                  subtitle: Padding( // Selector debajo del título
+                    padding: const EdgeInsets.only(top: 8), // Separación
+                    child: SegmentedButton<String>( // Tres botones unidos; uno elegido
+                      segments: const [ // Opciones
+                        ButtonSegment(value: 'sistema', label: Text('Automático')), // Como el teléfono
+                        ButtonSegment(value: 'claro', label: Text('Claro')), // Siempre claro
+                        ButtonSegment(value: 'oscuro', label: Text('Oscuro')), // Siempre oscuro
+                      ], // Fin de las opciones
+                      selected: {apariencia}, // La elegida
+                      showSelectedIcon: false, // Sin palomita (no cabe en teléfonos pequeños)
+                      onSelectionChanged: (elegidas) => Preferencias.cambiarApariencia(elegidas.first), // Guarda y la app cambia al instante
+                    ), // Fin del selector
+                  ), // Fin del margen
+                ), // Fin del renglón
+              ), // Fin de la escucha
               ValueListenableBuilder<bool>( // Escucha "letra grande"
                 valueListenable: Preferencias.letraGrande, // Preferencia
                 builder: (context, grande, _) => SwitchListTile( // Interruptor
-                  secondary: const Icon(Icons.text_increase, color: azulCanaan), // Ícono de agrandar texto
+                  secondary: Icon(Icons.text_increase, color: context.cc.azul), // Ícono de agrandar texto
                   title: const Text('Letra grande'), // Texto
                   subtitle: const Text('Agranda los textos de toda la app'), // Explicación
                   value: grande, // Encendido o apagado
@@ -175,7 +195,7 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
                 ValueListenableBuilder<bool>( // Escucha "avisos en vivo"
                   valueListenable: Preferencias.avisosEnVivo, // Preferencia
                   builder: (context, activo, _) => SwitchListTile( // Interruptor
-                    secondary: const Icon(Icons.live_tv, color: azulCanaan), // Ícono de transmisión
+                    secondary: Icon(Icons.live_tv, color: context.cc.azul), // Ícono de transmisión
                     title: const Text('Avisarme cuando estemos en vivo'), // Texto
                     value: activo, // Encendido o apagado
                     onChanged: _cambiarAvisarEnVivo, // Al tocar
@@ -184,7 +204,7 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
                 ValueListenableBuilder<bool>( // Escucha "avisos de anuncios"
                   valueListenable: Preferencias.avisosAnuncios, // Preferencia
                   builder: (context, activo, _) => SwitchListTile( // Interruptor
-                    secondary: const Icon(Icons.campaign, color: azulCanaan), // Ícono de megáfono
+                    secondary: Icon(Icons.campaign, color: context.cc.azul), // Ícono de megáfono
                     title: const Text('Avisarme de anuncios'), // Texto
                     subtitle: const Text('Los avisos urgentes siempre se muestran'), // Aclaración
                     value: activo, // Encendido o apagado
@@ -194,7 +214,7 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
                 ValueListenableBuilder<bool>( // Escucha "versículo del día"
                   valueListenable: Preferencias.avisosVersiculo, // Preferencia
                   builder: (context, activo, _) => SwitchListTile( // Interruptor
-                    secondary: const Icon(Icons.auto_stories, color: azulCanaan), // Ícono de libro abierto
+                    secondary: Icon(Icons.auto_stories, color: context.cc.azul), // Ícono de libro abierto
                     title: const Text('Recibir el versículo del día'), // Texto
                     subtitle: const Text('Una notificación al día'), // Aclaración
                     value: activo, // Encendido o apagado
@@ -233,7 +253,7 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
             }, // Fin de builder
           ), // Fin de FutureBuilder
           ListTile( // Opción: Acerca de la app
-            leading: const Icon(Icons.info_outline, color: azulCanaan), // Ícono de información
+            leading: Icon(Icons.info_outline, color: context.cc.azul), // Ícono de información
             title: const Text('Acerca de la app'), // Texto
             onTap: () => showAboutDialog( // Ventana estándar "Acerca de" de Flutter
               context: context, // Dónde mostrarla

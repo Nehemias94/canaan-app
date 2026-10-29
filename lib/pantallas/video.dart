@@ -126,7 +126,7 @@ class _PantallaVideoState extends State<PantallaVideo> { // Estado de la pantall
                 if (widget.subtitulo != null && widget.subtitulo!.isNotEmpty) // Si hay subtítulo...
                   Padding( // ...con un poco de espacio arriba
                     padding: const EdgeInsets.only(top: 4), // Espacio
-                    child: Text(widget.subtitulo!, style: const TextStyle(color: Colors.black54)), // Gris
+                    child: Text(widget.subtitulo!, style: TextStyle(color: context.cc.suave)), // Gris
                   ), // Fin del subtítulo
                 if (widget.descripcion != null && widget.descripcion!.isNotEmpty) // Si hay descripción...
                   Padding( // ...separada
@@ -144,7 +144,7 @@ class _PantallaVideoState extends State<PantallaVideo> { // Estado de la pantall
   Widget _botonesAcciones() { // Fila de botones grandes bajo el video (pensados para adultos mayores)
     final conOfrendas = widget.ofrendas?.mostrar ?? false; // ¿El panel muestra ofrendas?
     return Container( // Fondo blanco con línea abajo
-      decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: bordeCanaan))), // Blanco
+      decoration: BoxDecoration(color: context.cc.tarjeta, border: Border(bottom: BorderSide(color: context.cc.borde))), // Blanco
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10), // Relleno
       child: Row( // Botones en fila
         children: [ // Elementos
@@ -167,7 +167,7 @@ class _PantallaVideoState extends State<PantallaVideo> { // Estado de la pantall
             children: [ // Elementos
               CircleAvatar(radius: 24, backgroundColor: color.withValues(alpha: 0.12), child: Icon(icono, color: color, size: 26)), // Burbuja de color
               const SizedBox(height: 6), // Espacio
-              Text(texto, textAlign: TextAlign.center, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: marinoCanaan)), // Texto
+              Text(texto, textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: context.cc.titulo)), // Texto
             ], // Fin de los elementos
           ), // Fin de la columna
         ), // Fin del relleno

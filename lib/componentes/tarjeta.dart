@@ -17,7 +17,7 @@ class TarjetaCanaan extends StatelessWidget { // Tarjeta con franja de color
     return Padding( // Separación por fuera
       padding: margen, // Margen indicado
       child: Material( // Fondo blanco con esquinas redondeadas (permite el efecto al tocar)
-        color: Colors.white, // Blanca
+        color: context.cc.tarjeta, // Blanca
         borderRadius: BorderRadius.circular(16), // Esquinas redondeadas
         elevation: 1.5, // Sombra muy suave
         shadowColor: marinoCanaan.withValues(alpha: 0.25), // Sombra azulada (como el panel)

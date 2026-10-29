@@ -81,10 +81,10 @@ class _PantallaPeticionState extends State<PantallaPeticion> { // Estado del for
                 color: azulCanaan.withValues(alpha: 0.07), // Azul muy suave
                 borderRadius: BorderRadius.circular(12), // Esquinas redondeadas
               ), // Fin de la apariencia
-              child: const Row( // Ícono y texto en fila
+              child: Row( // Ícono y texto en fila
                 crossAxisAlignment: CrossAxisAlignment.start, // Alineados arriba
                 children: [ // Elementos
-                  Icon(Icons.lock_outline, color: azulCanaan), // Candado
+                  Icon(Icons.lock_outline, color: context.cc.azul), // Candado
                   SizedBox(width: 10), // Espacio
                   Expanded( // El texto ocupa el resto del ancho
                     child: Text('Tu petición es confidencial: solo la verá el equipo pastoral. El nombre es opcional.'), // Aclaración (sugerida en API.md)

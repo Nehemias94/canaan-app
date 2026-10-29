@@ -266,7 +266,7 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
                             child: const Text('● EN VIVO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)), // Texto
                           ), // Fin de la etiqueta
                           const SizedBox(width: 10), // Espacio
-                          Expanded(child: Text(iglesia.enVivo.titulo ?? 'Transmisión en vivo', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan))), // Título
+                          Expanded(child: Text(iglesia.enVivo.titulo ?? 'Transmisión en vivo', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cc.titulo))), // Título
                         ], // Fin de los elementos
                       ), // Fin de la fila
                       if (hayVideo) // Si tiene video...
@@ -288,35 +288,35 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
                 TarjetaCanaan( // ...tarjeta con franja DORADA
                   franja: doradoCanaan, // Dorado
                   alTocar: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaRadio(api: api))), // Al tocar, abre la radio
-                  child: const Row( // Ícono y textos
+                  child: Row( // Ícono y textos
                     children: [ // Elementos
-                      Icon(Icons.headphones, color: doradoOscuro, size: 30), // Audífonos
+                      Icon(Icons.headphones, color: context.cc.dorado, size: 30), // Audífonos
                       SizedBox(width: 12), // Espacio
-                      Expanded(child: Text('🎧 Radio al aire · Escuchar', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: marinoCanaan))), // Texto
-                      Icon(Icons.chevron_right, color: Colors.black38), // Flechita: se puede tocar
+                      Expanded(child: Text('🎧 Radio al aire · Escuchar', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: context.cc.titulo))), // Texto
+                      Icon(Icons.chevron_right, color: context.cc.tenue), // Flechita: se puede tocar
                     ], // Fin de los elementos
                   ), // Fin de la fila
                 ), // Fin de la tarjeta de la radio
               if (!iglesia.enVivo.activo && !iglesia.radioDisponible && !aviso.activo && anuncios.isEmpty && eventos.isEmpty) // Si no hay nada que mostrar...
-                const Padding( // ...confirma que la conexión funciona
+                Padding( // ...confirma que la conexión funciona
                   padding: EdgeInsets.only(top: 24), // Separación
-                  child: Text('✓ Conectado con el panel', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)), // Gris
+                  child: Text('✓ Conectado con el panel', textAlign: TextAlign.center, style: TextStyle(color: context.cc.suave)), // Gris
                 ), // Fin del texto
               if (eventos.isNotEmpty) // Si hay eventos especiales...
                 Padding( // ...encabezado con enlace a la lista completa (en Horario)
                   padding: const EdgeInsets.only(top: 24, left: 4), // Separación
                   child: Row( // Título y "Ver todos"
                     children: [ // Elementos
-                      const Expanded(child: Text('PRÓXIMOS EVENTOS', style: TextStyle(color: moradoEvento, fontWeight: FontWeight.bold, letterSpacing: 1.5))), // Morado
+                      Expanded(child: Text('PRÓXIMOS EVENTOS', style: TextStyle(color: context.cc.morado, fontWeight: FontWeight.bold, letterSpacing: 1.5))), // Morado
                       if (eventos.length > 3) TextButton(onPressed: () => alIrAPestana?.call(3), child: const Text('Ver todos')), // Abre Horario (ahí están todos)
                     ], // Fin de los elementos
                   ), // Fin de la fila
                 ), // Fin del encabezado
               for (final evento in eventos.take(3)) TarjetaEvento(evento: evento), // Los 3 más cercanos
               if (anuncios.isNotEmpty) // Si hay anuncios...
-                const Padding( // ...encabezado de la sección
+                Padding( // ...encabezado de la sección
                   padding: EdgeInsets.only(top: 24, bottom: 0, left: 4), // Separación
-                  child: Text('ANUNCIOS', style: TextStyle(color: doradoOscuro, fontWeight: FontWeight.bold, letterSpacing: 1.5)), // Dorado oscuro (se lee sobre el fondo claro)
+                  child: Text('ANUNCIOS', style: TextStyle(color: context.cc.dorado, fontWeight: FontWeight.bold, letterSpacing: 1.5)), // Dorado oscuro (se lee sobre el fondo claro)
                 ), // Fin del encabezado
               for (final anuncio in anuncios) _TarjetaAnuncio(anuncio: anuncio), // Una tarjeta por anuncio
             ], // Fin de los elementos
@@ -388,19 +388,19 @@ class _TarjetaAnuncio extends StatelessWidget { // Tarjeta de un anuncio (franja
           Row( // Ícono y título en fila
             crossAxisAlignment: CrossAxisAlignment.start, // Arriba
             children: [ // Elementos
-              const Icon(Icons.campaign_outlined, color: azulCanaan, size: 26), // Megáfono azul
+              Icon(Icons.campaign_outlined, color: context.cc.azul, size: 26), // Megáfono azul
               const SizedBox(width: 10), // Espacio
-              Expanded(child: Text(anuncio.titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan))), // Título (ocupa el resto)
+              Expanded(child: Text(anuncio.titulo, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cc.titulo))), // Título (ocupa el resto)
               IconButton( // Botón compartir
                 tooltip: 'Compartir anuncio', // Texto de ayuda
                 visualDensity: VisualDensity.compact, // Compacto
-                icon: const Icon(Icons.share, color: azulCanaan), // Ícono compartir
+                icon: Icon(Icons.share, color: context.cc.azul), // Ícono compartir
                 onPressed: () => Compartir.texto('📢 ${anuncio.titulo}\n\n${anuncio.mensaje}${anuncio.botonUrl != null ? '\n\n${anuncio.botonTexto}: ${anuncio.botonUrl}' : ''}'), // Comparte título, mensaje y el enlace del botón (si hay)
               ), // Fin del botón
             ], // Fin de los elementos
           ), // Fin de la fila
           const SizedBox(height: 6), // Espacio
-          Text(anuncio.mensaje, style: const TextStyle(fontSize: 16, color: Colors.black87, height: 1.35)), // Texto del anuncio
+          Text(anuncio.mensaje, style: TextStyle(fontSize: 16, color: context.cc.texto, height: 1.35)), // Texto del anuncio
           if (anuncio.imagenUrl != null) // Si tiene imagen (flyer)...
             Padding(padding: const EdgeInsets.only(top: 10), child: ImagenRed(url: anuncio.imagenUrl!)), // ...grande, debajo del texto (al tocarla se ve en pantalla completa)
           if (anuncio.botonTexto != null && anuncio.botonUrl != null) // Si tiene botón...
@@ -408,7 +408,7 @@ class _TarjetaAnuncio extends StatelessWidget { // Tarjeta de un anuncio (franja
           if (fechas.isNotEmpty) // Si hay fechas...
             Padding( // ...las muestra en gris
               padding: const EdgeInsets.only(top: 8), // Separación
-              child: Text(fechas, style: const TextStyle(color: Colors.black54, fontSize: 13)), // Gris pequeño
+              child: Text(fechas, style: TextStyle(color: context.cc.suave, fontSize: 13)), // Gris pequeño
             ), // Fin de las fechas
         ], // Fin de los elementos
       ), // Fin de la columna
@@ -440,7 +440,7 @@ class _AccesosRapidos extends StatelessWidget { // Tarjeta con botones grandes d
                     child: Icon(icono, color: color, size: 30), // Ícono grande
                   ), // Fin de la burbuja
                   const SizedBox(height: 6), // Espacio
-                  Text(texto, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: marinoCanaan)), // Texto
+                  Text(texto, textAlign: TextAlign.center, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: context.cc.titulo)), // Texto
                 ], // Fin de los elementos
               ), // Fin de la columna
             ), // Fin del margen
@@ -534,8 +534,8 @@ class _ProximoCultoState extends State<_ProximoCulto> { // Estado: un reloj redi
               children: [ // Elementos
                 Text(enCurso ? 'AHORA EN LA IGLESIA' : 'PRÓXIMO CULTO', style: const TextStyle(color: _verde, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)), // Encabezado pequeño
                 const SizedBox(height: 2), // Espacio
-                Text('$cuando · ${actividad.nombre}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan)), // "Hoy · Culto de oración"
-                if (detalle.isNotEmpty) Text(detalle, style: const TextStyle(fontSize: 15, color: Colors.black54)), // Hora y lugar
+                Text('$cuando · ${actividad.nombre}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cc.titulo)), // "Hoy · Culto de oración"
+                if (detalle.isNotEmpty) Text(detalle, style: TextStyle(fontSize: 15, color: context.cc.suave)), // Hora y lugar
                 if (regresiva != null) // Si se transmite...
                   Padding( // ...línea roja con la cuenta regresiva
                     padding: const EdgeInsets.only(top: 6), // Separación
@@ -550,7 +550,7 @@ class _ProximoCultoState extends State<_ProximoCulto> { // Estado: un reloj redi
               ], // Fin de los elementos
             ), // Fin de la columna
           ), // Fin de los textos
-          const Icon(Icons.chevron_right, color: Colors.black38), // Flechita: se puede tocar
+          Icon(Icons.chevron_right, color: context.cc.tenue), // Flechita: se puede tocar
         ], // Fin de los elementos
       ), // Fin de la fila
     ); // Fin de la tarjeta
@@ -571,10 +571,10 @@ class _TarjetaRepeticion extends StatelessWidget { // "¿Te lo perdiste? Mira el
       child: Column( // Uno debajo del otro
         crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
         children: [ // Elementos
-          const Text('¿TE LO PERDISTE?', style: TextStyle(color: azulCanaan, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)), // Encabezado pequeño
+          Text('¿TE LO PERDISTE?', style: TextStyle(color: context.cc.azul, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)), // Encabezado pequeño
           const SizedBox(height: 2), // Espacio
-          const Text('Mira el culto de hoy', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan)), // Invitación
-          Text(repeticion.titulo, style: const TextStyle(fontSize: 15, color: Colors.black54)), // Título de la transmisión
+          Text('Mira el culto de hoy', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cc.titulo)), // Invitación
+          Text(repeticion.titulo, style: TextStyle(fontSize: 15, color: context.cc.suave)), // Título de la transmisión
           const SizedBox(height: 12), // Espacio
           FilledButton.icon( // Botón grande
             style: FilledButton.styleFrom(backgroundColor: azulCanaan, foregroundColor: Colors.white, minimumSize: const Size.fromHeight(50)), // Azul, todo el ancho
@@ -655,19 +655,19 @@ class _TarjetaVersiculo extends StatelessWidget { // Versículo del día (franja
       child: Column( // Uno debajo del otro
         crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
         children: [ // Elementos
-          const Row( // Encabezado
+          Row( // Encabezado
             children: [ // Elementos
-              Icon(Icons.auto_stories, color: doradoOscuro, size: 22), // Libro abierto
+              Icon(Icons.auto_stories, color: context.cc.dorado, size: 22), // Libro abierto
               SizedBox(width: 8), // Espacio
-              Text('VERSÍCULO DEL DÍA', style: TextStyle(color: doradoOscuro, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)), // Título pequeño
+              Text('VERSÍCULO DEL DÍA', style: TextStyle(color: context.cc.dorado, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)), // Título pequeño
             ], // Fin de los elementos
           ), // Fin del encabezado
           const SizedBox(height: 8), // Espacio
-          Text('“${versiculo.texto}”', style: const TextStyle(fontSize: 18, height: 1.45, fontStyle: FontStyle.italic, color: Color(0xFF1F2937))), // Texto entre comillas
+          Text('“${versiculo.texto}”', style: TextStyle(fontSize: 18, height: 1.45, fontStyle: FontStyle.italic, color: context.cc.texto)), // Texto entre comillas
           const SizedBox(height: 6), // Espacio
           Row( // Cita y botón
             children: [ // Elementos
-              Expanded(child: Text(versiculo.referencia, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: marinoCanaan))), // "Juan 3:16"
+              Expanded(child: Text(versiculo.referencia, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: context.cc.titulo))), // "Juan 3:16"
               TextButton.icon( // Compartir
                 onPressed: () => Compartir.texto('📖 “${versiculo.texto}”\n${versiculo.referencia}'), // Comparte
                 icon: const Icon(Icons.share, size: 20), // Ícono

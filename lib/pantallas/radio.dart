@@ -144,7 +144,7 @@ class _PantallaRadioState extends State<PantallaRadio> { // Estado de la pantall
                   padding: EdgeInsets.zero, // Sin relleno extra
                 ), // Fin de la apariencia
                 child: cargando // ¿Conectando?
-                    ? const SizedBox(width: 36, height: 36, child: CircularProgressIndicator(color: marinoCanaan, strokeWidth: 3)) // Sí: rueda
+                    ? SizedBox(width: 36, height: 36, child: CircularProgressIndicator(color: context.cc.titulo, strokeWidth: 3)) // Sí: rueda
                     : Icon(sonando ? Icons.stop_rounded : Icons.play_arrow_rounded, size: 56, semanticLabel: sonando ? 'Detener' : 'Escuchar'), // No: detener o reproducir
               ), // Fin del botón
             ), // Fin del tamaño

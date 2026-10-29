@@ -26,10 +26,14 @@ class CanaanApp extends StatelessWidget { // La app completa
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve la app
-    return MaterialApp( // Contenedor principal con el estilo Material de Google
+    return ValueListenableBuilder<String>( // Se redibuja cuando la persona cambia la apariencia
+      valueListenable: Preferencias.apariencia, // 'sistema', 'claro' u 'oscuro'
+      builder: (context, apariencia, _) => MaterialApp( // Contenedor principal con el estilo Material de Google
       title: 'Canaán', // Nombre de la app (pestaña del navegador y lista de apps abiertas)
       debugShowCheckedModeBanner: false, // Quita la cinta roja "DEBUG"
       theme: temaCanaan(), // Colores y estilos de Canaán (lib/tema.dart)
+      darkTheme: temaCanaan(oscuro: true), // Los mismos, en modo oscuro
+      themeMode: switch (apariencia) { 'claro' => ThemeMode.light, 'oscuro' => ThemeMode.dark, _ => ThemeMode.system }, // Cuál usar (por defecto, como el teléfono)
       home: PantallaPrincipal(api: api, registro: registro), // Primera pantalla: la del menú de abajo
       builder: (context, pantalla) => ValueListenableBuilder<bool>( // Envuelve TODA la app para aplicar "Letra grande"
         valueListenable: Preferencias.letraGrande, // Escucha la preferencia
@@ -41,6 +45,7 @@ class CanaanApp extends StatelessWidget { // La app completa
           ); // Fin
         }, // Fin del builder
       ), // Fin de la letra grande
-    ); // Fin de MaterialApp
+    ), // Fin de MaterialApp
+    ); // Fin de ValueListenableBuilder
   } // Fin de build
 } // Fin de CanaanApp

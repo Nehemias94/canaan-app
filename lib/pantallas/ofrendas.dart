@@ -32,7 +32,7 @@ class PantallaOfrendas extends StatelessWidget { // Pantalla de ofrendas
                   children: [ // Elementos
                     const Icon(Icons.volunteer_activism, color: doradoOscuro, size: 30), // Manos con corazón
                     const SizedBox(width: 12), // Espacio
-                    Expanded(child: Text(ofrendas.mensaje!, style: const TextStyle(fontSize: 17, height: 1.4, fontStyle: FontStyle.italic, color: marinoCanaan))), // Mensaje
+                    Expanded(child: Text(ofrendas.mensaje!, style: TextStyle(fontSize: 17, height: 1.4, fontStyle: FontStyle.italic, color: context.cc.titulo))), // Mensaje
                   ], // Fin de los elementos
                 ), // Fin de la fila
               ), // Fin del margen
@@ -47,18 +47,18 @@ class PantallaOfrendas extends StatelessWidget { // Pantalla de ofrendas
                   children: [ // Elementos
                     Row( // Banco y tipo
                       children: [ // Elementos
-                        const Icon(Icons.account_balance, color: azulCanaan), // Ícono de banco
+                        Icon(Icons.account_balance, color: context.cc.azul), // Ícono de banco
                         const SizedBox(width: 10), // Espacio
-                        Expanded(child: Text(cuenta.banco, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan))), // Banco
-                        if ((cuenta.tipo ?? '').isNotEmpty) Text(cuenta.tipo!, style: const TextStyle(color: Colors.black54, fontSize: 15)), // Tipo
+                        Expanded(child: Text(cuenta.banco, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cc.titulo))), // Banco
+                        if ((cuenta.tipo ?? '').isNotEmpty) Text(cuenta.tipo!, style: TextStyle(color: context.cc.suave, fontSize: 15)), // Tipo
                       ], // Fin de los elementos
                     ), // Fin de la fila
                     const SizedBox(height: 10), // Espacio
-                    SelectableText(cuenta.numero, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Color(0xFF1F2937))), // Número grande (se puede seleccionar)
+                    SelectableText(cuenta.numero, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: context.cc.texto)), // Número grande (se puede seleccionar)
                     if ((cuenta.titular ?? '').isNotEmpty) // Si hay titular...
                       Padding( // ...lo muestra
                         padding: const EdgeInsets.only(top: 4), // Separación
-                        child: Text('A nombre de: ${cuenta.titular}', style: const TextStyle(fontSize: 15, color: Colors.black54)), // Titular
+                        child: Text('A nombre de: ${cuenta.titular}', style: TextStyle(fontSize: 15, color: context.cc.suave)), // Titular
                       ), // Fin del titular
                     const SizedBox(height: 12), // Espacio
                     SizedBox( // Botón a todo el ancho
@@ -81,7 +81,7 @@ class PantallaOfrendas extends StatelessWidget { // Pantalla de ofrendas
                 padding: const EdgeInsets.all(16), // 16 por lado
                 child: Column( // Uno debajo del otro
                   children: [ // Elementos
-                    const Text('Escanea para dar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan)), // Título
+                    Text('Escanea para dar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cc.titulo)), // Título
                     const SizedBox(height: 12), // Espacio
                     Image.network(ofrendas.qrUrl!, height: 260, errorBuilder: (context, error, pila) => const Text('No se pudo cargar el código QR.')), // QR
                   ], // Fin de los elementos
@@ -89,9 +89,9 @@ class PantallaOfrendas extends StatelessWidget { // Pantalla de ofrendas
               ), // Fin del margen
             ), // Fin de la tarjeta
           if (ofrendas.cuentas.isEmpty && ofrendas.qrUrl == null) // Si no hay nada...
-            const Padding( // ...lo explica
+            Padding( // ...lo explica
               padding: EdgeInsets.only(top: 24), // Separación
-              child: Text('Pronto publicaremos aquí cómo dar tu ofrenda.', textAlign: TextAlign.center, style: TextStyle(fontSize: 17, color: Colors.black54)), // Texto
+              child: Text('Pronto publicaremos aquí cómo dar tu ofrenda.', textAlign: TextAlign.center, style: TextStyle(fontSize: 17, color: context.cc.suave)), // Texto
             ), // Fin del texto
         ], // Fin de los elementos
       ), // Fin de la lista

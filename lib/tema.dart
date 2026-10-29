@@ -17,17 +17,55 @@ const Color fondoCanaan = Color(0xFFF3F6FA); // Fondo gris azulado muy claro de 
 const Color bordeCanaan = Color(0xFFE2E8F0); // Borde suave de las tarjetas
 const Color doradoOscuro = Color(0xFFB07A00); // Dorado oscuro (se lee bien sobre blanco)
 
-ThemeData temaCanaan() { // Tema (colores y estilos) de toda la app
+const Color fondoOscuro = Color(0xFF0B1622); // Fondo de las pantallas en modo oscuro (marino casi negro)
+const Color tarjetaOscura = Color(0xFF15273A); // Tarjetas en modo oscuro
+const Color bordeOscuro = Color(0xFF26394D); // Borde de las tarjetas en modo oscuro
+
+class ColoresCanaan extends ThemeExtension<ColoresCanaan> { // Colores que CAMBIAN con el modo claro/oscuro (se leen con context.cc)
+  const ColoresCanaan({required this.titulo, required this.texto, required this.suave, required this.tenue, required this.tarjeta, required this.borde, required this.azul, required this.dorado, required this.morado}); // Constructor
+
+  final Color titulo; // Títulos de tarjetas (marino en claro, casi blanco en oscuro)
+  final Color texto; // Texto normal
+  final Color suave; // Texto secundario (fechas, lugares)
+  final Color tenue; // Flechitas e íconos discretos
+  final Color tarjeta; // Fondo de tarjetas y barras blancas
+  final Color borde; // Bordes suaves
+  final Color azul; // Azul para textos e íconos (más claro en oscuro para que se lea)
+  final Color dorado; // Dorado para textos (oscuro en claro, brillante en oscuro)
+  final Color morado; // Morado de los eventos especiales
+
+  static const claro = ColoresCanaan(titulo: marinoCanaan, texto: Colors.black87, suave: Colors.black54, tenue: Colors.black38, tarjeta: Colors.white, borde: bordeCanaan, azul: azulCanaan, dorado: doradoOscuro, morado: Color(0xFF6D28D9)); // Modo claro (como siempre)
+  static const oscuro = ColoresCanaan(titulo: Color(0xFFE8EEF5), texto: Color(0xFFDDE4EC), suave: Color(0xFF9FB0C2), tenue: Color(0xFF6B7F94), tarjeta: tarjetaOscura, borde: bordeOscuro, azul: Color(0xFF7DB8E8), dorado: doradoCanaan, morado: Color(0xFFB794F6)); // Modo oscuro (contraste suficiente sobre fondo marino)
+
+  @override // Reemplaza copyWith (lo exige Flutter)
+  ColoresCanaan copyWith({Color? titulo, Color? texto, Color? suave, Color? tenue, Color? tarjeta, Color? borde, Color? azul, Color? dorado, Color? morado}) => ColoresCanaan(titulo: titulo ?? this.titulo, texto: texto ?? this.texto, suave: suave ?? this.suave, tenue: tenue ?? this.tenue, tarjeta: tarjeta ?? this.tarjeta, borde: borde ?? this.borde, azul: azul ?? this.azul, dorado: dorado ?? this.dorado, morado: morado ?? this.morado); // Copia con cambios
+
+  @override // Reemplaza lerp (transición suave al cambiar de modo)
+  ColoresCanaan lerp(ColoresCanaan? otro, double t) => otro == null ? this : ColoresCanaan( // Mezcla los colores según t (0 → este, 1 → el otro)
+        titulo: Color.lerp(titulo, otro.titulo, t)!, texto: Color.lerp(texto, otro.texto, t)!, suave: Color.lerp(suave, otro.suave, t)!, // Textos
+        tenue: Color.lerp(tenue, otro.tenue, t)!, tarjeta: Color.lerp(tarjeta, otro.tarjeta, t)!, borde: Color.lerp(borde, otro.borde, t)!, // Fondos
+        azul: Color.lerp(azul, otro.azul, t)!, dorado: Color.lerp(dorado, otro.dorado, t)!, morado: Color.lerp(morado, otro.morado, t)!, // Acentos
+      ); // Fin de lerp
+} // Fin de ColoresCanaan
+
+extension ColoresDelTema on BuildContext { // Atajo: context.cc.titulo, context.cc.suave…
+  ColoresCanaan get cc => Theme.of(this).extension<ColoresCanaan>() ?? ColoresCanaan.claro; // Colores del modo actual
+} // Fin de la extensión
+
+ThemeData temaCanaan({bool oscuro = false}) { // Tema (colores y estilos) de toda la app; oscuro = true para el modo oscuro
   final colores = ColorScheme.fromSeed( // Arma una paleta completa a partir de un color
     seedColor: azulCanaan, // Color base: el azul de Canaán
-    primary: azulCanaan, // Fuerza el azul oficial como color principal
+    brightness: oscuro ? Brightness.dark : Brightness.light, // Claro u oscuro
+    primary: oscuro ? const Color(0xFF7DB8E8) : azulCanaan, // Azul oficial (en oscuro, uno más claro para que se lea)
     secondary: doradoCanaan, // Dorado como color de acento
+    surface: oscuro ? tarjetaOscura : null, // Superficies (ventanas, hojas) en marino oscuro
   ); // Fin de la paleta
   return ThemeData( // Devuelve el tema
     colorScheme: colores, // Usa la paleta de arriba
     useMaterial3: true, // Diseño Material 3 (el más moderno)
     fontFamily: 'Inter', // Fuente Inter en toda la app (la misma del panel; va dentro de la app, ver pubspec.yaml)
-    scaffoldBackgroundColor: fondoCanaan, // Fondo claro igual en todas las pantallas
+    scaffoldBackgroundColor: oscuro ? fondoOscuro : fondoCanaan, // Fondo igual en todas las pantallas (claro u oscuro)
+    extensions: [oscuro ? ColoresCanaan.oscuro : ColoresCanaan.claro], // Colores que cambian con el modo (context.cc)
     appBarTheme: const AppBarTheme( // Estilo de las barras de título de cada pantalla
       backgroundColor: marinoCanaan, // Fondo marino
       foregroundColor: Colors.white, // Título e íconos en blanco
@@ -36,13 +74,13 @@ ThemeData temaCanaan() { // Tema (colores y estilos) de toda la app
       titleTextStyle: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white), // Título en Inter, negrita
     ), // Fin del estilo de la barra
     cardTheme: CardThemeData( // Estilo de TODAS las tarjetas
-      color: Colors.white, // Blancas
+      color: oscuro ? tarjetaOscura : Colors.white, // Blancas (marino oscuro en modo oscuro)
       elevation: 0, // Sin sombra fuerte (se usa un borde suave)
       surfaceTintColor: Colors.transparent, // Sin el tinte de color de Material 3
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: bordeCanaan)), // Esquinas redondeadas + borde suave
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: oscuro ? bordeOscuro : bordeCanaan)), // Esquinas redondeadas + borde suave
     ), // Fin de las tarjetas
     navigationBarTheme: NavigationBarThemeData( // Estilo de la barra de abajo (menú): marino con la opción elegida en dorado
-      backgroundColor: marinoCanaan, // Fondo marino (igual que las barras de título)
+      backgroundColor: oscuro ? const Color(0xFF071019) : marinoCanaan, // Fondo marino (más oscuro en modo oscuro, para que se distinga del fondo)
       indicatorColor: doradoCanaan.withValues(alpha: 0.22), // "Pastilla" dorada suave detrás de la opción elegida
       iconTheme: WidgetStateProperty.resolveWith((estado) => IconThemeData( // Íconos según si están elegidos
             color: estado.contains(WidgetState.selected) ? doradoCanaan : Colors.white.withValues(alpha: 0.85), // Elegido: dorado; los demás: blanco claro (se lee mejor)
