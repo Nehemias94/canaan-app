@@ -622,4 +622,20 @@ void main() { // Punto de arranque de las pruebas
     expect(tema.brightness, Brightness.dark); // Tema oscuro
     expect(tema.scaffoldBackgroundColor, fondoOscuro); // Fondo oscuro
   }); // Fin de la prueba 33
+
+  testWidgets('Eventos: al volver a tocar la pestaña, muestra los cambios del panel', (WidgetTester tester) async { // Prueba 34
+    final inicio = DateTime.now().add(const Duration(days: 30)); // Dentro de 30 días
+    final api = ApiFalsa()..eventos = [{'id': 2, 'titulo': 'Aniversario de la Iglesia', 'inicia_en': inicio.toIso8601String(), 'en_curso': false}]; // Un evento
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Eventos'))); // Pestaña Eventos
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Aniversario de la Iglesia'), findsOneWidget); // Nombre de antes
+    api.eventos = [{'id': 2, 'titulo': 'Aniversario de la Iglesia 2026', 'inicia_en': inicio.toIso8601String(), 'en_curso': false}]; // El panel lo cambia
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Inicio'))); // Va a Inicio
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Eventos'))); // Vuelve a Eventos
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Aniversario de la Iglesia 2026'), findsOneWidget); // Ya sale el cambio (sin jalar hacia abajo)
+  }); // Fin de la prueba 34
 } // Fin de main

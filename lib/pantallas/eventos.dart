@@ -1,9 +1,13 @@
+import 'dart:async'; // Timer (actualizar cada 90 s)
+
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 
 import '../componentes/estados.dart'; // Cargando, ErrorConexion, Vacio
 import '../componentes/tarjeta_evento.dart'; // Tarjeta de un evento especial
+import '../config.dart'; // intervaloActualizacion (90 s)
 import '../modelos/evento.dart'; // Molde de un evento
 import '../servicios/api.dart'; // Llamadas a la API
+import '../servicios/recarga.dart'; // Timbre "recargarEventos" (al tocar la pestaña)
 
 class PantallaEventos extends StatefulWidget { // Pestaña "Eventos" (menú de abajo): eventos especiales del panel
   const PantallaEventos({super.key, required this.api}); // Constructor
@@ -14,41 +18,58 @@ class PantallaEventos extends StatefulWidget { // Pestaña "Eventos" (menú de a
   State<PantallaEventos> createState() => _PantallaEventosState(); // Crea el estado
 } // Fin de PantallaEventos
 
-class _PantallaEventosState extends State<PantallaEventos> { // Estado de la pestaña Eventos
-  late Future<List<Evento>> _peticion; // Petición en curso
+class _PantallaEventosState extends State<PantallaEventos> with WidgetsBindingObserver { // Estado; "WidgetsBindingObserver" = se entera cuando la app vuelve a primer plano
+  List<Evento>? _eventos; // Eventos recibidos (null = todavía no llegan)
+  bool _fallo = false; // true si la PRIMERA carga falló (luego se conserva lo que ya se veía)
+  Timer? _reloj; // Reloj que vuelve a preguntar cada 90 s
 
   @override // Reemplaza initState
-  void initState() { // Al abrir la pestaña por primera vez
+  void initState() { // Al abrir la app (la pestaña se crea junto con las demás)
     super.initState(); // Lo de Flutter por defecto
-    _peticion = widget.api.obtenerEventos(); // Pide los eventos
+    WidgetsBinding.instance.addObserver(this); // Escucha cuando la app vuelve a primer plano
+    recargarEventos.addListener(_cargar); // Al tocar la pestaña Eventos, actualiza
+    _reloj = Timer.periodic(intervaloActualizacion, (_) => _cargar()); // Cada 90 s, en silencio
+    _cargar(); // Primera carga
   } // Fin de initState
 
-  Future<void> _recargar() async { // Vuelve a pedir los eventos ("jalar hacia abajo" o Reintentar)
-    setState(() => _peticion = widget.api.obtenerEventos()); // Nueva petición y redibuja
-    try { await _peticion; } catch (_) {} // Espera a que termine
-  } // Fin de _recargar
+  @override // Reemplaza dispose
+  void dispose() { // Al cerrar
+    WidgetsBinding.instance.removeObserver(this); // Deja de escuchar la app
+    recargarEventos.removeListener(_cargar); // Deja de escuchar el timbre
+    _reloj?.cancel(); // Detiene el reloj
+    super.dispose(); // Lo de Flutter por defecto
+  } // Fin de dispose
+
+  @override // Reemplaza didChangeAppLifecycleState
+  void didChangeAppLifecycleState(AppLifecycleState estado) { // La app cambió de estado
+    if (estado == AppLifecycleState.resumed) _cargar(); // Volvió a primer plano: actualiza
+  } // Fin de didChangeAppLifecycleState
+
+  Future<void> _cargar() async { // Pide los eventos sin mostrar "cargando" (la lista se cambia cuando llegan)
+    try { // Intenta
+      final eventos = await widget.api.obtenerEventos(); // Petición
+      if (mounted) setState(() { _eventos = eventos; _fallo = false; }); // Redibuja con lo nuevo
+    } catch (_) { // Sin internet, servidor dormido…
+      if (mounted && _eventos == null) setState(() => _fallo = true); // Solo muestra el error si no había nada en pantalla
+    } // Fin del try
+  } // Fin de _cargar
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
+    final eventos = _eventos; // Atajo
     return Scaffold( // Estructura de la pantalla
       appBar: AppBar(title: const Text('Eventos especiales')), // Barra de título
-      body: FutureBuilder<List<Evento>>( // Dibuja según el estado de la petición
-        future: _peticion, // Petición que vigila
-        builder: (context, estado) { // Se llama cada vez que cambia
-          if (estado.connectionState != ConnectionState.done) return const Cargando(); // Esperando
-          if (estado.hasError) return ErrorConexion(alReintentar: _recargar); // Falló
-          final eventos = estado.data!; // Lista recibida (del más cercano al más lejano)
-          return RefreshIndicator( // "Jalar hacia abajo" para actualizar
-            onRefresh: _recargar, // Qué hacer al jalar
-            child: eventos.isEmpty // ¿Está vacía?
-                ? const Vacio(icono: Icons.celebration_outlined, mensaje: 'Por ahora no hay eventos especiales.\nPronto anunciaremos nuevos.') // Sí: mensaje amable
-                : ListView( // No: una tarjeta por evento
-                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 24), // Márgenes
-                    children: [for (final evento in eventos) TarjetaEvento(evento: evento)], // Tarjetas (al tocar, abren el detalle)
-                  ), // Fin de la lista
-          ); // Fin de RefreshIndicator
-        }, // Fin de builder
-      ), // Fin de FutureBuilder
+      body: eventos == null // ¿Todavía no hay datos?
+          ? (_fallo ? ErrorConexion(alReintentar: _cargar) : const Cargando()) // Error o esperando
+          : RefreshIndicator( // "Jalar hacia abajo" para actualizar
+              onRefresh: _cargar, // Qué hacer al jalar
+              child: eventos.isEmpty // ¿Está vacía?
+                  ? const Vacio(icono: Icons.celebration_outlined, mensaje: 'Por ahora no hay eventos especiales.\nPronto anunciaremos nuevos.') // Sí: mensaje amable
+                  : ListView( // No: una tarjeta por evento
+                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 24), // Márgenes
+                      children: [for (final evento in eventos) TarjetaEvento(key: ValueKey('evento-${evento.id}'), evento: evento)], // Tarjetas (al tocar, abren el detalle)
+                    ), // Fin de la lista
+            ), // Fin de RefreshIndicator
     ); // Fin del Scaffold
   } // Fin de build
 } // Fin de _PantallaEventosState

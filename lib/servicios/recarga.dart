@@ -7,3 +7,5 @@ const String avisoRecargarInicio = 'actualizar_inicio'; // Tipo del aviso silenc
 final ValueNotifier<int> recargarInicio = ValueNotifier<int>(0); // Cada vez que su número sube, Inicio recarga
 
 void tocarTimbreInicio() => recargarInicio.value++; // Sube el número: Inicio se entera y recarga
+
+final ValueNotifier<int> recargarEventos = ValueNotifier<int>(0); // Timbre de la pestaña Eventos: sube cada vez que la persona toca "Eventos" en el menú (así ve los cambios del panel al instante)

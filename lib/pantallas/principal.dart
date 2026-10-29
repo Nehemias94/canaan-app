@@ -4,6 +4,7 @@ import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 import '../componentes/carga_animada.dart'; // presentacionEnCurso: ocultar el menú mientras se ve el logo animado
 import '../servicios/api.dart'; // Llamadas a la API (se pasa a cada pestaña)
 import '../servicios/notificaciones.dart'; // Notificaciones (Firebase)
+import '../servicios/recarga.dart'; // Timbre para actualizar la pestaña Eventos
 import '../servicios/registro.dart'; // Registro del teléfono en el panel
 import 'biblia.dart'; // Pestaña Biblia (YouVersion, Reina-Valera 1960)
 import 'eventos.dart'; // Pestaña Eventos (eventos especiales)
@@ -22,7 +23,7 @@ class PantallaPrincipal extends StatefulWidget { // Pantalla con el menú de aba
 } // Fin de PantallaPrincipal
 
 class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recuerda qué pestaña está abierta
-  int _pestana = 0; // Pestaña elegida (0 = Inicio, 1 = Prédicas, 2 = Biblia, 3 = Horario, 4 = Más)
+  int _pestana = 0; // Pestaña elegida (0 = Inicio, 1 = Prédicas, 2 = Biblia, 3 = Eventos, 4 = Servicios)
 
   @override // Reemplaza initState
   void initState() { // Se ejecuta una vez, al abrir la app
@@ -56,7 +57,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
       body: IndexedStack( // Muestra solo la pestaña elegida, pero MANTIENE las otras vivas (no se recargan al volver)
         index: _pestana, // Cuál mostrar
         children: [ // Las 5 pestañas, en el mismo orden que el menú
-          PantallaInicio(api: widget.api, registro: widget.registro, alIrAPestana: (i) => setState(() => _pestana = i)), // 0: Inicio (sus accesos rápidos cambian de pestaña)
+          PantallaInicio(api: widget.api, registro: widget.registro, alIrAPestana: (i) { if (i == 3) recargarEventos.value++; setState(() => _pestana = i); }), // 0: Inicio ("Ver todos" de eventos cambia de pestaña y la actualiza)
           PantallaPredicas(api: widget.api, registro: widget.registro), // 1: Prédicas
           const PantallaBiblia(), // 2: Biblia
           PantallaEventos(api: widget.api), // 3: Eventos (el Horario se abre desde Inicio)
@@ -68,7 +69,10 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
         builder: (context, enPresentacion, menu) => enPresentacion ? const SizedBox.shrink() : menu!, // Durante la presentación: sin menú (pantalla completa)
         child: NavigationBar( // Menú de abajo (estilo Material 3)
         selectedIndex: _pestana, // Opción resaltada
-        onDestinationSelected: (i) => setState(() => _pestana = i), // Al tocar una opción, cambia de pestaña y redibuja
+        onDestinationSelected: (i) { // Al tocar una opción...
+          if (i == 3) recargarEventos.value++; // ...si es Eventos, que se actualice (por si el panel cambió algo)
+          setState(() => _pestana = i); // ...cambia de pestaña y redibuja
+        }, // Fin de onDestinationSelected
         destinations: const [ // Opciones del menú
           NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Inicio'), // Casa (rellena si está elegida)
           NavigationDestination(icon: Icon(Icons.video_library_outlined), selectedIcon: Icon(Icons.video_library), label: 'Prédicas'), // Videos
