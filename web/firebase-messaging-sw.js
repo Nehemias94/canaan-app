@@ -6,10 +6,10 @@ importScripts('https://www.gstatic.com/firebasejs/13.1.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/13.1.0/firebase-messaging-compat.js'); // Mensajería de Firebase
 
 const configuracion = { // Datos del proyecto (copiar de Firebase → Configuración del proyecto → app Web)
-  apiKey: '', // "apiKey"
-  projectId: '', // "projectId"
-  messagingSenderId: '', // "messagingSenderId"
-  appId: '', // "appId" de la app Web
+  apiKey: 'AIzaSyDH7rc6-MYMOrMXZh_dzfezpBX1-UUJKZQ', // "apiKey"
+  projectId: 'canaan-app-7d182', // "projectId"
+  messagingSenderId: '43213134071', // "messagingSenderId"
+  appId: '1:43213134071:web:370e52fbc7bd349c2f1bf2', // "appId" de la app Web
 }; // Fin de los datos
 
 if (configuracion.apiKey) { // Solo si ya se llenaron los datos

@@ -6,15 +6,15 @@ import 'package:flutter/foundation.dart'; // kIsWeb y defaultTargetPlatform (sab
 // Se copian de: Firebase → ⚙ Configuración del proyecto → General → "Tus apps" (una app Web y una Android).
 // Mientras estén vacíos, la app funciona normal pero SIN notificaciones.
 
-const String _proyectoId = ''; // "projectId", ej: "canaan-app-1234"
-const String _remitenteId = ''; // "messagingSenderId", ej: "123456789012"
-const String _apiKey = ''; // "apiKey", ej: "AIzaSy…"
+const String _proyectoId = 'canaan-app-7d182'; // "projectId", ej: "canaan-app-1234"
+const String _remitenteId = '43213134071'; // "messagingSenderId", ej: "123456789012"
+const String _apiKey = 'AIzaSyDH7rc6-MYMOrMXZh_dzfezpBX1-UUJKZQ'; // "apiKey", ej: "AIzaSy…"
 
-const String _appIdWeb = ''; // "appId" de la app WEB, ej: "1:123456789012:web:abc123"
+const String _appIdWeb = '1:43213134071:web:370e52fbc7bd349c2f1bf2'; // "appId" de la app WEB, ej: "1:123456789012:web:abc123"
 const String _appIdAndroid = ''; // "appId" de la app ANDROID, ej: "1:123456789012:android:def456"
 const String _appIdIos = ''; // "appId" de la app iPHONE (más adelante)
 
-const String vapidKey = ''; // Solo web: Firebase → Cloud Messaging → "Certificados push web" → par de claves (empieza con "B…")
+const String vapidKey = 'BM81BBG6-Q13ig2ErGo2vlGGQO_dRgmU53RbeNtshE1OgsCWvUhc7_sUA086E_joAbWoCVQJd2G3Fek0ixW-TzY'; // Solo web: Firebase → Cloud Messaging → "Certificados push web" → par de claves (empieza con "B…")
 
 bool get firebaseConfigurado { // ¿Están los datos para esta plataforma?
   if (_proyectoId.isEmpty || _remitenteId.isEmpty || _apiKey.isEmpty) return false; // Faltan los datos comunes
