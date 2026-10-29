@@ -36,7 +36,7 @@ class _PantallaRadioState extends State<PantallaRadio> { // Estado de la pantall
   @override // Reemplaza dispose
   void dispose() { // Al salir de la pantalla
     _escucha?.cancel(); // Deja de escuchar
-    _control.cerrar(); // Apaga y libera el reproductor (por ahora la radio NO sigue sonando fuera de esta pantalla)
+    _control.cerrar(); // Apaga y libera el reproductor al SALIR de esta pantalla (con el teléfono bloqueado la pantalla sigue abierta: la radio sigue sonando)
     super.dispose(); // Lo de Flutter por defecto
   } // Fin de dispose
 
@@ -49,7 +49,7 @@ class _PantallaRadioState extends State<PantallaRadio> { // Estado de la pantall
     setState(() => _error = null); // Borra errores anteriores
     if (_estado != EstadoRadio.detenida) return _control.detener(); // Sonando o cargando: detener
     try { // Detenida: intentar reproducir
-      await _control.reproducir(radio.streamUrl!); // Conecta y suena
+      await _control.reproducir(radio.streamUrl!, titulo: radio.titulo ?? 'Radio Canaán'); // Conecta y suena (el título sale en la pantalla de bloqueo)
     } catch (_) { // No se pudo (enlace caído, sin internet, la cabina no está transmitiendo…)
       if (mounted) setState(() => _error = 'No pudimos conectar con la radio. Puede que la señal se haya cortado; intenta de nuevo en un momento.'); // Mensaje
     } // Fin del try

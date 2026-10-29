@@ -2,6 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>location</string>
+	</array>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Para avisarte de los anuncios del día cuando llegues al templo, aunque la app esté cerrada. Tu ubicación no sale del teléfono.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Para mostrarte los avisos de la iglesia cuando estés en el templo. Tu ubicación no sale del teléfono.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>

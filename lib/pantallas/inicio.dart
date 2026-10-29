@@ -8,6 +8,7 @@ import '../modelos/anuncio.dart'; // Molde de un anuncio
 import '../modelos/iglesia.dart'; // Molde de los datos de la iglesia
 import '../servicios/api.dart'; // Llamadas a la API
 import '../servicios/geocerca.dart'; // Geocerca (anuncios "Solo área", Paso 10)
+import '../servicios/geocerca_fondo.dart'; // Geocerca con la app cerrada (Paso 11): se actualiza si el panel cambió la ubicación
 import '../servicios/registro.dart'; // Registro del teléfono (para las señales del en vivo)
 import '../tema.dart'; // Colores de Canaán
 import 'radio.dart'; // Pantalla de la radio
@@ -65,6 +66,7 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
         _fallo = false; // Sin error
       }); // Fin de setState
       await _revisarGeocerca(datos, lista); // Revisa si está en la iglesia (solo pide la ubicación si hay anuncios de área en su ventana)
+      unawaited(GeocercaFondo.actualizar(datos)); // Si la persona activó el aviso con la app cerrada y el panel cambió la ubicación, la vuelve a registrar
     } catch (_) { // Falló (sin internet, servidor dormido)
       if (mounted && _iglesia == null) setState(() => _fallo = true); // Solo muestra el error si no había nada en pantalla
     } // Fin del try

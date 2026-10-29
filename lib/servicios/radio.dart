@@ -1,6 +1,7 @@
 import 'dart:async'; // unawaited (arrancar algo sin esperar a que termine)
 
 import 'package:just_audio/just_audio.dart'; // Reproductor de audio (sirve para la radio en línea)
+import 'package:just_audio_background/just_audio_background.dart'; // MediaItem: lo que se muestra en la notificación y en la pantalla de bloqueo
 
 enum EstadoRadio { detenida, cargando, sonando } // Estados que muestra la pantalla de la radio
 
@@ -10,12 +11,13 @@ abstract class ControlRadio { // "abstract" = plantilla: no se usa directo, se u
   static ControlRadio Function() crear = ControlRadioReal.new; // Cómo crear el control (en la app, el real; las pruebas lo cambian)
 
   Stream<EstadoRadio> get estados; // Avisa cada vez que cambia: detenida → cargando → sonando
-  Future<void> reproducir(String url); // Conecta con la radio y empieza a sonar
+  Future<void> reproducir(String url, {String titulo = 'Radio Canaán'}); // Conecta con la radio y empieza a sonar (el título sale en la pantalla de bloqueo)
   Future<void> detener(); // Detiene la radio
   Future<void> cerrar(); // Libera el reproductor (al salir de la pantalla)
 } // Fin de ControlRadio
 
-// Versión real, con just_audio. Más adelante (Paso 11, en el Pixel) se le agregará que siga sonando con la pantalla bloqueada.
+// Versión real, con just_audio + just_audio_background (Paso 11): sigue sonando con la pantalla bloqueada y muestra controles
+// en la notificación y en la pantalla de bloqueo. Regla del paquete: solo UN AudioPlayer a la vez (se libera al salir de la pantalla).
 class ControlRadioReal implements ControlRadio { // "implements" = cumple la plantilla de arriba
   final AudioPlayer _reproductor = AudioPlayer(); // Reproductor de just_audio
   bool _conectada = false; // true si ya se cargó el enlace de la radio
@@ -28,9 +30,12 @@ class ControlRadioReal implements ControlRadio { // "implements" = cumple la pla
       }); // Fin del map
 
   @override // Cumple la plantilla
-  Future<void> reproducir(String url) async { // Conecta con la radio y empieza a sonar
+  Future<void> reproducir(String url, {String titulo = 'Radio Canaán'}) async { // Conecta con la radio y empieza a sonar
     if (!_conectada) { // Si todavía no está conectada (primera vez, o después de detener)...
-      await _reproductor.setUrl(url); // ...conecta con el enlace (lanza error si no es audio o no responde)
+      await _reproductor.setAudioSource(AudioSource.uri( // ...conecta con el enlace (lanza error si no es audio o no responde)
+        Uri.parse(url), // Enlace de la radio
+        tag: MediaItem(id: url, title: titulo, album: 'Ministerio Cristiano Canaán'), // Datos para la notificación / pantalla de bloqueo
+      )); // Fin de la conexión
       _conectada = true; // Anota que ya conectó
     } // Fin del if
     unawaited(_reproductor.play()); // Empieza a sonar ("unawaited": play() no termina hasta que se detiene, así que NO se espera)

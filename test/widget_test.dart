@@ -33,7 +33,7 @@ class RadioFalsa implements ControlRadio { // Radio de mentira: no suena, solo a
   Stream<EstadoRadio> get estados => _estados.stream; // Avisos de cambios
 
   @override // Cumple la plantilla
-  Future<void> reproducir(String url) async { urlReproducida = url; _estados.add(EstadoRadio.sonando); } // "Suena"
+  Future<void> reproducir(String url, {String titulo = 'Radio Canaán'}) async { urlReproducida = url; _estados.add(EstadoRadio.sonando); } // "Suena"
 
   @override // Cumple la plantilla
   Future<void> detener() async => _estados.add(EstadoRadio.detenida); // "Se detiene"

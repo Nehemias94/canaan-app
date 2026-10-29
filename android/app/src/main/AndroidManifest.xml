@@ -1,9 +1,16 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Permisos que pide la app -->
     <uses-permission android:name="android.permission.INTERNET" /> <!-- Conectarse al panel, YouTube y la radio (sin esto, el APK final no tendría internet) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" /> <!-- Mostrar notificaciones (Android 13 o más nuevo pregunta a la persona) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" /> <!-- Ubicación precisa: saber si está en la iglesia (anuncios "Solo área", Paso 10) -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" /> <!-- Ubicación aproximada (si la persona no permite la precisa) -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" /> <!-- Ubicación "todo el tiempo": aviso al llegar a la iglesia con la app cerrada (opcional, Paso 11) -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" /> <!-- Volver a registrar el círculo de la iglesia al reiniciar el teléfono -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" /> <!-- Geocerca: servicio de tipo "ubicación" (Android 14+) -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" /> <!-- Radio: que el teléfono no "duerma" el audio con la pantalla apagada (Paso 11) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" /> <!-- Radio: seguir sonando en segundo plano -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" /> <!-- Radio: tipo de servicio "reproducción de audio" (Android 14+) -->
     <application
         android:label="Canaán"
         android:name="${applicationName}"
@@ -30,6 +37,33 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Radio en segundo plano (just_audio_background / audio_service, Paso 11): servicio que mantiene el audio y los controles -->
+        <service android:name="com.ryanheise.audioservice.AudioService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="true" tools:ignore="Instantiatable">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+        <!-- Botones de audífonos / pantalla de bloqueo (reproducir, detener) -->
+        <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver"
+            android:exported="true" tools:ignore="Instantiatable">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+        <!-- Geocerca con la app cerrada (native_geofence, Paso 11) -->
+        <receiver android:name="com.chunkytofustudios.native_geofence.receivers.NativeGeofenceBroadcastReceiver"
+            android:exported="true" /> <!-- Recibe el aviso del sistema "entró al círculo" -->
+        <receiver android:name="com.chunkytofustudios.native_geofence.receivers.NativeGeofenceRebootBroadcastReceiver"
+            android:exported="true"> <!-- Al reiniciar el teléfono, vuelve a registrar el círculo (Android lo olvida) -->
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+        <service android:name="com.chunkytofustudios.native_geofence.NativeGeofenceForegroundService"
+            android:foregroundServiceType="location"
+            android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
