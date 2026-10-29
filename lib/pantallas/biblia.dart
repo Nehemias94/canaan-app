@@ -30,6 +30,7 @@ class _PantallaBibliaState extends State<PantallaBiblia> { // Estado de la pesta
   static const _almacen = FlutterSecureStorage(); // Caja fuerte
   static const _claveUltima = 'biblia_ultima'; // Dirección del último capítulo leído
   static const _claveTamano = 'biblia_tamano'; // Tamaño de letra elegido
+  static const _navegadorNormal = 'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36'; // "Identificación" de un Chrome de celular común
 
   WebViewController? _pagina; // Control de la página web (null en el navegador/pruebas)
   int _tamano = PantallaBiblia.tamanoInicial; // Tamaño de letra actual (%)
@@ -58,12 +59,14 @@ class _PantallaBibliaState extends State<PantallaBiblia> { // Estado de la pesta
           if (error.isForMainFrame == true && mounted) setState(() { _sinInternet = true; _cargando = false; }); // ...si fue la página principal: mensaje "sin internet"
         }, // Fin del error
         onNavigationRequest: (pedido) { // Antes de abrir un enlace...
-          final host = Uri.tryParse(pedido.url)?.host ?? ''; // Dominio del enlace
+          if (!pedido.isMainFrame) return NavigationDecision.navigate; // Piezas internas de la página (marcos de Google, estadísticas…): se dejan cargar (bloquearlas dejaba la página "trabada" en una imagen gigante)
+          final host = Uri.tryParse(pedido.url)?.host ?? ''; // Dominio del enlace que tocó la persona
           if (host.endsWith('bible.com') || host.endsWith('youversion.com')) return NavigationDecision.navigate; // YouVersion: dentro de la app
-          launchUrl(Uri.parse(pedido.url), mode: LaunchMode.externalApplication); // Cualquier otro sitio (anuncios, redes): fuera de la app
+          launchUrl(Uri.parse(pedido.url), mode: LaunchMode.externalApplication); // Cualquier otro sitio (redes sociales, tiendas): fuera de la app
           return NavigationDecision.prevent; // No lo abre aquí
         }, // Fin de la revisión
       )) // Fin de la navegación
+      ..setUserAgent(_navegadorNormal) // Se presenta como Chrome normal (sin la marca "wv" de las apps), por si Bible.com trata distinto a las apps
       ..loadRequest(Uri.parse(direccion)); // Abre el capítulo
     if (mounted) setState(() => _pagina = pagina); // Muestra la página
     await _aplicarTamano(); // Aplica el tamaño de letra
