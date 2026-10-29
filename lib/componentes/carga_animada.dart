@@ -6,7 +6,9 @@ import '../tema.dart'; // Colores de Canaán
 // 1) aparece el arca dorada, 2) a su lado se escribe "Canaán" letra por letra, 3) aparecen "MINISTERIO CRISTIANO" y
 // "DE LAS ASAMBLEAS DE DIOS", 4) si sigue cargando, abajo sale "Conectando…". La animación corre UNA vez (no se repite).
 class CargaAnimada extends StatefulWidget { // Pantalla de carga con el logo animado
-  const CargaAnimada({super.key}); // Constructor
+  const CargaAnimada({super.key, this.datosListos = false}); // Constructor
+
+  final bool datosListos; // true = el panel ya respondió (la animación sigue en pantalla un momento): no hace falta mostrar "Conectando…"
 
   @override // Reemplaza createState
   State<CargaAnimada> createState() => _CargaAnimadaState(); // Crea el estado
@@ -14,7 +16,7 @@ class CargaAnimada extends StatefulWidget { // Pantalla de carga con el logo ani
 
 class _CargaAnimadaState extends State<CargaAnimada> with SingleTickerProviderStateMixin { // "SingleTicker…" = permite usar un reloj de animación
   static const _letras = ['C', 'a', 'n', 'a', 'á', 'n']; // Letras de "Canaán", en orden
-  static const _duracion = Duration(milliseconds: 3600); // Duración total (incluye la espera antes de "Conectando…")
+  static const _duracion = Duration(milliseconds: 4700); // Duración total: el logo se forma en 2.5 s y luego se queda quieto (Inicio lo cambia a los 4.5 s; así la animación cubre esa pausa)
 
   late final AnimationController _reloj = AnimationController(vsync: this, duration: _duracion); // Reloj de 0 a 1 en 3.6 s
 
@@ -30,7 +32,10 @@ class _CargaAnimadaState extends State<CargaAnimada> with SingleTickerProviderSt
     super.dispose(); // Lo de Flutter por defecto
   } // Fin de dispose
 
-  double _tramo(double inicio, double fin) => Curves.easeOut.transform(((_reloj.value - inicio) / (fin - inicio)).clamp(0.0, 1.0)); // Avance (0 a 1) dentro de un tramo del reloj, con frenado suave
+  double _tramo(double desde, double hasta) { // Avance (0 a 1) entre dos momentos, en SEGUNDOS desde que empezó, con frenado suave
+    final segundos = _reloj.value * _duracion.inMilliseconds / 1000; // Segundos transcurridos
+    return Curves.easeOut.transform(((segundos - desde) / (hasta - desde)).clamp(0.0, 1.0)); // 0 antes de "desde", 1 después de "hasta"
+  } // Fin de _tramo
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
@@ -38,9 +43,9 @@ class _CargaAnimadaState extends State<CargaAnimada> with SingleTickerProviderSt
     return AnimatedBuilder( // Se redibuja en cada cuadro de la animación
       animation: _reloj, // Escucha el reloj
       builder: (context, _) { // Cómo se ve en este instante
-        final arca = _tramo(0.0, 0.17); // Arca: de 0 a 0.6 s
-        final textos = _tramo(0.56, 0.70); // "Ministerio…" y "de las Asambleas…": de 2.0 a 2.5 s
-        final aviso = _tramo(0.83, 1.0); // "Conectando…": desde los 3 s
+        final arca = _tramo(0.0, 0.6); // Arca: de 0 a 0.6 s
+        final textos = _tramo(2.0, 2.5); // "Ministerio…" y "de las Asambleas…": de 2.0 a 2.5 s
+        final aviso = _tramo(3.0, 3.6); // "Conectando…": de 3.0 a 3.6 s (solo si sigue cargando)
         return Center( // Todo centrado en la pantalla
           child: Column( // Logo arriba y aviso abajo
             mainAxisSize: MainAxisSize.min, // Solo lo necesario
@@ -72,8 +77,8 @@ class _CargaAnimadaState extends State<CargaAnimada> with SingleTickerProviderSt
                           children: [ // Una por letra
                             for (var i = 0; i < _letras.length; i++) // Por cada letra...
                               Builder(builder: (context) { // ...calcula su animación
-                                final inicio = 0.17 + i * 0.065; // Cada letra empieza un poco después que la anterior (desde los 0.6 s)
-                                final t = _tramo(inicio, inicio + 0.09); // Avance de esta letra
+                                final inicio = 0.6 + i * 0.23; // Cada letra empieza 0.23 s después que la anterior (la primera a los 0.6 s)
+                                final t = _tramo(inicio, inicio + 0.32); // Avance de esta letra (tarda 0.32 s en aparecer)
                                 return Opacity( // Se va aclarando...
                                   opacity: t, // ...de 0 a 1 (invisible pero OCUPA su lugar: el arca no se mueve)
                                   child: Transform.translate( // ...y se desliza desde la izquierda
@@ -95,7 +100,7 @@ class _CargaAnimadaState extends State<CargaAnimada> with SingleTickerProviderSt
               ), // Fin de Semantics
               const SizedBox(height: 36), // Espacio
               Opacity( // Aviso "Conectando…" (solo si tarda)
-                opacity: aviso, // Aparece desde los 3 s
+                opacity: widget.datosListos ? 0 : aviso, // Aparece desde los 3 s, solo si TODAVÍA está cargando
                 child: const Column( // Dos líneas
                   children: [ // Elementos
                     Text('Conectando…', style: TextStyle(color: Colors.white, fontSize: 17)), // Texto principal

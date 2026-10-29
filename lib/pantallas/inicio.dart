@@ -44,7 +44,7 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
     WidgetsBinding.instance.addObserver(this); // Empieza a escuchar si la app se minimiza o vuelve
     _cargar(); // Primera carga
     _reloj = Timer.periodic(intervaloActualizacion, (_) => _cargar()); // Luego, cada 90 s, en silencio
-    _esperaAnimacion = Timer(const Duration(milliseconds: 2600), () { // Al abrir la app, el logo animado se ve al menos 2.6 s (hasta que se forma "Canaán")...
+    _esperaAnimacion = Timer(const Duration(milliseconds: 4500), () { // Al abrir la app, el logo animado se ve al menos 4.5 s (se forma en 2.5 s y se queda completo 2 s más)...
       if (mounted) setState(() => _animacionVista = true); // ...aunque el panel responda antes
     }); // Fin de la espera
     recargarInicio.addListener(_cargar); // Y al instante cuando el panel cambia el aviso urgente (aviso silencioso de Firebase)
@@ -131,21 +131,26 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
   Widget build(BuildContext context) { // Describe cómo se ve
     return AnnotatedRegion<SystemUiOverlayStyle>( // Estilo de la barra de arriba del teléfono (hora, batería) mientras se ve Inicio
       value: barraSuperiorClara, // Íconos en blanco: arriba siempre hay marino
-      child: _fallo || _iglesia == null || !_animacionVista // ¿Falló la primera carga, todavía no hay datos o la animación del logo no ha terminado?
+      child: AnimatedSwitcher( // Cambio SUAVE entre el logo animado e Inicio (uno se desvanece mientras aparece el otro)
+        duration: const Duration(milliseconds: 600), // Medio segundo y un poco más
+        child: _fallo || _iglesia == null || !_animacionVista // ¿Falló la primera carga, todavía no hay datos o la animación del logo no ha terminado?
           ? Container( // Pantalla completa en degradado mientras carga (o si falló)
+              key: const ValueKey('carga'), // Nombre para que AnimatedSwitcher sepa que cambió de pantalla
               decoration: const BoxDecoration( // Fondo
                 gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [marinoCanaan, azulCanaan]), // Marino → azul
               ), // Fin del fondo
               child: SafeArea( // Evita la cámara y la barra del teléfono
                 child: _fallo // ¿Falló?
                     ? ErrorConexion(alReintentar: _reintentar, claro: true) // Sí: mensaje y Reintentar
-                    : const CargaAnimada(), // No: logo animado (arca + "Canaán" letra por letra)
+                    : CargaAnimada(datosListos: _iglesia != null), // No: logo animado (arca + "Canaán" letra por letra)
               ), // Fin de SafeArea
             ) // Fin de la pantalla de carga
           : RefreshIndicator( // Hay datos: permite "jalar hacia abajo" para actualizar
+              key: const ValueKey('datos'), // Nombre para AnimatedSwitcher
               onRefresh: _cargar, // Qué hacer al jalar
               child: _DatosIglesia(iglesia: _iglesia!, anuncios: _anuncios, api: widget.api, registro: widget.registro), // Los datos
             ), // Fin de RefreshIndicator
+      ), // Fin de AnimatedSwitcher
     ); // Fin de AnnotatedRegion
   } // Fin de build
 } // Fin de _PantallaInicioState
