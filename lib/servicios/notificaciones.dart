@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart'; // kIsWeb y debugPrint
 import '../firebase_config.dart'; // Datos del proyecto de Firebase (vacíos = sin notificaciones)
 import 'api.dart'; // Para enviar el fcm_token al panel
 import 'geocerca.dart'; // Copia de los anuncios "Solo área" (se actualiza con el aviso silencioso)
+import 'recarga.dart'; // "Timbre" para recargar Inicio al instante (aviso urgente)
 import 'registro.dart'; // Llave del teléfono
 
 const String avisoActualizarArea = 'actualizar_area'; // Tipo del aviso SILENCIOSO del panel: "actualiza tus anuncios de área" (igual que en App\Models\Anuncio)
@@ -75,6 +76,10 @@ class ServicioNotificaciones { // Todo lo de notificaciones en un solo lugar
       FirebaseMessaging.onMessage.listen((mensaje) { // 5a) Llega con la app abierta...
         if (esAvisoSilencioso(mensaje)) { // ...si es el aviso invisible del panel...
           unawaited(actualizarCopiaArea()); // ...solo actualiza la copia de anuncios de área (no muestra nada)
+          return; // Fin
+        } // Fin del if
+        if (mensaje.data['tipo'] == avisoRecargarInicio) { // ...si cambió el aviso urgente en el panel...
+          tocarTimbreInicio(); // ...Inicio recarga al instante (con la app CERRADA este aviso se ignora: al abrirla se actualiza sola)
           return; // Fin
         } // Fin del if
         if (mensaje.notification != null) alRecibir(mensaje); // ...si es una notificación normal, la muestra abajo

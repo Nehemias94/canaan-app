@@ -10,6 +10,7 @@ import '../modelos/iglesia.dart'; // Molde de los datos de la iglesia
 import '../servicios/api.dart'; // Llamadas a la API
 import '../servicios/geocerca.dart'; // Geocerca (anuncios "Solo área", Paso 10)
 import '../servicios/geocerca_fondo.dart'; // Geocerca con la app cerrada (Paso 11): se actualiza si el panel cambió la ubicación
+import '../servicios/recarga.dart'; // "Timbre" para recargar al instante (aviso urgente)
 import '../servicios/registro.dart'; // Registro del teléfono (para las señales del en vivo)
 import '../tema.dart'; // Colores de Canaán
 import 'radio.dart'; // Pantalla de la radio
@@ -39,10 +40,12 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
     WidgetsBinding.instance.addObserver(this); // Empieza a escuchar si la app se minimiza o vuelve
     _cargar(); // Primera carga
     _reloj = Timer.periodic(intervaloActualizacion, (_) => _cargar()); // Luego, cada 90 s, en silencio
+    recargarInicio.addListener(_cargar); // Y al instante cuando el panel cambia el aviso urgente (aviso silencioso de Firebase)
   } // Fin de initState
 
   @override // Reemplaza dispose
   void dispose() { // Al cerrar la pantalla
+    recargarInicio.removeListener(_cargar); // Deja de escuchar el "timbre"
     _reloj?.cancel(); // Detiene el reloj
     WidgetsBinding.instance.removeObserver(this); // Deja de escuchar
     super.dispose(); // Lo de Flutter por defecto

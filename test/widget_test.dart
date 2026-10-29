@@ -11,6 +11,7 @@ import 'package:canaan_app/servicios/registro.dart'; // Registro del teléfono
 import 'package:canaan_app/pantallas/video.dart'; // Pantalla del video (para cambiar el reproductor por uno de prueba)
 import 'package:canaan_app/servicios/geocerca.dart'; // Geocerca (distancia)
 import 'package:canaan_app/servicios/ubicacion.dart'; // Servicio de ubicación (para cambiarlo por uno de prueba)
+import 'package:canaan_app/servicios/recarga.dart'; // "Timbre" para recargar Inicio al instante
 import 'package:canaan_app/servicios/radio.dart'; // Control de la radio (para cambiarlo por uno de prueba)
 import 'dart:async'; // StreamController (estados de la radio de mentira)
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Caja fuerte (en pruebas, una de mentira en memoria)
@@ -61,6 +62,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
     ]; // Fin de la lista
   } // Fin de obtenerAnuncios
   int registros = 0; // Cuántas veces se registró el teléfono
+  int consultasIglesia = 0; // Cuántas veces se pidieron los datos de la iglesia
   final tokensValidos = <String>{}; // Llaves que el panel falso acepta
 
   @override // Reemplaza el método real
@@ -106,6 +108,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
 
   @override // Reemplaza el método real
   Future<Iglesia> obtenerIglesia() async { // Datos falsos de la iglesia
+    consultasIglesia++; // Cuenta la consulta
     if (falla) throw Exception('sin internet'); // Simula el error
     return Iglesia.desdeJson({ // JSON igual al de la API
       'nombre': 'Ministerio Cristiano Canaán', // Nombre
@@ -394,4 +397,14 @@ void main() { // Punto de arranque de las pruebas
     expect(copia.anuncios.last.enVentana(DateTime.now()), isTrue); // La ventana se conservó bien (sigue "en ventana")
     expect(DateTime.now().difference(copia.guardada).inSeconds, lessThan(5)); // Guardada hace un momento
   }); // Fin de la prueba 19
+
+  testWidgets('Aviso urgente: el timbre recarga Inicio al instante (sin esperar 90 s)', (WidgetTester tester) async { // Prueba 20
+    final api = ApiFalsa(); // Panel falso
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Primera carga
+    final antes = api.consultasIglesia; // Consultas hasta ahora
+    tocarTimbreInicio(); // Llega el aviso silencioso del panel
+    await tester.pumpAndSettle(); // Espera (mucho menos de 90 s)
+    expect(api.consultasIglesia, antes + 1); // Volvió a pedir los datos al instante
+  }); // Fin de la prueba 20
 } // Fin de main
