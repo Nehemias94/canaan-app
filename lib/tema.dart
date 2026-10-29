@@ -29,8 +29,18 @@ ThemeData temaCanaan() { // Tema (colores y estilos) de toda la app
       centerTitle: true, // Título centrado
       systemOverlayStyle: barraSuperiorClara, // Hora y batería en blanco sobre el marino
     ), // Fin del estilo de la barra
-    navigationBarTheme: NavigationBarThemeData( // Estilo de la barra de abajo (menú)
-      indicatorColor: doradoCanaan.withValues(alpha: 0.35), // "Pastilla" dorada suave detrás de la opción elegida
+    navigationBarTheme: NavigationBarThemeData( // Estilo de la barra de abajo (menú): marino con la opción elegida en dorado
+      backgroundColor: marinoCanaan, // Fondo marino (igual que las barras de título)
+      indicatorColor: doradoCanaan.withValues(alpha: 0.22), // "Pastilla" dorada suave detrás de la opción elegida
+      iconTheme: WidgetStateProperty.resolveWith((estado) => IconThemeData( // Íconos según si están elegidos
+            color: estado.contains(WidgetState.selected) ? doradoCanaan : Colors.white70, // Elegido: dorado; los demás: blanco suave
+            size: 26, // Un poco más grandes (adultos mayores)
+          )), // Fin de los íconos
+      labelTextStyle: WidgetStateProperty.resolveWith((estado) => TextStyle( // Textos según si están elegidos
+            color: estado.contains(WidgetState.selected) ? doradoCanaan : Colors.white70, // Elegido: dorado; los demás: blanco suave
+            fontSize: 13, // Tamaño legible
+            fontWeight: estado.contains(WidgetState.selected) ? FontWeight.bold : FontWeight.w500, // Elegido en negrita
+          )), // Fin de los textos
     ), // Fin del estilo del menú
   ); // Fin del tema
 } // Fin de temaCanaan
@@ -41,3 +51,14 @@ String fechaCorta(DateTime? fecha) { // Convierte una fecha en texto corto, ej: 
   if (fecha == null) return ''; // Sin fecha → texto vacío
   return '${fecha.day} ${_meses[fecha.month - 1]} ${fecha.year}'; // Día, mes abreviado y año (los meses empiezan en 1, la lista en 0)
 } // Fin de fechaCorta
+
+const List<String> _dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']; // Días (Dart: lunes = 1 … domingo = 7)
+const List<String> _mesesLargos = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']; // Meses completos
+
+String fechaLarga(DateTime fecha) => '${_dias[fecha.weekday - 1]}, ${fecha.day} de ${_mesesLargos[fecha.month - 1]}'; // Ej: "Jueves, 29 de octubre"
+
+String saludoSegunHora(DateTime ahora) { // Saludo según la hora (igual que el Escritorio del panel)
+  if (ahora.hour < 12) return 'Buenos días'; // Antes del mediodía
+  if (ahora.hour < 19) return 'Buenas tardes'; // Antes de las 7 pm
+  return 'Buenas noches'; // Desde las 7 pm
+} // Fin de saludoSegunHora

@@ -157,19 +157,36 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
     return ListView( // Lista desplazable (necesaria para "jalar hacia abajo")
-      padding: const EdgeInsets.all(24), // Margen
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24), // Margen (poco arriba: lo importante debe verse sin bajar)
       children: [ // Elementos
-        const SizedBox(height: 40), // Espacio arriba
-        if (iglesia.logoUrl != null) // Si la iglesia subió un logo en el panel...
-          Image.network(iglesia.logoUrl!, height: 96) // ...lo muestra
-        else // Si no...
-          Image.asset('assets/imagenes/canaan-icono.png', height: 96), // ...el ícono oficial dorado de Canaán (va dentro de la app)
-        const SizedBox(height: 16), // Espacio
-        Text( // Nombre de la iglesia (viene del panel)
-          iglesia.nombre, // Texto
-          textAlign: TextAlign.center, // Centrado
-          style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold), // Blanco grande en negrita
-        ), // Fin del nombre
+        Row( // Encabezado compacto: logo pequeño a la izquierda y saludo a la derecha
+          children: [ // Elementos
+            if (iglesia.logoUrl != null) // Si la iglesia subió un logo en el panel...
+              Image.network(iglesia.logoUrl!, height: 52) // ...lo muestra (pequeño)
+            else // Si no...
+              Image.asset('assets/imagenes/canaan-icono.png', height: 52), // ...el ícono oficial dorado de Canaán (va dentro de la app)
+            const SizedBox(width: 14), // Espacio
+            Expanded( // El texto ocupa el resto del ancho
+              child: Column( // Uno debajo del otro
+                crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
+                children: [ // Elementos
+                  Text( // Saludo según la hora
+                    saludoSegunHora(DateTime.now()), // "Buenos días", "Buenas tardes" o "Buenas noches"
+                    style: const TextStyle(color: doradoCanaan, fontSize: 16, fontWeight: FontWeight.bold), // Dorado
+                  ), // Fin del saludo
+                  Text( // Nombre de la iglesia (viene del panel)
+                    iglesia.nombre, // Texto
+                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, height: 1.2), // Blanco en negrita
+                  ), // Fin del nombre
+                  Text( // Fecha de hoy
+                    fechaLarga(DateTime.now()), // Ej: "Jueves, 29 de octubre"
+                    style: const TextStyle(color: Colors.white70, fontSize: 15), // Blanco suave
+                  ), // Fin de la fecha
+                ], // Fin de los elementos
+              ), // Fin de la columna
+            ), // Fin del Expanded
+          ], // Fin de los elementos
+        ), // Fin del encabezado
         const SizedBox(height: 20), // Espacio
         if (iglesia.enVivo.activo) // Si hay transmisión en vivo...
           _Etiqueta( // ...etiqueta roja
