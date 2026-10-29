@@ -42,7 +42,10 @@ class Api { // Todas las llamadas a la API del panel se hacen desde aquí
     if (respuesta.statusCode < 200 || respuesta.statusCode > 299) { // Si no es un código de éxito (200–299)...
       String? mensaje; // Mensaje del panel (si lo hay)
       try { // Intenta leerlo (si la respuesta no es JSON, se ignora)
-        mensaje = (jsonDecode(respuesta.body) as Map<String, dynamic>)['mensaje'] as String?; // El panel usa la clave "mensaje" para sus textos en español
+        final cuerpo = jsonDecode(respuesta.body) as Map<String, dynamic>; // Respuesta del panel
+        mensaje = cuerpo['mensaje'] as String?; // El panel usa la clave "mensaje" para sus textos en español
+        final errores = cuerpo['errors'] as Map<String, dynamic>?; // Errores de validación (422): {"telefono": ["Escribe un número…"]}
+        if (mensaje == null && errores != null && errores.isNotEmpty) mensaje = (errores.values.first as List).first as String; // El primero, para mostrarlo
       } catch (_) {} // No era JSON: sin mensaje
       throw ErrorApi(respuesta.statusCode, mensaje); // ...lanza un error con el código y el mensaje
     } // Fin del if
@@ -117,6 +120,37 @@ class Api { // Todas las llamadas a la API del panel se hacen desde aquí
         .timeout(tiempoMaximoEspera); // Tiempo máximo
     return _revisar(respuesta); // Revisa y devuelve el JSON
   } // Fin de _enviarConToken
+
+  Future<Map<String, dynamic>> _pedirConToken(String metodo, String ruta, String token, [Map<String, dynamic>? datos]) async { // Ayuda interna: POST/GET/DELETE con la llave del teléfono y (si hay) datos en JSON
+    final peticion = http.Request(metodo, Uri.parse('$apiBase/$ruta')) // Petición del tipo pedido...
+      ..headers.addAll({'Accept': 'application/json', 'Authorization': 'Bearer $token', if (datos != null) 'Content-Type': 'application/json'}) // ...con la llave...
+      ..body = datos != null ? jsonEncode(datos) : ''; // ...y los datos
+    final respuesta = await http.Response.fromStream(await http.Client().send(peticion).timeout(tiempoMaximoEspera)); // Envía y espera
+    return _revisar(respuesta); // Revisa y devuelve el JSON
+  } // Fin de _pedirConToken
+
+  Future<void> marcarInteres({required String token, required int eventoId, required bool activo}) async { // La persona tocó (o quitó) la 🔔 de un evento: el panel solo cuenta cuántos (anónimo)
+    await _pedirConToken('POST', 'eventos/$eventoId/interes', token, {'activo': activo}); // Avisa
+  } // Fin de marcarInteres
+
+  EstadoInscripcion _estadoInscripcion(Map<String, dynamic> json) => EstadoInscripcion( // Convierte la respuesta del panel
+        mia: json['data'] == null ? null : InscripcionEvento.desdeJson(json['data'] as Map<String, dynamic>), // La de este teléfono
+        abiertas: (json['evento'] as Map<String, dynamic>?)?['abiertas'] == true, // ¿Abiertas?
+        restantes: ((json['evento'] as Map<String, dynamic>?)?['restantes'] as num?)?.toInt(), // Lugares libres
+      ); // Fin
+
+  Future<EstadoInscripcion> miInscripcion({required String token, required int eventoId}) async => // La inscripción de este teléfono y el cupo (GET /api/eventos/{id}/inscripcion)
+      _estadoInscripcion(await _pedirConToken('GET', 'eventos/$eventoId/inscripcion', token)); // Pide y convierte
+
+  Future<String> inscribirEvento({required String token, required int eventoId, required String nombre, required String telefono, required int personas, String nota = ''}) async { // Inscribirse o cambiar los datos; devuelve el mensaje del panel
+    final json = await _pedirConToken('POST', 'eventos/$eventoId/inscripcion', token, {'nombre': nombre, 'telefono': telefono, 'personas': personas, if (nota.isNotEmpty) 'nota': nota}); // Envía
+    return json['mensaje'] as String? ?? '¡Listo! Quedaste inscrito.'; // Mensaje
+  } // Fin de inscribirEvento
+
+  Future<String> cancelarInscripcion({required String token, required int eventoId}) async { // Cancelar la inscripción de este teléfono
+    final json = await _pedirConToken('DELETE', 'eventos/$eventoId/inscripcion', token); // Envía
+    return json['mensaje'] as String? ?? 'Cancelamos tu inscripción.'; // Mensaje
+  } // Fin de cancelarInscripcion
 
   Future<bool> registrarReproduccion({required String token, required int predicaId}) async { // Cuenta una vista de la prédica (POST /api/predicas/{id}/reproduccion)
     final json = await _enviarConToken('predicas/$predicaId/reproduccion', token); // Avisa al panel

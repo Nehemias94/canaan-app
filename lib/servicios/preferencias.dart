@@ -18,10 +18,15 @@ class Preferencias { // Todo junto en un solo lugar
 
   static const double escalaLetraGrande = 1.2; // Cuánto se agranda la letra (20 % más)
 
+  static String nombreInscripcion = ''; // Último nombre usado al inscribirse a un evento (para no escribirlo otra vez)
+  static String telefonoInscripcion = ''; // Último teléfono usado
+
   static Future<void> cargar() async { // Lee lo guardado (se llama al abrir la app)
     try { // Si la caja fuerte falla, se quedan los valores por defecto
       letraGrande.value = await _almacen.read(key: 'pref_letra_grande') == 'si'; // Letra grande
       apariencia.value = await _almacen.read(key: 'pref_apariencia') ?? 'sistema'; // Claro / oscuro / como el teléfono
+      nombreInscripcion = await _almacen.read(key: 'pref_inscripcion_nombre') ?? ''; // Último nombre de inscripción
+      telefonoInscripcion = await _almacen.read(key: 'pref_inscripcion_telefono') ?? ''; // Último teléfono de inscripción
       avisosEnVivo.value = await _almacen.read(key: 'pref_avisos_en_vivo') != 'no'; // En vivo (encendido si nunca se tocó)
       avisosAnuncios.value = await _almacen.read(key: 'pref_avisos_anuncios') != 'no'; // Anuncios (encendido si nunca se tocó)
       avisosVersiculo.value = await _almacen.read(key: 'pref_avisos_versiculo') != 'no'; // Versículo del día (encendido si nunca se tocó)
@@ -66,6 +71,12 @@ class Preferencias { // Todo junto en un solo lugar
     recordatoriosEventos.value = {...ids}; // Avisa (conjunto nuevo)
     await _guardar('pref_recordatorios_eventos', jsonEncode(ids.toList())); // Lo recuerda
   } // Fin de guardarRecordatoriosEventos
+
+  static Future<void> guardarDatosInscripcion(String nombre, String telefono) async { // Recuerda nombre y teléfono de la última inscripción
+    nombreInscripcion = nombre; telefonoInscripcion = telefono; // En memoria
+    await _guardar('pref_inscripcion_nombre', nombre); // En el teléfono
+    await _guardar('pref_inscripcion_telefono', telefono); // En el teléfono
+  } // Fin de guardarDatosInscripcion
 
   static Future<void> _guardar(String clave, String valor) async { // Escribe en la caja fuerte sin tumbar la app si falla
     try { await _almacen.write(key: clave, value: valor); } catch (_) {} // Si falla, solo se pierde al cerrar la app

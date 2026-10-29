@@ -55,6 +55,14 @@ class TarjetaEvento extends StatelessWidget { // Tarjeta de un evento especial (
           ), // Fin de la fila
           if (evento.lugar != null && evento.lugar!.isNotEmpty) // Si tiene lugar...
             Padding(padding: const EdgeInsets.only(top: 4), child: Text('📍 ${evento.lugar}', style: TextStyle(fontSize: 15, color: context.cc.suave))), // ...con pin
+          if (evento.inscripcionesActivas) // Si acepta inscripciones...
+            Padding( // ...etiqueta
+              padding: const EdgeInsets.only(top: 6), // Separación
+              child: Text( // Texto
+                evento.inscripcionesAbiertas ? '📝 Inscripciones abiertas${evento.inscripcionesRestantes != null ? ' · quedan ${evento.inscripcionesRestantes}' : ''}' : (evento.inscripcionesRestantes == 0 ? '📝 Cupo lleno' : '📝 Inscripciones cerradas'), // Estado
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: evento.inscripcionesAbiertas ? context.vivo(const Color(0xFF15803D)) : context.cc.suave), // Verde si están abiertas
+              ), // Fin del texto
+            ), // Fin de la etiqueta
           if (evento.seTransmite) // Si se transmite...
             Padding(padding: const EdgeInsets.only(top: 4), child: Text('🔴 Se transmite en vivo en la app', style: TextStyle(fontSize: 14, color: context.vivo(Colors.red.shade700), fontWeight: FontWeight.w600))), // ...aviso rojo
         ], // Fin de los elementos

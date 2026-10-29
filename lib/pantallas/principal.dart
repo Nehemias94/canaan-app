@@ -6,6 +6,7 @@ import '../servicios/api.dart'; // Llamadas a la API (se pasa a cada pestaña)
 import '../servicios/conexion.dart'; // Franja "Sin conexión"
 import '../servicios/notificaciones.dart'; // Notificaciones (Firebase)
 import '../servicios/recarga.dart'; // Timbre para actualizar la pestaña Eventos
+import '../servicios/servicios_app.dart'; // API y registro al alcance de todas las pantallas
 import '../servicios/registro.dart'; // Registro del teléfono en el panel
 import 'biblia.dart'; // Pestaña Biblia (YouVersion, Reina-Valera 1960)
 import 'eventos.dart'; // Pestaña Eventos (eventos especiales)
@@ -29,6 +30,8 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
   @override // Reemplaza initState
   void initState() { // Se ejecuta una vez, al abrir la app
     super.initState(); // Lo de Flutter por defecto
+    ServiciosApp.api = widget.api; // API al alcance de todas las pantallas (eventos: 🔔 e inscripciones)
+    ServiciosApp.registro = widget.registro; // Llave del teléfono, igual
     widget.registro.iniciar().then((_) => ServicioNotificaciones.iniciar( // Registra el teléfono en segundo plano y, al terminar, activa las notificaciones
           api: widget.api, // API
           registro: widget.registro, // Registro

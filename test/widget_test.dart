@@ -151,6 +151,24 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
   @override // Reemplaza el método real
   Future<List<Evento>> obtenerEventos() async => eventos.map(Evento.desdeJson).toList(); // Eventos falsos
 
+  final interesesMarcados = <int, bool>{}; // 🔔 avisadas al panel falso (evento → activo)
+  InscripcionEvento? inscripcionFalsa; // Inscripción de este teléfono en el panel falso
+
+  @override // Reemplaza el método real
+  Future<void> marcarInteres({required String token, required int eventoId, required bool activo}) async => interesesMarcados[eventoId] = activo; // Lo anota
+
+  @override // Reemplaza el método real
+  Future<EstadoInscripcion> miInscripcion({required String token, required int eventoId}) async => EstadoInscripcion(mia: inscripcionFalsa, abiertas: true, restantes: 10); // Siempre abiertas, 10 lugares
+
+  @override // Reemplaza el método real
+  Future<String> inscribirEvento({required String token, required int eventoId, required String nombre, required String telefono, required int personas, String nota = ''}) async { // Inscripción falsa
+    inscripcionFalsa = InscripcionEvento(nombre: nombre, telefono: telefono, personas: personas, nota: nota); // La guarda
+    return '¡Listo! Quedaste inscrito.'; // Mensaje
+  } // Fin de inscribirEvento
+
+  @override // Reemplaza el método real
+  Future<String> cancelarInscripcion({required String token, required int eventoId}) async { inscripcionFalsa = null; return 'Cancelamos tu inscripción.'; } // Cancela
+
   @override // Reemplaza el método real
   Future<List<Actividad>> obtenerActividades() async { // Horario falso
     if (falla) throw Exception('sin internet'); // Simula el error
@@ -789,4 +807,34 @@ void main() { // Punto de arranque de las pruebas
     }, () => internet); // Fin de runWithClient
     sinConexion.value = false; // Lo deja como estaba (para las demás pruebas)
   }); // Fin de la prueba 43
+
+  testWidgets('Eventos: inscribirse, ver "Estás inscrito" y cancelar', (WidgetTester tester) async { // Prueba 44
+    pantallaAlta(tester); // Pantalla alta
+    final inicio = DateTime.now().add(const Duration(days: 20)); // Dentro de 20 días
+    final api = ApiFalsa()..eventos = [{'id': 3, 'titulo': 'Retiro de damas', 'inicia_en': inicio.toIso8601String(), 'en_curso': false, 'inscripciones': {'activas': true, 'abiertas': true, 'cupo': 30, 'restantes': 10}}]; // Evento con inscripción
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Eventos'))); // Pestaña Eventos
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('📝 Inscripciones abiertas · quedan 10'), findsOneWidget); // Etiqueta en la tarjeta
+    await tester.tap(find.text('Retiro de damas')); // Abre el detalle
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.widgetWithText(FilledButton, 'Inscribirme')); // Botón Inscribirme
+    await tester.pumpAndSettle(); // Abre el formulario
+    await tester.enterText(find.widgetWithText(TextFormField, 'Nombre completo'), 'Ana López'); // Nombre
+    await tester.enterText(find.widgetWithText(TextFormField, 'Teléfono (WhatsApp)'), '7000-1234'); // Teléfono
+    await tester.tap(find.byTooltip('Más')); // 2 personas
+    await tester.pump(); // Redibuja
+    await tester.tap(find.widgetWithText(FilledButton, 'Inscribirme')); // Envía
+    await tester.pumpAndSettle(); // Vuelve al detalle
+    expect(api.inscripcionFalsa?.personas, 2); // Llegó al panel con 2 personas
+    expect(find.text('✅ Estás inscrito'), findsOneWidget); // Confirmación en el detalle
+    expect(find.text('Ana López · 2 persona(s)'), findsOneWidget); // Sus datos
+    await tester.tap(find.text('Cancelar inscripción')); // Cancela
+    await tester.pumpAndSettle(); // Pregunta
+    await tester.tap(find.text('Sí, cancelar')); // Confirma
+    await tester.pumpAndSettle(); // Espera
+    expect(api.inscripcionFalsa, isNull); // Cancelada en el panel
+    expect(find.widgetWithText(FilledButton, 'Inscribirme'), findsOneWidget); // Otra vez el botón
+  }); // Fin de la prueba 44
 } // Fin de main
