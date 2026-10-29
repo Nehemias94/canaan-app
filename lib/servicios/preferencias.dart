@@ -11,6 +11,7 @@ class Preferencias { // Todo junto en un solo lugar
   static final ValueNotifier<bool> letraGrande = ValueNotifier<bool>(false); // ¿Agrandar toda la letra de la app?
   static final ValueNotifier<bool> avisosEnVivo = ValueNotifier<bool>(true); // ¿Recibir "¡Estamos en vivo!"?
   static final ValueNotifier<bool> avisosAnuncios = ValueNotifier<bool>(true); // ¿Recibir los anuncios?
+  static final ValueNotifier<bool> avisosVersiculo = ValueNotifier<bool>(true); // ¿Recibir el versículo del día como notificación?
   static final ValueNotifier<Set<int>> recordatorios = ValueNotifier<Set<int>>({}); // Cultos (id) con recordatorio 30 min antes
 
   static const double escalaLetraGrande = 1.2; // Cuánto se agranda la letra (20 % más)
@@ -20,6 +21,7 @@ class Preferencias { // Todo junto en un solo lugar
       letraGrande.value = await _almacen.read(key: 'pref_letra_grande') == 'si'; // Letra grande
       avisosEnVivo.value = await _almacen.read(key: 'pref_avisos_en_vivo') != 'no'; // En vivo (encendido si nunca se tocó)
       avisosAnuncios.value = await _almacen.read(key: 'pref_avisos_anuncios') != 'no'; // Anuncios (encendido si nunca se tocó)
+      avisosVersiculo.value = await _almacen.read(key: 'pref_avisos_versiculo') != 'no'; // Versículo del día (encendido si nunca se tocó)
       final texto = await _almacen.read(key: 'pref_recordatorios'); // Lista de recordatorios, ej: "[11,14]"
       recordatorios.value = texto == null ? {} : (jsonDecode(texto) as List).cast<int>().toSet(); // A conjunto de números
     } catch (_) {} // Valores por defecto
@@ -39,6 +41,11 @@ class Preferencias { // Todo junto en un solo lugar
     avisosAnuncios.value = valor; // Avisa
     await _guardar('pref_avisos_anuncios', valor ? 'si' : 'no'); // Lo recuerda
   } // Fin de cambiarAvisosAnuncios
+
+  static Future<void> cambiarAvisosVersiculo(bool valor) async { // Interruptor "Recibir el versículo del día"
+    avisosVersiculo.value = valor; // Avisa
+    await _guardar('pref_avisos_versiculo', valor ? 'si' : 'no'); // Lo recuerda
+  } // Fin de cambiarAvisosVersiculo
 
   static Future<void> guardarRecordatorios(Set<int> ids) async { // Lista de cultos con recordatorio
     recordatorios.value = {...ids}; // Avisa (un conjunto nuevo para que se note el cambio)

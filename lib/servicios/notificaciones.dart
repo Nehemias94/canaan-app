@@ -41,6 +41,7 @@ class ServicioNotificaciones { // Todo lo de notificaciones en un solo lugar
   static const String tema = 'todos'; // Tema al que envía el panel los avisos invisibles (igual que App\Support\Notificaciones::TEMA)
   static const String temaEnVivo = 'en_vivo'; // "¡Estamos en vivo!" (Notificaciones::TEMA_EN_VIVO)
   static const String temaAnuncios = 'anuncios'; // Anuncios (Notificaciones::TEMA_ANUNCIOS)
+  static const String temaVersiculo = 'versiculo'; // Versículo del día (Notificaciones::TEMA_VERSICULO)
   static bool _iniciado = false; // ¿Firebase ya arrancó? (para no tocar los temas antes)
 
   static bool get temasSoportados => !kIsWeb; // Los temas solo existen en Android/iPhone (el navegador recibe por su dirección)
@@ -52,6 +53,7 @@ class ServicioNotificaciones { // Todo lo de notificaciones en un solo lugar
       await mensajeria.subscribeToTopic(tema); // Siempre: avisos invisibles (aviso urgente, anuncios de área)
       Preferencias.avisosEnVivo.value ? await mensajeria.subscribeToTopic(temaEnVivo) : await mensajeria.unsubscribeFromTopic(temaEnVivo); // En vivo: según el interruptor
       Preferencias.avisosAnuncios.value ? await mensajeria.subscribeToTopic(temaAnuncios) : await mensajeria.unsubscribeFromTopic(temaAnuncios); // Anuncios: según el interruptor
+      Preferencias.avisosVersiculo.value ? await mensajeria.subscribeToTopic(temaVersiculo) : await mensajeria.unsubscribeFromTopic(temaVersiculo); // Versículo del día: según el interruptor
     } catch (error) { // Falló
       debugPrint('Notificaciones: no se pudieron aplicar los temas: $error'); // Solo lo anota
     } // Fin del try

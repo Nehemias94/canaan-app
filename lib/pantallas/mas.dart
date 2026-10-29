@@ -56,6 +56,11 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
     await ServicioNotificaciones.aplicarTemas(); // Se suscribe o se da de baja del tema anuncios
   } // Fin de _cambiarAvisarAnuncios
 
+  Future<void> _cambiarAvisarVersiculo(bool valor) async { // Interruptor "Recibir el versículo del día"
+    await Preferencias.cambiarAvisosVersiculo(valor); // Lo guarda
+    await ServicioNotificaciones.aplicarTemas(); // Se suscribe o se da de baja del tema versiculo
+  } // Fin de _cambiarAvisarVersiculo
+
   Future<void> _cambiarAvisoIglesia(bool activar) async { // Interruptor "Avisarme al llegar a la iglesia"
     if (!activar) { // Apagarlo...
       await GeocercaFondo.desactivar(); // ...quita el círculo del teléfono
@@ -184,6 +189,16 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
                     subtitle: const Text('Los avisos urgentes siempre se muestran'), // Aclaración
                     value: activo, // Encendido o apagado
                     onChanged: _cambiarAvisarAnuncios, // Al tocar
+                  ), // Fin del interruptor
+                ), // Fin de la escucha
+                ValueListenableBuilder<bool>( // Escucha "versículo del día"
+                  valueListenable: Preferencias.avisosVersiculo, // Preferencia
+                  builder: (context, activo, _) => SwitchListTile( // Interruptor
+                    secondary: const Icon(Icons.auto_stories, color: azulCanaan), // Ícono de libro abierto
+                    title: const Text('Recibir el versículo del día'), // Texto
+                    subtitle: const Text('Una notificación al día'), // Aclaración
+                    value: activo, // Encendido o apagado
+                    onChanged: _cambiarAvisarVersiculo, // Al tocar
                   ), // Fin del interruptor
                 ), // Fin de la escucha
               ], // Fin de las notificaciones
