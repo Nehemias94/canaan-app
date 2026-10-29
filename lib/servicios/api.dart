@@ -191,15 +191,21 @@ class Api { // Todas las llamadas a la API del panel se hacen desde aquí
     return Iglesia.desdeJson(json['data'] as Map<String, dynamic>); // Vienen dentro de "data"
   } // Fin de obtenerIglesia
 
-  Future<List<Predica>> obtenerPredicas({String buscar = ''}) async { // Prédicas (GET /api/predicas), la destacada primero
+  Future<List<Predica>> obtenerPredicas({String buscar = '', int? serieId}) async { // Prédicas (GET /api/predicas), la destacada primero; con serieId, solo esa serie en orden de partes
     final json = await _leer('predicas', { // Pide la lista...
       'por_pagina': '30', // ...hasta 30 (el máximo de la API)
       if (buscar.trim().isNotEmpty) 'buscar': buscar.trim(), // ...y el texto a buscar, solo si escribió algo
-    }, null, buscar.trim().isEmpty); // Fin de la petición (la lista completa se guarda para verla sin internet; las búsquedas no)
+      if (serieId != null) 'serie': '$serieId', // ...y la serie, si eligió una
+    }, null, buscar.trim().isEmpty && serieId == null); // Fin de la petición (la lista completa se guarda para verla sin internet; búsquedas y series no)
     return (json['data'] as List) // La lista viene dentro de "data"...
         .map((p) => Predica.desdeJson(p as Map<String, dynamic>)) // ...cada elemento se convierte en Predica...
         .toList(); // ...y se devuelve como lista
   } // Fin de obtenerPredicas
+
+  Future<List<SerieResumen>> obtenerSeries() async { // Series de prédicas (GET /api/series) para los botones de filtro
+    final json = await _leer('series', null, null, true); // Pide la lista (con copia: sirve sin internet)
+    return (json['data'] as List).map((s) => SerieResumen.desdeJson(s as Map<String, dynamic>)).toList(); // A objetos
+  } // Fin de obtenerSeries
 
   Future<List<Anuncio>> obtenerAnuncios() async { // Anuncios visibles (GET /api/anuncios), los más recientes primero
     final json = await _leer('anuncios', null, null, true); // Pide la lista (con copia: sirve sin internet)

@@ -143,8 +143,19 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
   } // Fin de obtenerIglesia
 
   @override // Reemplaza el método real
-  Future<List<Predica>> obtenerPredicas({String buscar = ''}) async { // Prédicas falsas
+  @override // Reemplaza el método real
+  Future<List<SerieResumen>> obtenerSeries() async => conSerie ? [const SerieResumen(id: 2, nombre: 'La familia', partes: 2)] : []; // Series falsas
+
+  bool conSerie = false; // ¿El panel falso tiene una serie de 2 partes?
+
+  @override // Reemplaza el método real
+  Future<List<Predica>> obtenerPredicas({String buscar = '', int? serieId}) async { // Prédicas falsas
     if (falla) throw Exception('sin internet'); // Simula el error
+    if (conSerie) { // Panel con serie
+      final parte1 = Predica.desdeJson({'id': 21, 'titulo': 'Diseño de Dios', 'youtube_id': 'serie1xxxxx', 'bosquejo': '1. Dios diseñó la familia — Génesis 2:24', 'serie': {'id': 2, 'nombre': 'La familia', 'parte': 1, 'total': 2, 'siguiente': {'id': 22, 'titulo': 'Padres que bendicen', 'parte': 2}}}); // Parte 1
+      final parte2 = Predica.desdeJson({'id': 22, 'titulo': 'Padres que bendicen', 'youtube_id': 'serie2xxxxx', 'serie': {'id': 2, 'nombre': 'La familia', 'parte': 2, 'total': 2}}); // Parte 2
+      return serieId == 2 ? [parte1, parte2] : [parte1, parte2, Predica.desdeJson({'id': 1, 'titulo': tituloPredica})]; // Con filtro: solo la serie
+    } // Fin del if
     return [Predica.desdeJson({'id': 1, 'titulo': tituloPredica, 'predicador': 'Pastor Juan', 'fecha': '2026-10-05', 'destacada': true, 'youtube_id': 'predica123', 'descripcion': 'Mateo 17:20'})]; // Una prédica destacada
   } // Fin de obtenerPredicas
 
@@ -837,4 +848,31 @@ void main() { // Punto de arranque de las pruebas
     expect(api.inscripcionFalsa, isNull); // Cancelada en el panel
     expect(find.widgetWithText(FilledButton, 'Inscribirme'), findsOneWidget); // Otra vez el botón
   }); // Fin de la prueba 44
+
+  testWidgets('Series y bosquejo: filtro, etiqueta, bosquejo y siguiente parte', (WidgetTester tester) async { // Prueba 45
+    pantallaAlta(tester); // Pantalla alta
+    final api = ApiFalsa()..conSerie = true; // Panel con una serie
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Prédicas'))); // Pestaña Prédicas
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('📚 La familia'), findsOneWidget); // Botón de filtro de la serie
+    expect(find.text('📚 La familia · Parte 1 de 2'), findsOneWidget); // Etiqueta en la tarjeta
+    await tester.tap(find.text('📚 La familia')); // Filtra por la serie
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text(api.tituloPredica), findsNothing); // La prédica suelta ya no sale
+    await tester.tap(find.text('Diseño de Dios')); // Abre la parte 1
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('📝 Ver bosquejo'), findsOneWidget); // Botón del bosquejo
+    expect(find.text('Padres que bendicen'), findsOneWidget); // Tarjeta de la siguiente parte
+    await tester.tap(find.text('📝 Ver bosquejo')); // Abre el bosquejo
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('1. Dios diseñó la familia — Génesis 2:24'), findsOneWidget); // Los puntos
+    await tester.pageBack(); // Vuelve al video
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.text('Padres que bendicen')); // Siguiente parte
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('📝 Ver bosquejo'), findsNothing); // La parte 2 no tiene bosquejo
+    expect(find.textContaining('SIGUIENTE EN LA SERIE'), findsNothing); // Y es la última
+  }); // Fin de la prueba 45
 } // Fin de main

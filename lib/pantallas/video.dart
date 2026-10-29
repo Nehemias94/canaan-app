@@ -8,6 +8,8 @@ import '../servicios/api.dart'; // Llamadas a la API (vistas y señales)
 import '../servicios/compartir.dart'; // Botón Compartir
 import '../servicios/registro.dart'; // Llave del teléfono
 import '../tema.dart'; // Colores de Canaán
+import '../modelos/predica.dart'; // Prédica (bosquejo y siguiente parte)
+import 'bosquejo.dart'; // Pantalla del bosquejo
 import 'ofrendas.dart'; // Pantalla de ofrendas (botón Ofrendar)
 import 'peticion.dart'; // Formulario de petición (botón Pedir oración)
 
@@ -24,6 +26,7 @@ class PantallaVideo extends StatefulWidget { // Pantalla con el video de YouTube
     this.enVivo = false, // true = transmisión en vivo (manda señales y muestra cuántos ven)
     this.acciones = false, // true = muestra los botones Pedir oración · Ofrendar · Compartir (en vivo y repetición del culto)
     this.ofrendas, // Datos de ofrendas (el botón Ofrendar sale solo si el panel las muestra)
+    this.predica, // Prédica completa (para el bosquejo y la siguiente parte de la serie)
   }); // Fin del constructor
 
   final Api api; // De dónde se envían vistas y señales
@@ -36,6 +39,7 @@ class PantallaVideo extends StatefulWidget { // Pantalla con el video de YouTube
   final bool enVivo; // ¿Es la transmisión en vivo?
   final bool acciones; // ¿Mostrar los botones bajo el video?
   final Ofrendas? ofrendas; // Ofrendas del panel (null = sin botón Ofrendar)
+  final Predica? predica; // Prédica (null en el en vivo)
 
   static Widget? reproductorDePrueba; // Solo en pruebas automáticas: reemplaza al reproductor real (YouTube no carga ahí). En la app siempre es null
 
@@ -128,6 +132,27 @@ class _PantallaVideoState extends State<PantallaVideo> { // Estado de la pantall
                     padding: const EdgeInsets.only(top: 4), // Espacio
                     child: Text(widget.subtitulo!, style: TextStyle(color: context.cc.suave)), // Gris
                   ), // Fin del subtítulo
+                if (widget.predica?.tieneBosquejo == true) // Si la prédica tiene bosquejo...
+                  Padding( // ...botón para verlo
+                    padding: const EdgeInsets.only(top: 14), // Separación
+                    child: OutlinedButton.icon( // Botón con borde
+                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)), // Todo el ancho
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PantallaBosquejo(titulo: widget.titulo, texto: widget.predica!.bosquejo, pdfUrl: widget.predica!.bosquejoPdfUrl))), // Abre el bosquejo
+                      icon: const Icon(Icons.list_alt), // Ícono de lista
+                      label: const Text('📝 Ver bosquejo', style: TextStyle(fontSize: 16)), // Texto
+                    ), // Fin del botón
+                  ), // Fin del margen
+                if (widget.predica?.siguienteId != null) // Si hay siguiente parte en la serie...
+                  Card( // ...tarjeta para abrirla
+                    margin: const EdgeInsets.only(top: 14), // Separación
+                    child: ListTile( // Renglón
+                      leading: Icon(Icons.skip_next, color: context.cc.azul, size: 32), // Ícono de "siguiente"
+                      title: Text('SIGUIENTE EN LA SERIE${widget.predica!.siguienteParte != null ? ' · Parte ${widget.predica!.siguienteParte}' : ''}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: context.cc.azul, letterSpacing: 1)), // Encabezado
+                      subtitle: Text(widget.predica!.siguienteTitulo ?? '', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: context.cc.titulo)), // Título
+                      trailing: const Icon(Icons.chevron_right), // Flechita
+                      onTap: _abrirSiguiente, // Abre la siguiente parte
+                    ), // Fin del renglón
+                  ), // Fin de la tarjeta
                 if (widget.descripcion != null && widget.descripcion!.isNotEmpty) // Si hay descripción...
                   Padding( // ...separada
                     padding: const EdgeInsets.only(top: 16), // Espacio
@@ -140,6 +165,25 @@ class _PantallaVideoState extends State<PantallaVideo> { // Estado de la pantall
       ), // Fin de la lista
     ); // Fin del Scaffold
   } // Fin de build
+
+  Future<void> _abrirSiguiente() async { // Abre la siguiente parte de la serie (pide la serie al panel para tener todos sus datos)
+    final p = widget.predica!; // Esta prédica
+    final mensajero = ScaffoldMessenger.of(context); // Para avisar si falla
+    final navegador = Navigator.of(context); // Para cambiar de pantalla
+    try { // Intenta
+      final serie = await widget.api.obtenerPredicas(serieId: p.serieId); // Prédicas de la serie
+      final siguiente = serie.firstWhere((x) => x.id == p.siguienteId); // La siguiente
+      if (siguiente.youtubeId == null) throw StateError('sin video'); // Sin video: no se puede abrir aquí
+      navegador.pushReplacement(MaterialPageRoute(builder: (_) => PantallaVideo( // Reemplaza esta pantalla por la siguiente parte
+        api: widget.api, registro: widget.registro, // API y registro
+        youtubeId: siguiente.youtubeId!, titulo: siguiente.titulo, // Video y título
+        subtitulo: [siguiente.predicador, fechaCorta(siguiente.fecha)].where((t) => t != null && t.isNotEmpty).join(' · '), // Predicador · fecha
+        descripcion: siguiente.descripcion, predicaId: siguiente.id, predica: siguiente, // Descripción, vista y bosquejo
+      ))); // Fin
+    } catch (_) { // Sin internet o no la encontró
+      mensajero.showSnackBar(const SnackBar(content: Text('No se pudo abrir la siguiente parte. Revisa tu conexión.'))); // Aviso
+    } // Fin del try
+  } // Fin de _abrirSiguiente
 
   Widget _botonesAcciones() { // Fila de botones grandes bajo el video (pensados para adultos mayores)
     final conOfrendas = widget.ofrendas?.mostrar ?? false; // ¿El panel muestra ofrendas?

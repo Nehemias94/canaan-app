@@ -26,6 +26,8 @@ class _PantallaPredicasState extends State<PantallaPredicas> with WidgetsBinding
   List<Predica>? _predicas; // Prédicas recibidas (null = cargando: primera vez o búsqueda nueva)
   bool _fallo = false; // true si falló y no hay nada que mostrar
   String _buscar = ''; // Texto escrito en el buscador
+  List<SerieResumen> _series = []; // Series para los botones de filtro
+  int? _serie; // Serie elegida (null = todas)
   Timer? _reloj; // Reloj que vuelve a preguntar cada 90 s
 
   @override // Reemplaza initState
@@ -52,13 +54,20 @@ class _PantallaPredicasState extends State<PantallaPredicas> with WidgetsBinding
 
   Future<void> _cargar() async { // Pide las prédicas (con lo buscado) sin mostrar "cargando": la lista se cambia cuando llegan
     final buscado = _buscar; // Texto de esta petición (si la persona busca otra cosa mientras tanto, esta respuesta se descarta)
+    final serie = _serie; // Serie de esta petición (igual)
+    widget.api.obtenerSeries().then((s) { if (mounted) setState(() => _series = s); }).catchError((_) {}); // Series para los filtros (si falla, sin botones)
     try { // Intenta
-      final predicas = await widget.api.obtenerPredicas(buscar: buscado); // Petición
-      if (mounted && buscado == _buscar) setState(() { _predicas = predicas; _fallo = false; }); // Redibuja con lo nuevo
+      final predicas = await widget.api.obtenerPredicas(buscar: buscado, serieId: serie); // Petición
+      if (mounted && buscado == _buscar && serie == _serie) setState(() { _predicas = predicas; _fallo = false; }); // Redibuja con lo nuevo
     } catch (_) { // Sin internet, servidor dormido…
       if (mounted && _predicas == null) setState(() => _fallo = true); // Solo muestra el error si no había nada en pantalla
     } // Fin del try
   } // Fin de _cargar
+
+  void _elegirSerie(int? serie) { // Toca un botón de serie ("Todas" = null)
+    setState(() { _serie = serie; _predicas = null; _fallo = false; }); // Limpia la lista y guarda la serie
+    _cargar(); // Pide la lista de esa serie
+  } // Fin de _elegirSerie
 
   void _buscarTexto(String texto) { // Búsqueda nueva: aquí SÍ se muestra "cargando" (la persona lo pidió)
     setState(() { _buscar = texto.trim(); _predicas = null; _fallo = false; }); // Limpia la lista y guarda el texto
@@ -84,6 +93,18 @@ class _PantallaPredicasState extends State<PantallaPredicas> with WidgetsBinding
               onSubmitted: _buscarTexto, // Al pulsar Enter / Buscar: pide la lista filtrada
             ), // Fin del buscador
           ), // Fin del margen
+          if (_series.isNotEmpty) // Si hay series...
+            SizedBox( // ...fila de botones de filtro
+              height: 48, // Alto
+              child: ListView( // Se desliza de lado
+                scrollDirection: Axis.horizontal, // Horizontal
+                padding: const EdgeInsets.symmetric(horizontal: 12), // Márgenes
+                children: [ // Botones
+                  Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: const Text('Todas'), selected: _serie == null, onSelected: (_) => _elegirSerie(null))), // Todas
+                  for (final s in _series) Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text('📚 ${s.nombre}'), selected: _serie == s.id, onSelected: (_) => _elegirSerie(s.id))), // Una por serie
+                ], // Fin de los botones
+              ), // Fin de la fila
+            ), // Fin del filtro
           Expanded( // La lista ocupa el resto del alto
             child: _predicas == null // ¿Todavía no hay datos?
                 ? (_fallo ? ErrorConexion(alReintentar: () => _buscarTexto(_buscar)) : const Cargando()) // Error o esperando
@@ -126,6 +147,7 @@ class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la
         subtitulo: _subtitulo(), // Predicador · fecha
         descripcion: predica.descripcion, // Descripción
         predicaId: predica.id, // Para contar la vista
+        predica: predica, // Bosquejo y siguiente parte de la serie
       )), // Fin de la ruta
     ); // Fin de Navigator.push
   } // Fin de _abrir
@@ -184,6 +206,8 @@ class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la
               child: Column( // Textos uno debajo del otro
                 crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
                 children: [ // Elementos
+                  if (predica.serieNombre != null) // Si es parte de una serie...
+                    Padding(padding: const EdgeInsets.only(bottom: 2), child: Text('📚 ${predica.serieNombre}${predica.serieParte != null ? ' · Parte ${predica.serieParte}${predica.serieTotal > 1 ? ' de ${predica.serieTotal}' : ''}' : ''}', style: TextStyle(color: context.cc.azul, fontWeight: FontWeight.w600, fontSize: 13))), // "📚 La familia · Parte 2 de 4"
                   if (predica.destacada) // Si es la destacada...
                     const Text('★ DESTACADA', style: TextStyle(color: Color(0xFFB07A00), fontWeight: FontWeight.bold, fontSize: 12)), // ...etiqueta dorada oscura (legible sobre blanco)
                   Row( // Título y botón compartir
