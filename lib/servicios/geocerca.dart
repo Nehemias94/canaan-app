@@ -18,6 +18,8 @@ class Geocerca { // Revisa si el teléfono está en la iglesia
   final FlutterSecureStorage _almacen; // Dónde se recuerdan los anuncios ya mostrados
 
   static const _clave = 'anuncios_area_mostrados'; // Nombre con el que se guarda la lista
+  static const _claveCopia = 'anuncios_area_copia'; // Copia de los anuncios "Solo área" (la usa el aviso con la app cerrada)
+  static const vigenciaCopia = Duration(hours: 12); // Si la copia tiene más de 12 h, el aviso de fondo intenta pedir los anuncios al panel
 
   Future<Set<int>> mostrados() async { // Lista de anuncios ya mostrados en este teléfono (se lee siempre de la caja fuerte: la geocerca de fondo también la cambia)
     try { // Intenta leerla
@@ -27,6 +29,28 @@ class Geocerca { // Revisa si el teléfono está en la iglesia
       return <int>{}; // ...empieza vacía
     } // Fin del try
   } // Fin de mostrados
+
+  Future<void> guardarCopia(List<Anuncio> anuncios) async { // Guarda en el teléfono los anuncios "Solo área" que mandó el panel (se llama en cada carga de Inicio)
+    final area = anuncios.where((a) => a.tipo == 'area').map((a) => a.aJson()).toList(); // Solo los de área, como datos
+    await _almacen.write( // Guarda...
+      key: _claveCopia, // ...con este nombre...
+      value: jsonEncode({'guardada': DateTime.now().toUtc().toIso8601String(), 'anuncios': area}), // ...la hora de la copia y la lista
+    ); // Fin de guardar
+  } // Fin de guardarCopia
+
+  Future<({DateTime guardada, List<Anuncio> anuncios})?> leerCopia() async { // Lee la copia (null si no hay o está dañada)
+    try { // Intenta
+      final texto = await _almacen.read(key: _claveCopia); // Texto guardado
+      if (texto == null) return null; // Nunca se guardó
+      final datos = jsonDecode(texto) as Map<String, dynamic>; // Convierte el texto en datos
+      return ( // Devuelve dos cosas juntas:
+        guardada: DateTime.parse(datos['guardada'] as String).toLocal(), // cuándo se guardó...
+        anuncios: (datos['anuncios'] as List).map((a) => Anuncio.desdeJson(a as Map<String, dynamic>)).toList(), // ...y los anuncios
+      ); // Fin
+    } catch (_) { // Dañada
+      return null; // Como si no hubiera
+    } // Fin del try
+  } // Fin de leerCopia
 
   Future<List<Anuncio>> pendientes(List<Anuncio> anuncios, DateTime ahora) async { // Anuncios de área en su ventana que este teléfono aún no ha mostrado
     final vistos = await mostrados(); // Ya mostrados

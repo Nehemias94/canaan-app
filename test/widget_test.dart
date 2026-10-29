@@ -348,7 +348,7 @@ void main() { // Punto de arranque de las pruebas
     expect(gps.consultas, 0); // Nunca pidió la ubicación
   }); // Fin de la prueba 15
 
-  testWidgets('Geocerca: en el templo muestra la bienvenida UNA vez y deja la tarjeta', (WidgetTester tester) async { // Prueba 16
+  testWidgets('Geocerca: en el templo muestra la bienvenida UNA sola vez (sin tarjeta fija)', (WidgetTester tester) async { // Prueba 16
     final gps = UbicacionFalsa(const Coordenadas(13.6930, -89.2183)); // ~15 m del templo
     ServicioUbicacion.crear = () => gps; // Ubicación de mentira
     await tester.pumpWidget(CanaanApp(api: ApiFalsa()..anuncioAreaAhora = true)); // Con anuncio de área en ventana
@@ -357,8 +357,7 @@ void main() { // Punto de arranque de las pruebas
     expect(find.descendant(of: find.byType(AlertDialog), matching: find.text('Pasa al frente al terminar la prédica.')), findsOneWidget); // Con el anuncio dentro de la ventana
     await tester.tap(find.text('Entendido')); // La cierra
     await tester.pumpAndSettle(); // Espera
-    await tester.scrollUntilVisible(find.text('📍 En la iglesia'), 200); // Baja hasta la tarjeta
-    expect(find.text('Santa Cena hoy'), findsOneWidget); // La tarjeta quedó en Inicio
+    expect(find.text('Santa Cena hoy'), findsNothing); // Ya no queda una tarjeta fija en Inicio (se muestra una sola vez)
     await tester.pump(const Duration(seconds: 91)); // Siguiente actualización automática...
     await tester.pumpAndSettle(); // ...
     expect(find.text('¡Qué bueno que estás aquí!'), findsNothing); // ...NO repite la bienvenida
@@ -374,4 +373,25 @@ void main() { // Punto de arranque de las pruebas
     expect(find.text('¡Qué bueno que estás aquí!'), findsNothing); // Pero está lejos: nada
     expect(find.text('Santa Cena hoy'), findsNothing); // Ni tarjeta
   }); // Fin de la prueba 17
+
+  testWidgets('Geocerca: si ya salió como notificación, al abrir la app NO se repite', (WidgetTester tester) async { // Prueba 18
+    final gps = UbicacionFalsa(const Coordenadas(13.6930, -89.2183)); // En el templo
+    ServicioUbicacion.crear = () => gps; // Ubicación de mentira
+    await const FlutterSecureStorage().write(key: 'anuncios_area_mostrados', value: '[9]'); // El aviso de fondo ya mostró el anuncio 9 como notificación
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa()..anuncioAreaAhora = true)); // Abre la app con ese anuncio en su ventana
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('¡Qué bueno que estás aquí!'), findsNothing); // No repite la bienvenida
+    expect(gps.consultas, 0); // Ni siquiera pide la ubicación (no hay nada pendiente)
+  }); // Fin de la prueba 18
+
+  test('Geocerca: guarda una copia de los anuncios de área y la lee igual', () async { // Prueba 19
+    final geocerca = Geocerca(); // Geocerca con la caja fuerte de mentira
+    final anuncios = await (ApiFalsa()..anuncioAreaAhora = true).obtenerAnuncios(); // Anuncios de mentira (2 de área, 2 para todos)
+    await geocerca.guardarCopia(anuncios); // Guarda la copia
+    final copia = await geocerca.leerCopia(); // La lee
+    expect(copia, isNotNull); // Existe
+    expect(copia!.anuncios.map((a) => a.id), [2, 9]); // Solo los de área
+    expect(copia.anuncios.last.enVentana(DateTime.now()), isTrue); // La ventana se conservó bien (sigue "en ventana")
+    expect(DateTime.now().difference(copia.guardada).inSeconds, lessThan(5)); // Guardada hace un momento
+  }); // Fin de la prueba 19
 } // Fin de main

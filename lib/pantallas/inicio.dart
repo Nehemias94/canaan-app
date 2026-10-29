@@ -30,7 +30,6 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
   bool _fallo = false; // true si la PRIMERA carga falló (luego, si falla, se conservan los datos anteriores)
   Timer? _reloj; // Reloj que vuelve a preguntar al panel cada 90 s
   late final Geocerca _geocerca = Geocerca(); // Revisa si el teléfono está en la iglesia ("late": se crea la primera vez que se usa)
-  List<Anuncio> _anunciosArea = []; // Anuncios "Solo área" ya detectados en la iglesia y aún en su ventana
   bool _revisandoGeocerca = false; // true mientras revisa (para no encimar dos revisiones)
 
   @override // Reemplaza initState
@@ -76,12 +75,10 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
     if (_revisandoGeocerca) return; // Ya hay una revisión en curso
     _revisandoGeocerca = true; // Marca que empezó
     try { // Intenta
-      final ahora = DateTime.now(); // Hora actual
-      final nuevos = await _geocerca.revisar(iglesia, anuncios, ahora); // Anuncios nuevos por estar en la iglesia (vacío si no)
-      final mostrados = await _geocerca.mostrados(); // Todos los ya detectados en este teléfono
+      await _geocerca.guardarCopia(anuncios); // Guarda los anuncios "Solo área" en el teléfono: el aviso con la app cerrada los usa sin esperar al panel
+      final nuevos = await _geocerca.revisar(iglesia, anuncios, DateTime.now()); // Anuncios nuevos por estar en la iglesia (vacío si no, o si ya se mostraron como notificación)
       if (!mounted) return; // Pantalla cerrada: nada
-      setState(() => _anunciosArea = anuncios.where((a) => a.enVentana(ahora) && mostrados.contains(a.id)).toList()); // Los detectados que siguen en su ventana: quedan en Inicio
-      if (nuevos.isNotEmpty) await _mostrarBienvenida(nuevos); // Recién llegó: ventana de bienvenida con los anuncios
+      if (nuevos.isNotEmpty) await _mostrarBienvenida(nuevos); // Recién llegó: ventana de bienvenida UNA sola vez (luego ya no aparece en ningún lado)
     } catch (_) { // Cualquier falla de ubicación: se ignora (la app sigue igual)
     } finally { // Pase lo que pase...
       _revisandoGeocerca = false; // ...termina la revisión
@@ -135,7 +132,7 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
                 ? const Cargando(claro: true) // Sí: "Conectando…"
                 : RefreshIndicator( // Hay datos: permite "jalar hacia abajo" para actualizar
                     onRefresh: _cargar, // Qué hacer al jalar
-                    child: _DatosIglesia(iglesia: _iglesia!, anuncios: _anuncios, anunciosArea: _anunciosArea, api: widget.api, registro: widget.registro), // Los datos
+                    child: _DatosIglesia(iglesia: _iglesia!, anuncios: _anuncios, api: widget.api, registro: widget.registro), // Los datos
                   ), // Fin de RefreshIndicator
       ), // Fin de SafeArea
     ); // Fin del Container
@@ -143,11 +140,10 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
 } // Fin de _PantallaInicioState
 
 class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando llegaron los datos
-  const _DatosIglesia({required this.iglesia, required this.anuncios, required this.anunciosArea, required this.api, required this.registro}); // Constructor
+  const _DatosIglesia({required this.iglesia, required this.anuncios, required this.api, required this.registro}); // Constructor
 
   final Iglesia iglesia; // Datos de la iglesia
   final List<Anuncio> anuncios; // Anuncios vigentes (solo "Todos")
-  final List<Anuncio> anunciosArea; // Anuncios "Solo área" detectados en la iglesia (geocerca)
   final Api api; // Se pasa a la pantalla del video
   final RegistroDispositivo registro; // Se pasa a la pantalla del video
 
@@ -210,13 +206,13 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
               subtitle: Text(iglesia.avisoUrgente.mensaje ?? ''), // Mensaje
             ), // Fin de la fila
           ), // Fin de la tarjeta
-        if (!iglesia.enVivo.activo && !iglesia.radioDisponible && !iglesia.avisoUrgente.activo && anuncios.isEmpty && anunciosArea.isEmpty) // Si no hay nada que mostrar...
+        if (!iglesia.enVivo.activo && !iglesia.radioDisponible && !iglesia.avisoUrgente.activo && anuncios.isEmpty) // Si no hay nada que mostrar...
           const Text( // ...confirma que la conexión funciona
             '✓ Conectado con el panel', // Texto
             textAlign: TextAlign.center, // Centrado
             style: TextStyle(color: Colors.white70), // Blanco suave
           ), // Fin del texto
-        if (anuncios.isNotEmpty || anunciosArea.isNotEmpty) // Si hay anuncios...
+        if (anuncios.isNotEmpty) // Si hay anuncios...
           const Padding( // ...encabezado de la sección
             padding: EdgeInsets.only(top: 24, bottom: 4), // Separación
             child: Text( // Texto
@@ -224,7 +220,6 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
               style: TextStyle(color: doradoCanaan, fontWeight: FontWeight.bold, letterSpacing: 1.5), // Dorado, negrita, letras separadas
             ), // Fin del texto
           ), // Fin del encabezado
-        for (final anuncio in anunciosArea) _TarjetaAnuncio(anuncio: anuncio, enIglesia: true), // Primero los del templo (geocerca)
         for (final anuncio in anuncios) _TarjetaAnuncio(anuncio: anuncio), // Luego una tarjeta por anuncio para todos
       ], // Fin de los elementos
     ); // Fin de la lista
@@ -232,10 +227,9 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
 } // Fin de _DatosIglesia
 
 class _TarjetaAnuncio extends StatelessWidget { // Tarjeta blanca de un anuncio
-  const _TarjetaAnuncio({required this.anuncio, this.enIglesia = false}); // Constructor
+  const _TarjetaAnuncio({required this.anuncio}); // Constructor
 
   final Anuncio anuncio; // Datos del anuncio
-  final bool enIglesia; // true = anuncio "Solo área" detectado por estar en el templo
 
   String _fechas() { // "5 oct 2026" o "5 oct 2026 – 12 oct 2026" (según el rango del panel)
     final inicio = fechaCorta(anuncio.fechaInicio); // Primer día
@@ -257,18 +251,13 @@ class _TarjetaAnuncio extends StatelessWidget { // Tarjeta blanca de un anuncio
           children: [ // Elementos
             Row( // Ícono y título en fila
               children: [ // Elementos
-                Icon(enIglesia ? Icons.place : Icons.campaign_outlined, color: enIglesia ? const Color(0xFFB07A00) : azulCanaan), // Pin dorado (en la iglesia) o megáfono azul
+                const Icon(Icons.campaign_outlined, color: azulCanaan), // Megáfono azul
                 const SizedBox(width: 8), // Espacio
                 Expanded(child: Text(anuncio.titulo, style: Theme.of(context).textTheme.titleMedium)), // Título (ocupa el resto)
               ], // Fin de los elementos
             ), // Fin de la fila
             const SizedBox(height: 6), // Espacio
             Text(anuncio.mensaje), // Texto del anuncio
-            if (enIglesia) // Si es del templo...
-              const Padding( // ...lo aclara
-                padding: EdgeInsets.only(top: 6), // Separación
-                child: Text('📍 En la iglesia', style: TextStyle(color: Color(0xFFB07A00), fontSize: 12, fontWeight: FontWeight.bold)), // Dorado oscuro (legible sobre blanco)
-              ), // Fin de la aclaración
             if (fechas.isNotEmpty) // Si hay fechas...
               Padding( // ...las muestra en gris
                 padding: const EdgeInsets.only(top: 6), // Separación

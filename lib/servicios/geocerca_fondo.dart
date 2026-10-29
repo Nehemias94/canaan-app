@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Caja fue
 import 'package:native_geofence/native_geofence.dart'; // Geocerca nativa de Android/iPhone (funciona con la app cerrada y gasta poca batería)
 import 'package:permission_handler/permission_handler.dart'; // Pedir permisos (ubicación "todo el tiempo" y notificaciones)
 
+import '../modelos/anuncio.dart'; // Molde de un anuncio
 import '../modelos/iglesia.dart'; // Molde de la iglesia (ubicación y radio)
 import 'api.dart'; // Para pedir los anuncios cuando el teléfono entra a la iglesia
 import 'geocerca.dart'; // Lista de anuncios ya mostrados (compartida con la geocerca de la app abierta)
@@ -98,11 +99,19 @@ class GeocercaFondo { // Todo lo de la geocerca de fondo
 Future<void> geocercaEntro(GeofenceCallbackParams params) async { // Datos del aviso del teléfono
   if (params.event != GeofenceEvent.enter) return; // Solo nos interesa "entró"
   try { // Cualquier falla: no hace nada (no hay pantalla donde mostrar errores)
-    final anuncios = await const Api().obtenerAnuncios().timeout(const Duration(seconds: 45)); // Pide los anuncios al panel (45 s: el panel gratis puede tardar en despertar; iPhone corta a los 60 s)
-    final geocerca = Geocerca(); // Lista compartida de anuncios ya mostrados
+    final geocerca = Geocerca(); // Copia guardada y lista compartida de anuncios ya mostrados
+    final copia = await geocerca.leerCopia(); // 1) Primero la copia que guardó Inicio: es instantánea y no necesita internet
+    var anuncios = copia?.anuncios ?? <Anuncio>[]; // Anuncios de la copia (vacío si no hay)
+    final copiaVieja = copia == null || DateTime.now().difference(copia.guardada) > Geocerca.vigenciaCopia; // ¿No hay copia o tiene más de 12 h?
+    if (copiaVieja || (await geocerca.pendientes(anuncios, DateTime.now())).isEmpty) { // 2) Si la copia es vieja o no trae nada pendiente (pudo crearse un anuncio después)...
+      try { // ...intenta preguntar al panel
+        anuncios = await const Api().obtenerAnuncios().timeout(const Duration(seconds: 40)); // 40 s: el panel gratis tarda ~50 s en despertar; iPhone corta a los 60 s
+        await geocerca.guardarCopia(anuncios); // Actualiza la copia
+      } catch (_) {} // Sin internet o panel dormido: se queda con la copia (si había)
+    } // Fin del if
     final nuevos = await geocerca.pendientes(anuncios, DateTime.now()); // De área, en su ventana y no mostrados
     if (nuevos.isEmpty) return; // Nada que avisar
-    await geocerca.marcarMostrados(nuevos); // Los marca (al abrir la app no saldrá otra vez la ventana de bienvenida; quedan como tarjetas en Inicio)
+    await geocerca.marcarMostrados(nuevos); // Los marca ANTES de avisar: cada anuncio se muestra una sola vez en total (al abrir la app ya no sale la ventana de bienvenida)
 
     final notificaciones = FlutterLocalNotificationsPlugin(); // Notificaciones locales
     await notificaciones.initialize( // Las prepara

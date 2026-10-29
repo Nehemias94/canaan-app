@@ -29,6 +29,22 @@ class Anuncio { // Molde con los datos de un anuncio
 
   bool vigente(DateTime ahora) => visibleHasta == null || visibleHasta!.isAfter(ahora); // ¿Se sigue mostrando a esta hora?
 
+  Map<String, dynamic> aJson() => { // Lo contrario de desdeJson: el anuncio como datos (para guardar una copia en el teléfono)
+        'id': id, // Número
+        'titulo': titulo, // Título
+        'mensaje': mensaje, // Texto
+        'tipo': tipo, // Tipo
+        'visible_hasta': visibleHasta?.toUtc().toIso8601String(), // Fecha y hora (en UTC: al leerla vuelve a la hora del teléfono)
+        'programacion': fechaInicio == null && fechaFin == null ? null : { // Fechas (solo "todos")
+          'fecha_inicio': fechaInicio?.toIso8601String().substring(0, 10), // "2026-10-06"
+          'fecha_fin': fechaFin?.toIso8601String().substring(0, 10), // "2026-10-12"
+        }, // Fin de las fechas
+        'ventana': iniciaEn == null && terminaEn == null ? null : { // Ventana (solo "area")
+          'inicia_en': iniciaEn?.toUtc().toIso8601String(), // Inicio
+          'termina_en': terminaEn?.toUtc().toIso8601String(), // Fin
+        }, // Fin de la ventana
+      }; // Fin de aJson
+
   factory Anuncio.desdeJson(Map<String, dynamic> json) { // Convierte el JSON de la API en un Anuncio
     final programacion = json['programacion'] as Map<String, dynamic>?; // Bloque de fechas (solo "todos")
     final ventana = json['ventana'] as Map<String, dynamic>?; // Ventana de tiempo (solo "area")
