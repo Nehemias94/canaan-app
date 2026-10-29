@@ -655,4 +655,23 @@ void main() { // Punto de arranque de las pruebas
     await tester.pumpAndSettle(); // Espera
     expect(find.text('La fe que mueve montañas (2.ª parte)'), findsOneWidget); // Ya sale el cambio
   }); // Fin de la prueba 35
+
+  testWidgets('Eventos: compartir desde la tarjeta (con imagen si tiene)', (WidgetTester tester) async { // Prueba 36
+    String? texto; String? imagen; // Lo que se intentó compartir
+    Compartir.compartir = (t) async => texto = t; // Compartir texto de mentira
+    Compartir.compartirImagen = (t, url) async { texto = t; imagen = url; }; // Compartir con imagen de mentira
+    final inicio = DateTime.now().add(const Duration(days: 30)); // Dentro de 30 días
+    final api = ApiFalsa()..eventos = [{'id': 2, 'titulo': 'Aniversario de la Iglesia', 'inicia_en': inicio.toIso8601String(), 'lugar': 'Templo principal', 'imagen_url': 'https://ejemplo.com/flyer.jpg', 'se_transmite': true, 'en_curso': false}]; // Evento con flyer
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Eventos'))); // Pestaña Eventos
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.byTooltip('Compartir evento')); // Toca Compartir en la tarjeta
+    await tester.pump(); // Espera
+    expect(imagen, 'https://ejemplo.com/flyer.jpg'); // Comparte el flyer
+    expect(texto, contains('🎉 Aniversario de la Iglesia')); // Con el nombre
+    expect(texto, contains('📍 Templo principal')); // El lugar
+    expect(texto, contains('Ministerio Cristiano Canaán')); // Y la firma
+    expect(find.text('Evento especial'), findsNothing); // No abrió el detalle (solo compartió)
+  }); // Fin de la prueba 36
 } // Fin de main

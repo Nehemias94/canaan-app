@@ -399,7 +399,7 @@ class _TarjetaAnuncio extends StatelessWidget { // Tarjeta de un anuncio (franja
                 tooltip: 'Compartir anuncio', // Texto de ayuda
                 visualDensity: VisualDensity.compact, // Compacto
                 icon: Icon(Icons.share, color: context.cc.azul), // Ícono compartir
-                onPressed: () => Compartir.texto('📢 ${anuncio.titulo}\n\n${anuncio.mensaje}${anuncio.botonUrl != null ? '\n\n${anuncio.botonTexto}: ${anuncio.botonUrl}' : ''}'), // Comparte título, mensaje y el enlace del botón (si hay)
+                onPressed: () => Compartir.conImagen('📢 ${anuncio.titulo}\n\n${anuncio.mensaje}${anuncio.botonUrl != null ? '\n\n${anuncio.botonTexto}: ${anuncio.botonUrl}' : ''}', anuncio.imagenUrl), // Comparte el flyer (si tiene) con título, mensaje y enlace
               ), // Fin del botón
             ], // Fin de los elementos
           ), // Fin de la fila

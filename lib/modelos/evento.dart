@@ -46,6 +46,14 @@ class Evento { // Molde con los datos de un evento (campamento, aniversario, con
     ); // Fin del objeto
   } // Fin de desdeJson
 
+  String textoParaCompartir() => [ // Lo que se comparte: un dato por renglón
+        '🎉 $titulo', // Nombre
+        '📅 ${cuandoTexto()}', // Fecha
+        if (lugar != null && lugar!.isNotEmpty) '📍 $lugar', // Lugar
+        if (seTransmite) '🔴 Se transmite en vivo en la app Canaán', // En vivo
+        if (botonTexto != null && botonUrl != null) '$botonTexto: $botonUrl', // Enlace (ej: inscripción)
+      ].join('\n'); // Fin de textoParaCompartir
+
   String cuandoTexto() { // Fecha para mostrar, ej: "Sábado, 20 de noviembre · 8:00 am" o "20 al 22 de noviembre"
     final fin = terminaEn; // Atajo
     final mismoDia = fin == null || (fin.year == iniciaEn.year && fin.month == iniciaEn.month && fin.day == iniciaEn.day); // ¿Empieza y termina el mismo día?

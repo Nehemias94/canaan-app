@@ -62,12 +62,7 @@ class PantallaEvento extends StatelessWidget { // Detalle de un evento especial
             style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48), foregroundColor: context.cc.titulo), // Todo el ancho
             icon: const Icon(Icons.share), // Ícono
             label: const Text('Compartir', style: TextStyle(fontSize: 16)), // Texto
-            onPressed: () => Compartir.texto([ // Comparte nombre, fecha, lugar y enlace
-              '🎉 ${evento.titulo}', // Nombre
-              '📅 ${evento.cuandoTexto()}', // Fecha
-              if (evento.lugar != null && evento.lugar!.isNotEmpty) '📍 ${evento.lugar}', // Lugar
-              if (hayBoton) '${evento.botonTexto}: ${evento.botonUrl}', // Enlace (ej: inscripción)
-            ].join('\n')), // Un dato por renglón
+            onPressed: () => Compartir.conImagen(evento.textoParaCompartir(), evento.imagenUrl), // Comparte el flyer (si tiene) con nombre, fecha, lugar y enlace
           ), // Fin del botón
         ], // Fin de los elementos
       ), // Fin de la lista
