@@ -306,6 +306,12 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
                   padding: EdgeInsets.only(top: 24), // Separación
                   child: Text('✓ Conectado con el panel', textAlign: TextAlign.center, style: TextStyle(color: context.cc.suave)), // Gris
                 ), // Fin del texto
+              if (anuncios.isNotEmpty) // Si hay anuncios...
+                Padding( // ...encabezado de la sección
+                  padding: EdgeInsets.only(top: 24, bottom: 0, left: 4), // Separación
+                  child: Text('ANUNCIOS', style: TextStyle(color: context.cc.dorado, fontWeight: FontWeight.bold, letterSpacing: 1.5)), // Dorado oscuro (se lee sobre el fondo claro)
+                ), // Fin del encabezado
+              for (final anuncio in anuncios) _TarjetaAnuncio(anuncio: anuncio), // Una tarjeta por anuncio
               if (eventos.isNotEmpty) // Si hay eventos especiales...
                 Padding( // ...encabezado con enlace a la lista completa (en Horario)
                   padding: const EdgeInsets.only(top: 24, left: 4), // Separación
@@ -317,12 +323,6 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
                   ), // Fin de la fila
                 ), // Fin del encabezado
               for (final evento in eventos.take(3)) TarjetaEvento(evento: evento), // Los 3 más cercanos
-              if (anuncios.isNotEmpty) // Si hay anuncios...
-                Padding( // ...encabezado de la sección
-                  padding: EdgeInsets.only(top: 24, bottom: 0, left: 4), // Separación
-                  child: Text('ANUNCIOS', style: TextStyle(color: context.cc.dorado, fontWeight: FontWeight.bold, letterSpacing: 1.5)), // Dorado oscuro (se lee sobre el fondo claro)
-                ), // Fin del encabezado
-              for (final anuncio in anuncios) _TarjetaAnuncio(anuncio: anuncio), // Una tarjeta por anuncio
             ], // Fin de los elementos
           ), // Fin de la columna
         ), // Fin del contenido

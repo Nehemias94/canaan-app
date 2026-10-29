@@ -57,6 +57,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
   bool enVivoEnPanel = true; // ¿Hay transmisión en vivo en el panel falso? (se puede cambiar a mitad de la prueba)
   bool anuncioAreaAhora = false; // ¿Hay un anuncio "Solo área" en su ventana ahora mismo?
   bool conRepeticion = false; // ¿Hubo transmisión hace poco? (tarjeta "¿Te lo perdiste?")
+  String tituloPredica = 'La fe que mueve montañas'; // Título de la prédica falsa (se puede cambiar a mitad de la prueba)
   List<Map<String, dynamic>>? horario; // Horario de reemplazo (null = el culto del domingo en curso)
   List<Map<String, dynamic>> eventos = []; // Eventos especiales del panel falso
   bool anuncioConBoton = false; // ¿El anuncio "Ayuno" trae botón con enlace?
@@ -137,7 +138,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
   @override // Reemplaza el método real
   Future<List<Predica>> obtenerPredicas({String buscar = ''}) async { // Prédicas falsas
     if (falla) throw Exception('sin internet'); // Simula el error
-    return [Predica.desdeJson({'id': 1, 'titulo': 'La fe que mueve montañas', 'predicador': 'Pastor Juan', 'fecha': '2026-10-05', 'destacada': true, 'youtube_id': 'predica123', 'descripcion': 'Mateo 17:20'})]; // Una prédica destacada
+    return [Predica.desdeJson({'id': 1, 'titulo': tituloPredica, 'predicador': 'Pastor Juan', 'fecha': '2026-10-05', 'destacada': true, 'youtube_id': 'predica123', 'descripcion': 'Mateo 17:20'})]; // Una prédica destacada
   } // Fin de obtenerPredicas
 
   @override // Reemplaza el método real
@@ -582,6 +583,7 @@ void main() { // Punto de arranque de las pruebas
     await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
     await tester.pumpAndSettle(); // Espera
     expect(find.text('PRÓXIMOS EVENTOS'), findsOneWidget); // Sección en Inicio
+    expect(tester.getTopLeft(find.text('ANUNCIOS')).dy, lessThan(tester.getTopLeft(find.text('PRÓXIMOS EVENTOS')).dy)); // Los anuncios van ANTES que los eventos
     expect(find.text('Campamento de jóvenes'), findsOneWidget); // El evento
     expect(find.text('📍 Finca El Paraíso'), findsOneWidget); // Lugar
     await tester.tap(find.text('Campamento de jóvenes')); // Abre el detalle
@@ -638,4 +640,19 @@ void main() { // Punto de arranque de las pruebas
     await tester.pumpAndSettle(); // Espera
     expect(find.text('Aniversario de la Iglesia 2026'), findsOneWidget); // Ya sale el cambio (sin jalar hacia abajo)
   }); // Fin de la prueba 34
+
+  testWidgets('Prédicas: al volver a tocar la pestaña, muestra los cambios del panel', (WidgetTester tester) async { // Prueba 35
+    final api = ApiFalsa(); // Panel falso
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Prédicas'))); // Pestaña Prédicas
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('La fe que mueve montañas'), findsOneWidget); // Título de antes
+    api.tituloPredica = 'La fe que mueve montañas (2.ª parte)'; // El panel lo cambia
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Inicio'))); // Va a Inicio
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Prédicas'))); // Vuelve a Prédicas
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('La fe que mueve montañas (2.ª parte)'), findsOneWidget); // Ya sale el cambio
+  }); // Fin de la prueba 35
 } // Fin de main

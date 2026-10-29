@@ -8,4 +8,6 @@ final ValueNotifier<int> recargarInicio = ValueNotifier<int>(0); // Cada vez que
 
 void tocarTimbreInicio() => recargarInicio.value++; // Sube el número: Inicio se entera y recarga
 
+final ValueNotifier<int> recargarPredicas = ValueNotifier<int>(0); // Timbre de la pestaña Prédicas: sube al tocar "Prédicas" en el menú
+
 final ValueNotifier<int> recargarEventos = ValueNotifier<int>(0); // Timbre de la pestaña Eventos: sube cada vez que la persona toca "Eventos" en el menú (así ve los cambios del panel al instante)

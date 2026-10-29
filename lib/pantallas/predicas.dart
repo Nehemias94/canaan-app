@@ -1,8 +1,12 @@
+import 'dart:async'; // Timer (actualizar cada 90 s)
+
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 
 import '../componentes/estados.dart'; // Vistas compartidas: Cargando, ErrorConexion, Vacio
 import '../modelos/predica.dart'; // Molde de una prédica
+import '../config.dart'; // intervaloActualizacion (90 s)
 import '../servicios/api.dart'; // Llamadas a la API
+import '../servicios/recarga.dart'; // Timbre "recargarPredicas" (al tocar la pestaña)
 import '../servicios/registro.dart'; // Registro del teléfono (para contar las vistas)
 import '../servicios/compartir.dart'; // Compartir la prédica
 import '../tema.dart'; // Colores y fechaCorta()
@@ -18,20 +22,48 @@ class PantallaPredicas extends StatefulWidget { // Pestaña "Prédicas"
   State<PantallaPredicas> createState() => _PantallaPredicasState(); // Crea el estado
 } // Fin de PantallaPredicas
 
-class _PantallaPredicasState extends State<PantallaPredicas> { // Estado de la pestaña Prédicas
-  late Future<List<Predica>> _peticion; // Petición en curso
+class _PantallaPredicasState extends State<PantallaPredicas> with WidgetsBindingObserver { // Estado; "WidgetsBindingObserver" = se entera cuando la app vuelve a primer plano
+  List<Predica>? _predicas; // Prédicas recibidas (null = cargando: primera vez o búsqueda nueva)
+  bool _fallo = false; // true si falló y no hay nada que mostrar
   String _buscar = ''; // Texto escrito en el buscador
+  Timer? _reloj; // Reloj que vuelve a preguntar cada 90 s
 
   @override // Reemplaza initState
-  void initState() { // Al abrir la pestaña por primera vez
+  void initState() { // Al abrir la app (la pestaña se crea junto con las demás)
     super.initState(); // Lo de Flutter por defecto
-    _peticion = widget.api.obtenerPredicas(); // Pide la lista completa
+    WidgetsBinding.instance.addObserver(this); // Escucha cuando la app vuelve a primer plano
+    recargarPredicas.addListener(_cargar); // Al tocar la pestaña Prédicas, actualiza
+    _reloj = Timer.periodic(intervaloActualizacion, (_) => _cargar()); // Cada 90 s, en silencio
+    _cargar(); // Primera carga
   } // Fin de initState
 
-  Future<void> _recargar() async { // Vuelve a pedir la lista (con el texto buscado)
-    setState(() => _peticion = widget.api.obtenerPredicas(buscar: _buscar)); // Nueva petición y redibuja
-    try { await _peticion; } catch (_) {} // Espera a que termine (el error lo muestra el FutureBuilder)
-  } // Fin de _recargar
+  @override // Reemplaza dispose
+  void dispose() { // Al cerrar
+    WidgetsBinding.instance.removeObserver(this); // Deja de escuchar la app
+    recargarPredicas.removeListener(_cargar); // Deja de escuchar el timbre
+    _reloj?.cancel(); // Detiene el reloj
+    super.dispose(); // Lo de Flutter por defecto
+  } // Fin de dispose
+
+  @override // Reemplaza didChangeAppLifecycleState
+  void didChangeAppLifecycleState(AppLifecycleState estado) { // La app cambió de estado
+    if (estado == AppLifecycleState.resumed) _cargar(); // Volvió a primer plano: actualiza
+  } // Fin de didChangeAppLifecycleState
+
+  Future<void> _cargar() async { // Pide las prédicas (con lo buscado) sin mostrar "cargando": la lista se cambia cuando llegan
+    final buscado = _buscar; // Texto de esta petición (si la persona busca otra cosa mientras tanto, esta respuesta se descarta)
+    try { // Intenta
+      final predicas = await widget.api.obtenerPredicas(buscar: buscado); // Petición
+      if (mounted && buscado == _buscar) setState(() { _predicas = predicas; _fallo = false; }); // Redibuja con lo nuevo
+    } catch (_) { // Sin internet, servidor dormido…
+      if (mounted && _predicas == null) setState(() => _fallo = true); // Solo muestra el error si no había nada en pantalla
+    } // Fin del try
+  } // Fin de _cargar
+
+  void _buscarTexto(String texto) { // Búsqueda nueva: aquí SÍ se muestra "cargando" (la persona lo pidió)
+    setState(() { _buscar = texto.trim(); _predicas = null; _fallo = false; }); // Limpia la lista y guarda el texto
+    _cargar(); // Pide la lista filtrada
+  } // Fin de _buscarTexto
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
@@ -49,34 +81,25 @@ class _PantallaPredicasState extends State<PantallaPredicas> { // Estado de la p
                 isDense: true, // Un poco más compacta
               ), // Fin de la apariencia
               textInputAction: TextInputAction.search, // En el teclado del teléfono sale el botón "Buscar"
-              onSubmitted: (texto) { // Al pulsar Enter / Buscar...
-                _buscar = texto; // ...guarda el texto...
-                _recargar(); // ...y vuelve a pedir la lista filtrada
-              }, // Fin de onSubmitted
+              onSubmitted: _buscarTexto, // Al pulsar Enter / Buscar: pide la lista filtrada
             ), // Fin del buscador
           ), // Fin del margen
           Expanded( // La lista ocupa el resto del alto
-            child: FutureBuilder<List<Predica>>( // Dibuja según el estado de la petición
-              future: _peticion, // Petición que vigila
-              builder: (context, estado) { // Se llama cada vez que cambia
-                if (estado.connectionState != ConnectionState.done) return const Cargando(); // Esperando
-                if (estado.hasError) return ErrorConexion(alReintentar: _recargar); // Falló
-                final predicas = estado.data!; // Lista recibida
-                return RefreshIndicator( // "Jalar hacia abajo" para actualizar
-                  onRefresh: _recargar, // Qué hacer al jalar
-                  child: predicas.isEmpty // ¿Está vacía?
-                      ? Vacio( // Sí: mensaje
-                          icono: Icons.video_library_outlined, // Ícono de videos
-                          mensaje: _buscar.isEmpty ? 'Aún no hay prédicas publicadas.' : 'No encontramos prédicas con “$_buscar”.', // Mensaje según si buscó
-                        ) // Fin de Vacio
-                      : ListView.builder( // No: lista (builder = solo dibuja las que se ven, más rápido)
-                          padding: const EdgeInsets.all(12), // Margen
-                          itemCount: predicas.length, // Cuántas hay
-                          itemBuilder: (context, i) => _TarjetaPredica(predica: predicas[i], api: widget.api, registro: widget.registro), // Dibuja la tarjeta número i
-                        ), // Fin de la lista
-                ); // Fin de RefreshIndicator
-              }, // Fin de builder
-            ), // Fin de FutureBuilder
+            child: _predicas == null // ¿Todavía no hay datos?
+                ? (_fallo ? ErrorConexion(alReintentar: () => _buscarTexto(_buscar)) : const Cargando()) // Error o esperando
+                : RefreshIndicator( // "Jalar hacia abajo" para actualizar
+                    onRefresh: _cargar, // Qué hacer al jalar
+                    child: _predicas!.isEmpty // ¿Está vacía?
+                        ? Vacio( // Sí: mensaje
+                            icono: Icons.video_library_outlined, // Ícono de videos
+                            mensaje: _buscar.isEmpty ? 'Aún no hay prédicas publicadas.' : 'No encontramos prédicas con “$_buscar”.', // Mensaje según si buscó
+                          ) // Fin de Vacio
+                        : ListView.builder( // No: lista (builder = solo dibuja las que se ven, más rápido)
+                            padding: const EdgeInsets.all(12), // Margen
+                            itemCount: _predicas!.length, // Cuántas hay
+                            itemBuilder: (context, i) => _TarjetaPredica(key: ValueKey('predica-${_predicas![i].id}'), predica: _predicas![i], api: widget.api, registro: widget.registro), // Dibuja la tarjeta número i
+                          ), // Fin de la lista
+                  ), // Fin de RefreshIndicator
           ), // Fin de Expanded
         ], // Fin de los elementos
       ), // Fin de la columna
@@ -85,7 +108,7 @@ class _PantallaPredicasState extends State<PantallaPredicas> { // Estado de la p
 } // Fin de _PantallaPredicasState
 
 class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la lista
-  const _TarjetaPredica({required this.predica, required this.api, required this.registro}); // Constructor
+  const _TarjetaPredica({super.key, required this.predica, required this.api, required this.registro}); // Constructor
 
   final Predica predica; // Datos de la prédica
   final Api api; // Se pasa a la pantalla del video

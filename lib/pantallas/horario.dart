@@ -1,7 +1,10 @@
+import 'dart:async'; // Timer (actualizar cada 90 s)
+
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 
 import '../componentes/estados.dart'; // Vistas compartidas: Cargando, ErrorConexion, Vacio
 import '../modelos/actividad.dart'; // Molde de una actividad
+import '../config.dart'; // intervaloActualizacion (90 s)
 import '../servicios/api.dart'; // Llamadas a la API
 import '../servicios/preferencias.dart'; // Lista de cultos con recordatorio
 import '../servicios/recordatorios.dart'; // Recordatorio 30 min antes
@@ -16,42 +19,59 @@ class PantallaHorario extends StatefulWidget { // Pestaña "Horario"
   State<PantallaHorario> createState() => _PantallaHorarioState(); // Crea el estado
 } // Fin de PantallaHorario
 
-class _PantallaHorarioState extends State<PantallaHorario> { // Estado de la pestaña Horario
-  late Future<List<Actividad>> _peticion; // Petición en curso
+class _PantallaHorarioState extends State<PantallaHorario> with WidgetsBindingObserver { // Estado; "WidgetsBindingObserver" = se entera cuando la app vuelve a primer plano
+  List<Actividad>? _actividades; // Horario recibido (null = todavía no llega)
+  bool _fallo = false; // true si la PRIMERA carga falló
+  Timer? _reloj; // Reloj que vuelve a preguntar cada 90 s mientras la pantalla está abierta
+  bool _sincronizado = false; // ¿Ya se reprogramaron los recordatorios con este horario? (una vez al abrir)
 
   @override // Reemplaza initState
-  void initState() { // Al abrir la pestaña por primera vez
+  void initState() { // Al abrir la pantalla (cada vez que se toca "Horario": siempre trae lo último)
     super.initState(); // Lo de Flutter por defecto
-    _peticion = widget.api.obtenerActividades(); // Pide el horario
-    _peticion.then(Recordatorios.sincronizar).catchError((_) {}); // Reprograma los recordatorios con las horas nuevas (por si el panel las cambió)
+    WidgetsBinding.instance.addObserver(this); // Escucha cuando la app vuelve a primer plano
+    _reloj = Timer.periodic(intervaloActualizacion, (_) => _cargar()); // Cada 90 s, en silencio
+    _cargar(); // Primera carga
   } // Fin de initState
 
-  Future<void> _recargar() async { // Vuelve a pedir el horario
-    setState(() => _peticion = widget.api.obtenerActividades()); // Nueva petición y redibuja
-    try { await _peticion; } catch (_) {} // Espera a que termine
-  } // Fin de _recargar
+  @override // Reemplaza dispose
+  void dispose() { // Al cerrar la pantalla
+    WidgetsBinding.instance.removeObserver(this); // Deja de escuchar la app
+    _reloj?.cancel(); // Detiene el reloj
+    super.dispose(); // Lo de Flutter por defecto
+  } // Fin de dispose
+
+  @override // Reemplaza didChangeAppLifecycleState
+  void didChangeAppLifecycleState(AppLifecycleState estado) { // La app cambió de estado
+    if (estado == AppLifecycleState.resumed) _cargar(); // Volvió a primer plano: actualiza
+  } // Fin de didChangeAppLifecycleState
+
+  Future<void> _cargar() async { // Pide el horario sin mostrar "cargando" (la lista se cambia cuando llega)
+    try { // Intenta
+      final actividades = await widget.api.obtenerActividades(); // Petición
+      if (!mounted) return; // Pantalla cerrada: nada
+      setState(() { _actividades = actividades; _fallo = false; }); // Redibuja con lo nuevo
+      if (!_sincronizado) { _sincronizado = true; await Recordatorios.sincronizar(actividades); } // Reprograma los recordatorios con las horas nuevas (por si el panel las cambió)
+    } catch (_) { // Sin internet, servidor dormido…
+      if (mounted && _actividades == null) setState(() => _fallo = true); // Solo muestra el error si no había nada en pantalla
+    } // Fin del try
+  } // Fin de _cargar
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
+    final actividades = _actividades; // Atajo
     return Scaffold( // Estructura de la pantalla
-      appBar: AppBar(title: const Text('Horario de cultos')), // Barra de título
-      body: FutureBuilder<List<Actividad>>( // Dibuja según el estado de la petición
-        future: _peticion, // Petición que vigila
-        builder: (context, estado) { // Se llama cada vez que cambia
-          if (estado.connectionState != ConnectionState.done) return const Cargando(); // Esperando
-          if (estado.hasError) return ErrorConexion(alReintentar: _recargar); // Falló
-          final actividades = estado.data!; // Lista recibida (ya viene ordenada por día y hora)
-          return RefreshIndicator( // "Jalar hacia abajo" para actualizar
-            onRefresh: _recargar, // Qué hacer al jalar
-            child: actividades.isEmpty // ¿Está vacía?
-                ? const Vacio(icono: Icons.event_busy, mensaje: 'Aún no hay actividades en el horario.') // Sí: mensaje
-                : ListView( // No: lista agrupada por día
-                    padding: const EdgeInsets.only(bottom: 16), // Margen abajo
-                    children: _armarLista(actividades), // Encabezados de día + actividades
-                  ), // Fin de la lista
-          ); // Fin de RefreshIndicator
-        }, // Fin de builder
-      ), // Fin de FutureBuilder
+      appBar: AppBar(title: const Text('Horario de cultos')), // Barra de título (con flecha para volver)
+      body: actividades == null // ¿Todavía no hay datos?
+          ? (_fallo ? ErrorConexion(alReintentar: _cargar) : const Cargando()) // Error o esperando
+          : RefreshIndicator( // "Jalar hacia abajo" para actualizar
+              onRefresh: _cargar, // Qué hacer al jalar
+              child: actividades.isEmpty // ¿Está vacía?
+                  ? const Vacio(icono: Icons.event_busy, mensaje: 'Aún no hay actividades en el horario.') // Sí: mensaje
+                  : ListView( // No: lista agrupada por día
+                      padding: const EdgeInsets.only(bottom: 16), // Margen abajo
+                      children: _armarLista(actividades), // Encabezados de día + actividades
+                    ), // Fin de la lista
+            ), // Fin de RefreshIndicator
     ); // Fin del Scaffold
   } // Fin de build
 

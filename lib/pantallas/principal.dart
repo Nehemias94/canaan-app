@@ -70,7 +70,8 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
         child: NavigationBar( // Menú de abajo (estilo Material 3)
         selectedIndex: _pestana, // Opción resaltada
         onDestinationSelected: (i) { // Al tocar una opción...
-          if (i == 3) recargarEventos.value++; // ...si es Eventos, que se actualice (por si el panel cambió algo)
+          if (i == 1) recargarPredicas.value++; // ...si es Prédicas, que se actualice (por si el panel cambió algo)
+          if (i == 3) recargarEventos.value++; // ...si es Eventos, igual
           setState(() => _pestana = i); // ...cambia de pestaña y redibuja
         }, // Fin de onDestinationSelected
         destinations: const [ // Opciones del menú
