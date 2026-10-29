@@ -13,6 +13,7 @@ class Iglesia { // Molde con los datos que usa la app
   final String? whatsapp; // Número de WhatsApp para wa.me (null = el panel no quiere mostrar el botón)
   final Ofrendas ofrendas; // Ofrendas y diezmos (cuentas y QR)
   final VersiculoDia? versiculo; // Versículo del día (null si no hay)
+  final Repeticion? repeticion; // Última transmisión terminada hace poco ("¿Te lo perdiste?"); null si no hay
 
   bool get tieneUbicacion => latitud != null && longitud != null; // ¿Se configuró la ubicación en el panel?
 
@@ -31,6 +32,7 @@ class Iglesia { // Molde con los datos que usa la app
     this.whatsapp, // Opcional
     this.ofrendas = const Ofrendas(mostrar: false), // Por defecto, sin ofrendas
     this.versiculo, // Opcional
+    this.repeticion, // Opcional
   }); // Fin del constructor
 
   factory Iglesia.desdeJson(Map<String, dynamic> json) { // Convierte el JSON de la API en un objeto Iglesia
@@ -46,7 +48,8 @@ class Iglesia { // Molde con los datos que usa la app
       youtubeCanal: (json['youtube'] as Map<String, dynamic>?)?['canal_url'] as String?, // ...el canal de YouTube (bloque "youtube")
       whatsapp: (json['contacto'] as Map<String, dynamic>?)?['whatsapp'] as String?, // ...el WhatsApp (bloque "contacto")
       ofrendas: Ofrendas.desdeJson(json['ofrendas'] as Map<String, dynamic>? ?? {}), // ...las ofrendas
-      versiculo: json['versiculo_dia'] == null ? null : VersiculoDia.desdeJson(json['versiculo_dia'] as Map<String, dynamic>), // ...y el versículo del día
+      versiculo: json['versiculo_dia'] == null ? null : VersiculoDia.desdeJson(json['versiculo_dia'] as Map<String, dynamic>), // ...el versículo del día
+      repeticion: json['repeticion'] == null ? null : Repeticion.desdeJson(json['repeticion'] as Map<String, dynamic>), // ...y la repetición del culto (si hubo transmisión en las últimas 12 h)
     ); // Fin del objeto
   } // Fin de desdeJson
 } // Fin de Iglesia
@@ -148,3 +151,17 @@ class VersiculoDia { // Versículo del día (bloque "versiculo_dia")
         referencia: json['referencia'] as String? ?? '', // Cita
       ); // Fin
 } // Fin de VersiculoDia
+
+class Repeticion { // Repetición del último culto transmitido (bloque "repeticion" de /api/iglesia)
+  final String titulo; // Título de la transmisión
+  final String youtubeId; // Código del video de YouTube
+  final DateTime? termino; // Cuándo terminó (hora del teléfono)
+
+  const Repeticion({required this.titulo, required this.youtubeId, this.termino}); // Constructor
+
+  factory Repeticion.desdeJson(Map<String, dynamic> json) => Repeticion( // Desde el JSON
+        titulo: json['titulo'] as String? ?? 'Culto', // Título (o uno genérico)
+        youtubeId: json['youtube_id'] as String? ?? '', // Código del video
+        termino: DateTime.tryParse(json['termino'] as String? ?? '')?.toLocal(), // Fecha ISO del panel → hora del teléfono
+      ); // Fin
+} // Fin de Repeticion

@@ -3,9 +3,13 @@ import 'dart:async'; // Timer (para mandar la señal del en vivo cada 30 s) y St
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 import 'package:youtube_player_iframe/youtube_player_iframe.dart'; // Reproductor de YouTube dentro de la app
 
+import '../modelos/iglesia.dart'; // Ofrendas (botón Ofrendar)
 import '../servicios/api.dart'; // Llamadas a la API (vistas y señales)
+import '../servicios/compartir.dart'; // Botón Compartir
 import '../servicios/registro.dart'; // Llave del teléfono
 import '../tema.dart'; // Colores de Canaán
+import 'ofrendas.dart'; // Pantalla de ofrendas (botón Ofrendar)
+import 'peticion.dart'; // Formulario de petición (botón Pedir oración)
 
 class PantallaVideo extends StatefulWidget { // Pantalla con el video de YouTube (prédica o transmisión en vivo)
   const PantallaVideo({ // Constructor
@@ -18,6 +22,8 @@ class PantallaVideo extends StatefulWidget { // Pantalla con el video de YouTube
     this.descripcion, // Texto debajo del video
     this.predicaId, // Número de la prédica (para contar la vista); null en el en vivo
     this.enVivo = false, // true = transmisión en vivo (manda señales y muestra cuántos ven)
+    this.acciones = false, // true = muestra los botones Pedir oración · Ofrendar · Compartir (en vivo y repetición del culto)
+    this.ofrendas, // Datos de ofrendas (el botón Ofrendar sale solo si el panel las muestra)
   }); // Fin del constructor
 
   final Api api; // De dónde se envían vistas y señales
@@ -28,6 +34,8 @@ class PantallaVideo extends StatefulWidget { // Pantalla con el video de YouTube
   final String? descripcion; // Descripción
   final int? predicaId; // Prédica a la que se le cuenta la vista
   final bool enVivo; // ¿Es la transmisión en vivo?
+  final bool acciones; // ¿Mostrar los botones bajo el video?
+  final Ofrendas? ofrendas; // Ofrendas del panel (null = sin botón Ofrendar)
 
   static Widget? reproductorDePrueba; // Solo en pruebas automáticas: reemplaza al reproductor real (YouTube no carga ahí). En la app siempre es null
 
@@ -108,6 +116,7 @@ class _PantallaVideoState extends State<PantallaVideo> { // Estado de la pantall
           else // Si no...
             PantallaVideo.reproductorDePrueba ?? YoutubePlayer(controller: _control!, aspectRatio: 16 / 9), // ...el video (16:9) o el de reemplazo en pruebas
           if (widget.enVivo) _barraEnVivo(), // En vivo: franja con "EN VIVO · N viendo" o "terminó"
+          if (widget.acciones) _botonesAcciones(), // Botones grandes: Pedir oración · Ofrendar · Compartir
           Padding( // Margen de los textos
             padding: const EdgeInsets.all(16), // 16 por lado
             child: Column( // Textos uno debajo del otro
@@ -131,6 +140,46 @@ class _PantallaVideoState extends State<PantallaVideo> { // Estado de la pantall
       ), // Fin de la lista
     ); // Fin del Scaffold
   } // Fin de build
+
+  Widget _botonesAcciones() { // Fila de botones grandes bajo el video (pensados para adultos mayores)
+    final conOfrendas = widget.ofrendas?.mostrar ?? false; // ¿El panel muestra ofrendas?
+    return Container( // Fondo blanco con línea abajo
+      decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: bordeCanaan))), // Blanco
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10), // Relleno
+      child: Row( // Botones en fila
+        children: [ // Elementos
+          _botonAccion(Icons.volunteer_activism, 'Pedir oración', const Color(0xFFB4235A), () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaPeticion(api: widget.api, registro: widget.registro)))), // Abre el formulario de petición
+          if (conOfrendas) _botonAccion(Icons.favorite, 'Ofrendar', doradoOscuro, () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaOfrendas(ofrendas: widget.ofrendas!)))), // Abre ofrendas y diezmos
+          _botonAccion(Icons.share, 'Compartir', azulCanaan, _compartir), // Comparte el enlace
+        ], // Fin de los elementos
+      ), // Fin de la fila
+    ); // Fin del contenedor
+  } // Fin de _botonesAcciones
+
+  Widget _botonAccion(IconData icono, String texto, Color color, VoidCallback alTocar) { // Un botón: burbuja de color con ícono y texto debajo
+    return Expanded( // Todos del mismo ancho
+      child: InkWell( // Se puede tocar (con efecto)
+        onTap: alTocar, // Acción
+        borderRadius: BorderRadius.circular(12), // Efecto redondeado
+        child: Padding( // Relleno
+          padding: const EdgeInsets.symmetric(vertical: 6), // Arriba y abajo
+          child: Column( // Ícono arriba, texto abajo
+            children: [ // Elementos
+              CircleAvatar(radius: 24, backgroundColor: color.withValues(alpha: 0.12), child: Icon(icono, color: color, size: 26)), // Burbuja de color
+              const SizedBox(height: 6), // Espacio
+              Text(texto, textAlign: TextAlign.center, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: marinoCanaan)), // Texto
+            ], // Fin de los elementos
+          ), // Fin de la columna
+        ), // Fin del relleno
+      ), // Fin de InkWell
+    ); // Fin de Expanded
+  } // Fin de _botonAccion
+
+  void _compartir() { // Comparte el video (en vivo: invita a verlo; repetición: el culto)
+    final enlace = 'https://youtu.be/${widget.youtubeId}'; // Enlace corto de YouTube (abre la app de YouTube o el navegador)
+    final invitacion = widget.enVivo ? '🔴 ¡Estamos en vivo! ${widget.titulo}\nAcompáñanos:' : '${widget.titulo}\nMíralo aquí:'; // Texto según el caso
+    Compartir.texto('$invitacion $enlace'); // Abre la ventana de compartir (con la firma de la iglesia)
+  } // Fin de _compartir
 
   Widget _videoTerminado() { // Recuadro que reemplaza al video cuando el en vivo terminó
     return AspectRatio( // Mismo tamaño que el video (16:9)

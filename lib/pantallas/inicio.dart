@@ -197,9 +197,26 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
         titulo: iglesia.enVivo.titulo ?? 'Transmisión en vivo', // Título (o uno genérico)
         subtitulo: iglesia.nombre, // Nombre de la iglesia
         enVivo: true, // Es en vivo: manda señales y muestra cuántos ven
+        acciones: true, // Botones Pedir oración · Ofrendar · Compartir
+        ofrendas: iglesia.ofrendas, // Para el botón Ofrendar
       )), // Fin de la ruta
     ); // Fin de Navigator.push
   } // Fin de _abrirEnVivo
+
+  void _abrirRepeticion(BuildContext context, Repeticion repeticion) { // Abre la repetición del culto de hoy
+    Navigator.push( // Abre el video encima
+      context, // Desde aquí
+      MaterialPageRoute(builder: (context) => PantallaVideo( // Pantalla del video
+        api: api, // API
+        registro: registro, // Registro del teléfono
+        youtubeId: repeticion.youtubeId, // Video de la transmisión que terminó
+        titulo: repeticion.titulo, // Título
+        subtitulo: 'Repetición · ${iglesia.nombre}', // Aclara que ya no es en vivo
+        acciones: true, // También con los botones
+        ofrendas: iglesia.ofrendas, // Para el botón Ofrendar
+      )), // Fin de la ruta
+    ); // Fin de Navigator.push
+  } // Fin de _abrirRepeticion
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
@@ -224,7 +241,7 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
                   'https://www.google.com/maps/search/?api=1&query=${iglesia.latitud},${iglesia.longitud}', // Enlace universal de Google Maps (abre la app de Maps si está)
                 ), // Fin de cómo llegar
               ), // Fin de los accesos rápidos
-              _ProximoCulto(actividades: actividades, alTocar: () => alIrAPestana?.call(3)), // Tarjeta "Próximo culto" (al tocar, abre Horario)
+              _ProximoCulto(actividades: actividades, enVivoActivo: iglesia.enVivo.activo, alTocar: () => alIrAPestana?.call(3)), // Tarjeta "Próximo culto" con cuenta regresiva si se transmite (al tocar, abre Horario)
               if (iglesia.versiculo != null) _TarjetaVersiculo(versiculo: iglesia.versiculo!), // Versículo del día (se puede compartir)
               if (iglesia.enVivo.activo) // Si hay transmisión en vivo...
                 TarjetaCanaan( // ...tarjeta con franja ROJA
@@ -257,6 +274,8 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
                     ], // Fin de los elementos
                   ), // Fin de la columna
                 ), // Fin de la tarjeta en vivo
+              if (!iglesia.enVivo.activo && iglesia.repeticion != null && iglesia.repeticion!.youtubeId.isNotEmpty) // Si no hay en vivo pero hubo transmisión hace poco...
+                _TarjetaRepeticion(repeticion: iglesia.repeticion!, alTocar: () => _abrirRepeticion(context, iglesia.repeticion!)), // ..."¿Te lo perdiste?"
               if (iglesia.radioDisponible) // Si la radio está al aire...
                 TarjetaCanaan( // ...tarjeta con franja DORADA
                   franja: doradoCanaan, // Dorado
@@ -421,13 +440,44 @@ class _AccesosRapidos extends StatelessWidget { // Tarjeta con botones grandes d
   } // Fin de build
 } // Fin de _AccesosRapidos
 
-class _ProximoCulto extends StatelessWidget { // Tarjeta "Próximo culto": lo que está ocurriendo AHORA o lo siguiente del horario
-  const _ProximoCulto({required this.actividades, required this.alTocar}); // Constructor
+class _ProximoCulto extends StatefulWidget { // Tarjeta "Próximo culto": lo que está ocurriendo AHORA o lo siguiente del horario (con cuenta regresiva si se transmite)
+  const _ProximoCulto({required this.actividades, required this.enVivoActivo, required this.alTocar}); // Constructor
 
   final List<Actividad> actividades; // Horario completo
+  final bool enVivoActivo; // ¿Ya hay transmisión en vivo? (entonces no hace falta la cuenta regresiva)
   final VoidCallback alTocar; // Al tocar: abre la pestaña Horario
 
+  @override // Reemplaza createState
+  State<_ProximoCulto> createState() => _ProximoCultoState(); // Crea el estado
+} // Fin de _ProximoCulto
+
+class _ProximoCultoState extends State<_ProximoCulto> { // Estado: un reloj redibuja la cuenta regresiva
   static const _verde = Color(0xFF15803D); // Verde (igual que "Ahora" en Horario)
+  Timer? _reloj; // Redibuja cada 30 s (para que "faltan 15 min" baje sola)
+
+  @override // Reemplaza initState
+  void initState() { // Al aparecer
+    super.initState(); // Lo de Flutter por defecto
+    _reloj = Timer.periodic(const Duration(seconds: 30), (_) { if (mounted) setState(() {}); }); // Cada 30 s, vuelve a calcular
+  } // Fin de initState
+
+  @override // Reemplaza dispose
+  void dispose() { // Al quitarse
+    _reloj?.cancel(); // Detiene el reloj
+    super.dispose(); // Lo de Flutter por defecto
+  } // Fin de dispose
+
+  String? _cuentaRegresiva(Actividad actividad) { // Texto rojo de la transmisión; null si no se transmite o ya está en vivo
+    if (!actividad.seTransmite || widget.enVivoActivo) return null; // Sin transmisión o ya en vivo (la tarjeta roja lo muestra)
+    if (actividad.enCurso) return 'La transmisión aparecerá aquí al empezar'; // Ya es la hora, pero YouTube aún no empieza
+    final falta = actividad.proxima!.difference(DateTime.now()); // Tiempo que falta
+    if (falta.inHours >= 24) return 'Se transmite en vivo en la app'; // Lejos: solo avisa que se transmite
+    if (falta.inMinutes < 1) return 'En vivo en un momento'; // Ya casi
+    final horas = falta.inHours; // Horas completas
+    final minutos = falta.inMinutes % 60; // Minutos sobrantes
+    final texto = horas > 0 ? '$horas h${minutos > 0 ? ' $minutos min' : ''}' : '$minutos min'; // "2 h 15 min" o "15 min"
+    return 'En vivo en la app · faltan $texto'; // Ej: "En vivo en la app · faltan 2 h 15 min"
+  } // Fin de _cuentaRegresiva
 
   String _cuando(DateTime fecha) { // "Hoy", "Mañana" o el día de la semana, ej: "Domingo"
     final hoy = DateTime.now(); // Ahora
@@ -439,16 +489,18 @@ class _ProximoCulto extends StatelessWidget { // Tarjeta "Próximo culto": lo qu
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
+    final actividades = widget.actividades; // Atajo
     final ahora = actividades.where((a) => a.enCurso).toList(); // Las que están ocurriendo
     final siguientes = actividades.where((a) => !a.enCurso && a.proxima != null).toList()..sort((a, b) => a.proxima!.compareTo(b.proxima!)); // Las demás, de la más cercana a la más lejana
     final actividad = ahora.isNotEmpty ? ahora.first : (siguientes.isNotEmpty ? siguientes.first : null); // La que se muestra
     if (actividad == null) return const SizedBox.shrink(); // Sin horario: no se muestra la tarjeta
     final enCurso = actividad.enCurso; // ¿Es ahora?
     final cuando = enCurso ? 'Ahora' : _cuando(actividad.proxima!); // "Ahora", "Hoy", "Mañana" o el día
+    final regresiva = _cuentaRegresiva(actividad); // Cuenta regresiva (o null)
     final detalle = [actividad.horario, actividad.lugar].where((t) => t != null && t.isNotEmpty).join(' · '); // "7:00 pm – 8:30 pm · Templo principal"
     return TarjetaCanaan( // Tarjeta con franja verde
       franja: _verde, // Verde
-      alTocar: alTocar, // Abre Horario
+      alTocar: widget.alTocar, // Abre Horario
       child: Row( // Ícono, textos y flechita
         children: [ // Elementos
           const Icon(Icons.event_available, color: _verde, size: 30), // Calendario con palomita
@@ -461,6 +513,17 @@ class _ProximoCulto extends StatelessWidget { // Tarjeta "Próximo culto": lo qu
                 const SizedBox(height: 2), // Espacio
                 Text('$cuando · ${actividad.nombre}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan)), // "Hoy · Culto de oración"
                 if (detalle.isNotEmpty) Text(detalle, style: const TextStyle(fontSize: 15, color: Colors.black54)), // Hora y lugar
+                if (regresiva != null) // Si se transmite...
+                  Padding( // ...línea roja con la cuenta regresiva
+                    padding: const EdgeInsets.only(top: 6), // Separación
+                    child: Row( // Ícono rojo y texto
+                      children: [ // Elementos
+                        Icon(Icons.live_tv, color: Colors.red.shade700, size: 18), // Televisor rojo
+                        const SizedBox(width: 6), // Espacio
+                        Expanded(child: Text(regresiva, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.red.shade700))), // "En vivo en la app · faltan 2 h"
+                      ], // Fin de los elementos
+                    ), // Fin de la fila
+                  ), // Fin del margen
               ], // Fin de los elementos
             ), // Fin de la columna
           ), // Fin de los textos
@@ -469,7 +532,38 @@ class _ProximoCulto extends StatelessWidget { // Tarjeta "Próximo culto": lo qu
       ), // Fin de la fila
     ); // Fin de la tarjeta
   } // Fin de build
-} // Fin de _ProximoCulto
+} // Fin de _ProximoCultoState
+
+class _TarjetaRepeticion extends StatelessWidget { // "¿Te lo perdiste? Mira el culto de hoy" (después del en vivo, por 12 h)
+  const _TarjetaRepeticion({required this.repeticion, required this.alTocar}); // Constructor
+
+  final Repeticion repeticion; // Transmisión que terminó
+  final VoidCallback alTocar; // Abre el video
+
+  @override // Reemplaza build
+  Widget build(BuildContext context) { // Describe cómo se ve
+    return TarjetaCanaan( // Tarjeta con franja AZUL
+      franja: azulCanaan, // Azul
+      alTocar: alTocar, // Abre el video
+      child: Column( // Uno debajo del otro
+        crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
+        children: [ // Elementos
+          const Text('¿TE LO PERDISTE?', style: TextStyle(color: azulCanaan, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)), // Encabezado pequeño
+          const SizedBox(height: 2), // Espacio
+          const Text('Mira el culto de hoy', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan)), // Invitación
+          Text(repeticion.titulo, style: const TextStyle(fontSize: 15, color: Colors.black54)), // Título de la transmisión
+          const SizedBox(height: 12), // Espacio
+          FilledButton.icon( // Botón grande
+            style: FilledButton.styleFrom(backgroundColor: azulCanaan, foregroundColor: Colors.white, minimumSize: const Size.fromHeight(50)), // Azul, todo el ancho
+            icon: const Icon(Icons.replay, size: 24), // Ícono de repetir
+            label: const Text('Ver repetición', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)), // Texto
+            onPressed: alTocar, // Abre el video
+          ), // Fin del botón
+        ], // Fin de los elementos
+      ), // Fin de la columna
+    ); // Fin de la tarjeta
+  } // Fin de build
+} // Fin de _TarjetaRepeticion
 
 class _AlertaAviso extends StatelessWidget { // Aviso urgente con aspecto de ALERTA (no de anuncio): fondo de color, borde, ícono fuerte y etiqueta
   const _AlertaAviso({required this.aviso}); // Constructor

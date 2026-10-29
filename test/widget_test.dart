@@ -54,6 +54,8 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
   final bool conExtras; // ¿El panel falso tiene WhatsApp, ofrendas y versículo del día?
   bool enVivoEnPanel = true; // ¿Hay transmisión en vivo en el panel falso? (se puede cambiar a mitad de la prueba)
   bool anuncioAreaAhora = false; // ¿Hay un anuncio "Solo área" en su ventana ahora mismo?
+  bool conRepeticion = false; // ¿Hubo transmisión hace poco? (tarjeta "¿Te lo perdiste?")
+  List<Map<String, dynamic>>? horario; // Horario de reemplazo (null = el culto del domingo en curso)
 
   @override // Reemplaza el método real
   Future<List<Anuncio>> obtenerAnuncios() async { // Anuncios falsos
@@ -122,6 +124,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
       if (conExtras) 'ofrendas': {'mostrar': true, 'mensaje': 'Dios ama al dador alegre.', 'cuentas': [{'banco': 'Banco Agrícola', 'tipo': 'Ahorro', 'numero': '3000-123456', 'titular': 'MCC'}], 'qr_url': null}, // Ofrendas
       if (conExtras) 'versiculo_dia': {'texto': 'Jehová es mi pastor; nada me faltará.', 'referencia': 'Salmos 23:1'}, // Versículo
       if (avisoNivel != null) 'aviso_urgente': {'activo': true, 'titulo': 'Culto cancelado', 'mensaje': 'Hoy no habrá culto por la lluvia.', 'nivel': avisoNivel}, // Aviso urgente
+      if (conRepeticion) 'repeticion': {'titulo': 'Culto dominical', 'youtube_id': 'repeti123', 'termino': DateTime.now().toIso8601String()}, // Repetición del culto
       if (radioAlAire) 'radio': {'disponible': true, 'titulo': 'Culto dominical', 'stream_url': 'https://radio.ejemplo/canaan', 'modo': 'siempre'}, // Radio 24/7
  // Transmisión activa
     }); // Fin de los datos
@@ -136,6 +139,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
   @override // Reemplaza el método real
   Future<List<Actividad>> obtenerActividades() async { // Horario falso
     if (falla) throw Exception('sin internet'); // Simula el error
+    if (horario != null) return horario!.map(Actividad.desdeJson).toList(); // Horario de reemplazo
     return [Actividad.desdeJson({'id': 1, 'nombre': 'Culto general', 'dia_semana': 0, 'dia': 'Domingo', 'horario': '10:00 am – 12:00 pm', 'se_transmite': true, 'en_curso': true})]; // Un culto el domingo, en curso
   } // Fin de obtenerActividades
 } // Fin de ApiFalsa
@@ -500,4 +504,49 @@ void main() { // Punto de arranque de las pruebas
     Preferencias.letraGrande.value = false; // La deja como estaba (para las demás pruebas)
     expect(despues, greaterThan(antes)); // Más grande
   }); // Fin de la prueba 27
+
+  testWidgets('Repetición: "¿Te lo perdiste?" abre el video con los botones', (WidgetTester tester) async { // Prueba 28
+    String? compartido; // Lo que se intentó compartir
+    Compartir.compartir = (texto) async => compartido = texto; // Compartir de mentira
+    final api = ApiFalsa(conExtras: true)..enVivoEnPanel = false..conRepeticion = true; // Sin en vivo, con repetición y ofrendas
+    tester.view.physicalSize = const Size(800, 1800); // Pantalla alta: caben todas las tarjetas sin desplazarse
+    tester.view.devicePixelRatio = 1; // 1 píxel = 1 punto
+    addTearDown(tester.view.reset); // Al terminar, vuelve al tamaño normal
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('¿TE LO PERDISTE?'), findsOneWidget); // Tarjeta de repetición
+    await tester.tap(find.text('Ver repetición')); // Abre el video
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Repetición · Ministerio Cristiano Canaán'), findsOneWidget); // Subtítulo
+    expect(find.text('Pedir oración'), findsOneWidget); // Botón oración
+    expect(find.text('Ofrendar'), findsOneWidget); // Botón ofrendas (el panel las muestra)
+    await tester.tap(find.text('Compartir')); // Comparte
+    await tester.pump(); // Espera
+    expect(compartido, contains('https://youtu.be/repeti123')); // Con el enlace del video
+    await tester.tap(find.text('Pedir oración')); // Abre la petición
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Enviar petición'), findsOneWidget); // Formulario de petición
+  }); // Fin de la prueba 28
+
+  testWidgets('Cuenta regresiva del próximo culto transmitido', (WidgetTester tester) async { // Prueba 29
+    final api = ApiFalsa()..enVivoEnPanel = false; // Sin en vivo
+    final proxima = DateTime.now().add(const Duration(hours: 2, minutes: 15, seconds: 20)); // Dentro de 2 h 15 min
+    api.horario = [{'id': 5, 'nombre': 'Culto de oración', 'dia_semana': proxima.weekday % 7, 'dia': 'Hoy', 'horario': '7:00 pm', 'se_transmite': true, 'en_curso': false, 'proxima': proxima.toIso8601String()}]; // Un culto transmitido
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('En vivo en la app · faltan 2 h 15 min'), findsOneWidget); // Cuenta regresiva
+    expect(find.text('¿TE LO PERDISTE?'), findsNothing); // Sin repetición
+  }); // Fin de la prueba 29
+
+  testWidgets('En vivo: botones bajo el video (sin Ofrendar si el panel no lo muestra)', (WidgetTester tester) async { // Prueba 30
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // En vivo, sin ofrendas
+    await tester.pumpAndSettle(); // Espera
+    await tester.ensureVisible(find.text('Ver transmisión')); // Se desplaza hasta el botón
+    await tester.tap(find.text('Ver transmisión')); // Abre el en vivo
+    await tester.pump(const Duration(seconds: 1)); // Espera (sin pumpAndSettle: hay señales periódicas)
+    await tester.pump(const Duration(seconds: 1)); // Termina la animación de entrada
+    expect(find.text('Pedir oración'), findsOneWidget); // Botón oración
+    expect(find.text('Compartir'), findsOneWidget); // Botón compartir
+    expect(find.text('Ofrendar'), findsNothing); // Sin ofrendas en el panel
+  }); // Fin de la prueba 30
 } // Fin de main
