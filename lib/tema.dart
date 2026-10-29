@@ -13,6 +13,9 @@ const SystemUiOverlayStyle barraSuperiorClara = SystemUiOverlayStyle(
 const Color azulCanaan = Color(0xFF004B82); // Azul principal
 const Color marinoCanaan = Color(0xFF00223E); // Marino (letras del logo)
 const Color doradoCanaan = Color(0xFFFFB100); // Dorado (ícono y acentos)
+const Color fondoCanaan = Color(0xFFF3F6FA); // Fondo gris azulado muy claro de todas las pantallas (igual que el panel)
+const Color bordeCanaan = Color(0xFFE2E8F0); // Borde suave de las tarjetas
+const Color doradoOscuro = Color(0xFFB07A00); // Dorado oscuro (se lee bien sobre blanco)
 
 ThemeData temaCanaan() { // Tema (colores y estilos) de toda la app
   final colores = ColorScheme.fromSeed( // Arma una paleta completa a partir de un color
@@ -23,12 +26,21 @@ ThemeData temaCanaan() { // Tema (colores y estilos) de toda la app
   return ThemeData( // Devuelve el tema
     colorScheme: colores, // Usa la paleta de arriba
     useMaterial3: true, // Diseño Material 3 (el más moderno)
+    fontFamily: 'Inter', // Fuente Inter en toda la app (la misma del panel; va dentro de la app, ver pubspec.yaml)
+    scaffoldBackgroundColor: fondoCanaan, // Fondo claro igual en todas las pantallas
     appBarTheme: const AppBarTheme( // Estilo de las barras de título de cada pantalla
       backgroundColor: marinoCanaan, // Fondo marino
       foregroundColor: Colors.white, // Título e íconos en blanco
       centerTitle: true, // Título centrado
       systemOverlayStyle: barraSuperiorClara, // Hora y batería en blanco sobre el marino
+      titleTextStyle: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white), // Título en Inter, negrita
     ), // Fin del estilo de la barra
+    cardTheme: CardThemeData( // Estilo de TODAS las tarjetas
+      color: Colors.white, // Blancas
+      elevation: 0, // Sin sombra fuerte (se usa un borde suave)
+      surfaceTintColor: Colors.transparent, // Sin el tinte de color de Material 3
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: bordeCanaan)), // Esquinas redondeadas + borde suave
+    ), // Fin de las tarjetas
     navigationBarTheme: NavigationBarThemeData( // Estilo de la barra de abajo (menú): marino con la opción elegida en dorado
       backgroundColor: marinoCanaan, // Fondo marino (igual que las barras de título)
       indicatorColor: doradoCanaan.withValues(alpha: 0.22), // "Pastilla" dorada suave detrás de la opción elegida

@@ -92,8 +92,15 @@ class _PantallaBibliaState extends State<PantallaBiblia> { // Estado de la pesta
   // encabezado "Bible App" (logo, buscar, idioma, cuenta), menú de abajo "Navegación rápida" (Inicio · Biblia · Hoy · Planes), pie de página
   // y el botón "AA" (está justo después del botón de audio "Escuchar"). Se QUEDAN: selector de libro/capítulo, versión, audio y flechas ‹ ›.
   // Si Bible.com cambia su página y algo deja de ocultarse, la Biblia sigue funcionando igual (solo se vería el menú de ellos).
+  // Además fuerza el MODO CLARO: Bible.com guarda el tema en localStorage "theme" (por defecto "system" = sigue al teléfono);
+  // se pone "light" y se cambia la clase del documento, para que no salga negra cuando el teléfono está en modo oscuro.
   static const _estiloOcultar = '''
 (function () {
+  try {
+    if (localStorage.getItem('theme') !== 'light') localStorage.setItem('theme', 'light');
+    var h = document.documentElement;
+    h.classList.remove('dark'); h.classList.add('light'); h.style.colorScheme = 'light';
+  } catch (e) {}
   if (document.getElementById('canaan-estilo')) return;
   var s = document.createElement('style');
   s.id = 'canaan-estilo';
@@ -230,7 +237,8 @@ class _Botonera extends StatelessWidget { // Fila de botones grandes: Atrás · 
           ), // Fin de la ayuda
         ); // Fin de boton
     return Material( // Fondo de la botonera
-      color: const Color(0xFFF3F6FA), // Gris azulado muy claro
+      color: Colors.white, // Blanca, como las tarjetas de la app (la página de la Biblia también es blanca)
+      shape: const Border(bottom: BorderSide(color: bordeCanaan)), // Línea suave abajo que la separa del texto
       child: Row( // Botones en fila
         children: [ // Botones
           boton('Atrás', Icons.arrow_back, alAtras, 'Volver a la página anterior'), // Atrás

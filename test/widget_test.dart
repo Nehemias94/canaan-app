@@ -143,7 +143,8 @@ void main() { // Punto de arranque de las pruebas
     expect(find.text('Conectando…'), findsWidgets); // Primero sale "Conectando…" (en las pestañas que cargan)
     await tester.pumpAndSettle(); // Espera a que lleguen los datos y se redibuje
     expect(find.text('Ministerio Cristiano Canaán'), findsOneWidget); // Sale el nombre
-    expect(find.text('● EN VIVO · Culto dominical'), findsOneWidget); // Sale la etiqueta EN VIVO
+    expect(find.text('● EN VIVO'), findsOneWidget); // Sale la etiqueta EN VIVO (tarjeta con franja roja)
+    expect(find.text('Culto dominical'), findsOneWidget); // Con el título de la transmisión
   }); // Fin de la prueba 1
 
   testWidgets('El menú cambia a Prédicas y a Horario', (WidgetTester tester) async { // Prueba 2

@@ -92,6 +92,18 @@ flutter:
   assets:
     - assets/imagenes/ # Carpeta con el ícono oficial de Canaán (canaan-icono.png)
 
+  # Fuente Inter (la misma del panel), DENTRO de la app: funciona sin internet. Licencia libre SIL OFL 1.1 (assets/fuentes/Inter-LICENCIA-OFL.txt)
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fuentes/Inter-Regular.ttf # Normal
+        - asset: assets/fuentes/Inter-Medium.ttf # Media
+          weight: 500
+        - asset: assets/fuentes/Inter-SemiBold.ttf # Seminegrita
+          weight: 600
+        - asset: assets/fuentes/Inter-Bold.ttf # Negrita
+          weight: 700
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

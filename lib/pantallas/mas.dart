@@ -74,7 +74,12 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
     return Scaffold( // Estructura de la pantalla
       appBar: AppBar(title: const Text('Más')), // Barra de título
       body: ListView( // Lista de opciones
+        padding: const EdgeInsets.all(14), // Margen alrededor de las tarjetas
         children: [ // Opciones
+          Card( // Tarjeta 1: lo que la persona usa (radio, peticiones, aviso al llegar)
+            clipBehavior: Clip.antiAlias, // El efecto al tocar respeta las esquinas redondeadas
+            margin: EdgeInsets.zero, // Sin margen extra (lo da la lista)
+            child: Column(children: [ // Opciones una debajo de otra
           ListTile( // Opción: Radio
             leading: const Icon(Icons.headphones, color: azulCanaan), // Ícono de audífonos
             title: const Text('Escuchar radio'), // Texto
@@ -102,7 +107,12 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
               value: _avisoIglesia, // Encendido o apagado
               onChanged: _cambiandoAviso ? null : _cambiarAvisoIglesia, // Al tocar (bloqueado mientras pide permisos)
             ), // Fin del interruptor
-          const Divider(), // Línea separadora
+            ])), // Fin de la tarjeta 1
+          const SizedBox(height: 14), // Espacio entre tarjetas
+          Card( // Tarjeta 2: información (estado del teléfono, acerca de)
+            clipBehavior: Clip.antiAlias, // El efecto al tocar respeta las esquinas redondeadas
+            margin: EdgeInsets.zero, // Sin margen extra
+            child: Column(children: [ // Filas una debajo de otra
           FutureBuilder<void>( // Fila del estado del registro: cambia según cómo va
             future: _registro, // Proceso que vigila
             builder: (context, estado) { // Se llama cada vez que cambia
@@ -138,6 +148,7 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
               children: const [Text('App del Ministerio Cristiano Canaán de las Asambleas de Dios.')], // Texto extra
             ), // Fin de la ventana
           ), // Fin de la opción
+            ])), // Fin de la tarjeta 2
         ], // Fin de las opciones
       ), // Fin de la lista
     ); // Fin del Scaffold

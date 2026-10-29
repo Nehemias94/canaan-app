@@ -4,6 +4,7 @@ import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 import 'package:flutter/services.dart'; // SystemUiOverlayStyle (colores de la barra de arriba del teléfono)
 
 import '../componentes/estados.dart'; // Vistas compartidas: Cargando, ErrorConexion
+import '../componentes/tarjeta.dart'; // Tarjeta con franja de color (diseño común)
 import '../config.dart'; // intervaloActualizacion
 import '../modelos/anuncio.dart'; // Molde de un anuncio
 import '../modelos/iglesia.dart'; // Molde de los datos de la iglesia
@@ -122,26 +123,22 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
     return AnnotatedRegion<SystemUiOverlayStyle>( // Estilo de la barra de arriba del teléfono (hora, batería) mientras se ve Inicio
-      value: barraSuperiorClara, // Íconos en blanco: se leen sobre el fondo azul oscuro (no hay barra de título aquí)
-      child: Container( // Caja que ocupa toda la pestaña
-      decoration: const BoxDecoration( // Fondo
-        gradient: LinearGradient( // Degradado
-          begin: Alignment.topCenter, // De arriba...
-          end: Alignment.bottomCenter, // ...hacia abajo
-          colors: [marinoCanaan, azulCanaan], // Marino → azul (igual que el login del panel)
-        ), // Fin del degradado
-      ), // Fin del fondo
-      child: SafeArea( // Evita la cámara y la barra del teléfono
-        child: _fallo // ¿Falló la primera carga?
-            ? ErrorConexion(alReintentar: _reintentar, claro: true) // Sí: mensaje y Reintentar
-            : _iglesia == null // ¿Todavía no hay datos?
-                ? const Cargando(claro: true) // Sí: "Conectando…"
-                : RefreshIndicator( // Hay datos: permite "jalar hacia abajo" para actualizar
-                    onRefresh: _cargar, // Qué hacer al jalar
-                    child: _DatosIglesia(iglesia: _iglesia!, anuncios: _anuncios, api: widget.api, registro: widget.registro), // Los datos
-                  ), // Fin de RefreshIndicator
-      ), // Fin de SafeArea
-      ), // Fin del Container
+      value: barraSuperiorClara, // Íconos en blanco: arriba siempre hay marino
+      child: _fallo || _iglesia == null // ¿Falló la primera carga o todavía no hay datos?
+          ? Container( // Pantalla completa en degradado mientras carga (o si falló)
+              decoration: const BoxDecoration( // Fondo
+                gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [marinoCanaan, azulCanaan]), // Marino → azul
+              ), // Fin del fondo
+              child: SafeArea( // Evita la cámara y la barra del teléfono
+                child: _fallo // ¿Falló?
+                    ? ErrorConexion(alReintentar: _reintentar, claro: true) // Sí: mensaje y Reintentar
+                    : const Cargando(claro: true), // No: "Conectando…"
+              ), // Fin de SafeArea
+            ) // Fin de la pantalla de carga
+          : RefreshIndicator( // Hay datos: permite "jalar hacia abajo" para actualizar
+              onRefresh: _cargar, // Qué hacer al jalar
+              child: _DatosIglesia(iglesia: _iglesia!, anuncios: _anuncios, api: widget.api, registro: widget.registro), // Los datos
+            ), // Fin de RefreshIndicator
     ); // Fin de AnnotatedRegion
   } // Fin de build
 } // Fin de _PantallaInicioState
@@ -154,103 +151,154 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
   final Api api; // Se pasa a la pantalla del video
   final RegistroDispositivo registro; // Se pasa a la pantalla del video
 
+  void _abrirEnVivo(BuildContext context) { // Abre la transmisión en vivo
+    Navigator.push( // Abre el video encima
+      context, // Desde aquí
+      MaterialPageRoute(builder: (context) => PantallaVideo( // Pantalla del video
+        api: api, // API
+        registro: registro, // Registro del teléfono
+        youtubeId: iglesia.enVivo.youtubeId!, // Video de la transmisión
+        titulo: iglesia.enVivo.titulo ?? 'Transmisión en vivo', // Título (o uno genérico)
+        subtitulo: iglesia.nombre, // Nombre de la iglesia
+        enVivo: true, // Es en vivo: manda señales y muestra cuántos ven
+      )), // Fin de la ruta
+    ); // Fin de Navigator.push
+  } // Fin de _abrirEnVivo
+
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
+    final aviso = iglesia.avisoUrgente; // Atajo
+    final hayVideo = iglesia.enVivo.activo && iglesia.enVivo.youtubeId != null; // ¿Hay en vivo con video?
     return ListView( // Lista desplazable (necesaria para "jalar hacia abajo")
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24), // Margen (poco arriba: lo importante debe verse sin bajar)
+      padding: EdgeInsets.zero, // Sin margen: el encabezado llega hasta arriba (detrás de la hora)
       children: [ // Elementos
-        Row( // Encabezado compacto: logo pequeño a la izquierda y saludo a la derecha
-          children: [ // Elementos
-            if (iglesia.logoUrl != null) // Si la iglesia subió un logo en el panel...
-              Image.network(iglesia.logoUrl!, height: 52) // ...lo muestra (pequeño)
-            else // Si no...
-              Image.asset('assets/imagenes/canaan-icono.png', height: 52), // ...el ícono oficial dorado de Canaán (va dentro de la app)
-            const SizedBox(width: 14), // Espacio
-            Expanded( // El texto ocupa el resto del ancho
-              child: Column( // Uno debajo del otro
-                crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
-                children: [ // Elementos
-                  Text( // Saludo según la hora
-                    saludoSegunHora(DateTime.now()), // "Buenos días", "Buenas tardes" o "Buenas noches"
-                    style: const TextStyle(color: doradoCanaan, fontSize: 16, fontWeight: FontWeight.bold), // Dorado
-                  ), // Fin del saludo
-                  Text( // Nombre de la iglesia (viene del panel)
-                    iglesia.nombre, // Texto
-                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, height: 1.2), // Blanco en negrita
-                  ), // Fin del nombre
-                  Text( // Fecha de hoy
-                    fechaLarga(DateTime.now()), // Ej: "Jueves, 29 de octubre"
-                    style: const TextStyle(color: Colors.white70, fontSize: 15), // Blanco suave
-                  ), // Fin de la fecha
-                ], // Fin de los elementos
-              ), // Fin de la columna
-            ), // Fin del Expanded
-          ], // Fin de los elementos
-        ), // Fin del encabezado
-        const SizedBox(height: 20), // Espacio
-        if (iglesia.enVivo.activo) // Si hay transmisión en vivo...
-          _Etiqueta( // ...etiqueta roja
-            texto: '● EN VIVO${iglesia.enVivo.titulo != null ? ' · ${iglesia.enVivo.titulo}' : ''}', // "● EN VIVO · título"
-            fondo: Colors.red, // Rojo
-            letras: Colors.white, // Letras blancas
-          ), // Fin de la etiqueta
-        if (iglesia.enVivo.activo && iglesia.enVivo.youtubeId != null) // Si hay en vivo y tiene video de YouTube...
-          Padding( // ...botón grande para verlo
-            padding: const EdgeInsets.only(top: 4, bottom: 12), // Separación
-            child: Center( // Centrado
-              child: FilledButton.icon( // Botón relleno
-                style: FilledButton.styleFrom(backgroundColor: doradoCanaan, foregroundColor: marinoCanaan, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)), // Dorado con letras marino, grande
-                icon: const Icon(Icons.play_circle_fill), // Ícono de reproducir
-                label: const Text('Ver transmisión', style: TextStyle(fontWeight: FontWeight.bold)), // Texto
-                onPressed: () => Navigator.push( // Abre el video encima
-                  context, // Desde aquí
-                  MaterialPageRoute(builder: (context) => PantallaVideo( // Pantalla del video
-                    api: api, // API
-                    registro: registro, // Registro del teléfono
-                    youtubeId: iglesia.enVivo.youtubeId!, // Video de la transmisión
-                    titulo: iglesia.enVivo.titulo ?? 'Transmisión en vivo', // Título (o uno genérico)
-                    subtitulo: iglesia.nombre, // Nombre de la iglesia
-                    enVivo: true, // Es en vivo: manda señales y muestra cuántos ven
-                  )), // Fin de la ruta
-                ), // Fin de Navigator.push
-              ), // Fin del botón
-            ), // Fin del centrado
-          ), // Fin del margen
-        if (iglesia.radioDisponible) // Si la radio está al aire...
-          GestureDetector( // ...etiqueta dorada que se puede tocar
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaRadio(api: api))), // Al tocar, abre la radio
-            child: const _Etiqueta(texto: '🎧 Radio al aire · Escuchar', fondo: doradoCanaan, letras: marinoCanaan), // Etiqueta dorada
-          ), // Fin de GestureDetector
-        if (iglesia.avisoUrgente.activo) // Si hay un aviso urgente vigente...
-          Card( // ...tarjeta blanca con el aviso
-            margin: const EdgeInsets.only(top: 12), // Separación arriba
-            child: ListTile( // Fila con ícono, título y texto
-              leading: const Icon(Icons.campaign, color: Colors.red), // Megáfono rojo
-              title: Text(iglesia.avisoUrgente.titulo ?? 'Aviso'), // Título
-              subtitle: Text(iglesia.avisoUrgente.mensaje ?? ''), // Mensaje
-            ), // Fin de la fila
-          ), // Fin de la tarjeta
-        if (!iglesia.enVivo.activo && !iglesia.radioDisponible && !iglesia.avisoUrgente.activo && anuncios.isEmpty) // Si no hay nada que mostrar...
-          const Text( // ...confirma que la conexión funciona
-            '✓ Conectado con el panel', // Texto
-            textAlign: TextAlign.center, // Centrado
-            style: TextStyle(color: Colors.white70), // Blanco suave
-          ), // Fin del texto
-        if (anuncios.isNotEmpty) // Si hay anuncios...
-          const Padding( // ...encabezado de la sección
-            padding: EdgeInsets.only(top: 24, bottom: 4), // Separación
-            child: Text( // Texto
-              'ANUNCIOS', // Título de la sección
-              style: TextStyle(color: doradoCanaan, fontWeight: FontWeight.bold, letterSpacing: 1.5), // Dorado, negrita, letras separadas
-            ), // Fin del texto
-          ), // Fin del encabezado
-        for (final anuncio in anuncios) _TarjetaAnuncio(anuncio: anuncio), // Luego una tarjeta por anuncio para todos
+        _Encabezado(iglesia: iglesia), // Franja marino con logo, saludo, nombre y fecha
+        Padding( // Contenido sobre el fondo claro
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), // Márgenes
+          child: Column( // Uno debajo del otro
+            crossAxisAlignment: CrossAxisAlignment.stretch, // Todo el ancho
+            children: [ // Elementos
+              if (iglesia.enVivo.activo) // Si hay transmisión en vivo...
+                TarjetaCanaan( // ...tarjeta con franja ROJA
+                  franja: Colors.red.shade700, // Rojo
+                  alTocar: hayVideo ? () => _abrirEnVivo(context) : null, // Al tocar, abre el video
+                  child: Column( // Uno debajo del otro
+                    crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
+                    children: [ // Elementos
+                      Row( // Etiqueta "EN VIVO" y título
+                        children: [ // Elementos
+                          Container( // Etiqueta roja
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), // Relleno
+                            decoration: BoxDecoration(color: Colors.red.shade700, borderRadius: BorderRadius.circular(20)), // Roja redondeada
+                            child: const Text('● EN VIVO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)), // Texto
+                          ), // Fin de la etiqueta
+                          const SizedBox(width: 10), // Espacio
+                          Expanded(child: Text(iglesia.enVivo.titulo ?? 'Transmisión en vivo', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan))), // Título
+                        ], // Fin de los elementos
+                      ), // Fin de la fila
+                      if (hayVideo) // Si tiene video...
+                        Padding( // ...botón grande dorado
+                          padding: const EdgeInsets.only(top: 12), // Separación
+                          child: FilledButton.icon( // Botón relleno
+                            style: FilledButton.styleFrom(backgroundColor: doradoCanaan, foregroundColor: marinoCanaan, minimumSize: const Size.fromHeight(52)), // Dorado, todo el ancho, alto 52
+                            icon: const Icon(Icons.play_circle_fill, size: 26), // Ícono de reproducir
+                            label: const Text('Ver transmisión', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)), // Texto
+                            onPressed: () => _abrirEnVivo(context), // Abre el video
+                          ), // Fin del botón
+                        ), // Fin del margen
+                    ], // Fin de los elementos
+                  ), // Fin de la columna
+                ), // Fin de la tarjeta en vivo
+              if (iglesia.radioDisponible) // Si la radio está al aire...
+                TarjetaCanaan( // ...tarjeta con franja DORADA
+                  franja: doradoCanaan, // Dorado
+                  alTocar: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaRadio(api: api))), // Al tocar, abre la radio
+                  child: const Row( // Ícono y textos
+                    children: [ // Elementos
+                      Icon(Icons.headphones, color: doradoOscuro, size: 30), // Audífonos
+                      SizedBox(width: 12), // Espacio
+                      Expanded(child: Text('🎧 Radio al aire · Escuchar', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: marinoCanaan))), // Texto
+                      Icon(Icons.chevron_right, color: Colors.black38), // Flechita: se puede tocar
+                    ], // Fin de los elementos
+                  ), // Fin de la fila
+                ), // Fin de la tarjeta de la radio
+              if (aviso.activo) // Si hay un aviso urgente vigente...
+                TarjetaCanaan( // ...tarjeta con franja según el nivel (rojo urgente, dorado importante, azul informativo)
+                  franja: colorDeNivel(aviso.nivel), // Color del nivel
+                  child: Row( // Ícono y textos
+                    crossAxisAlignment: CrossAxisAlignment.start, // Arriba
+                    children: [ // Elementos
+                      Icon(Icons.campaign, color: colorDeNivel(aviso.nivel) == doradoCanaan ? doradoOscuro : colorDeNivel(aviso.nivel), size: 30), // Megáfono del color del nivel
+                      const SizedBox(width: 12), // Espacio
+                      Expanded( // Textos
+                        child: Column( // Uno debajo del otro
+                          crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
+                          children: [ // Elementos
+                            Text(aviso.titulo ?? 'Aviso', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan)), // Título
+                            const SizedBox(height: 4), // Espacio
+                            Text(aviso.mensaje ?? '', style: const TextStyle(fontSize: 16, color: Colors.black87, height: 1.35)), // Mensaje
+                          ], // Fin de los elementos
+                        ), // Fin de la columna
+                      ), // Fin de los textos
+                    ], // Fin de los elementos
+                  ), // Fin de la fila
+                ), // Fin de la tarjeta del aviso
+              if (!iglesia.enVivo.activo && !iglesia.radioDisponible && !aviso.activo && anuncios.isEmpty) // Si no hay nada que mostrar...
+                const Padding( // ...confirma que la conexión funciona
+                  padding: EdgeInsets.only(top: 24), // Separación
+                  child: Text('✓ Conectado con el panel', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)), // Gris
+                ), // Fin del texto
+              if (anuncios.isNotEmpty) // Si hay anuncios...
+                const Padding( // ...encabezado de la sección
+                  padding: EdgeInsets.only(top: 24, bottom: 0, left: 4), // Separación
+                  child: Text('ANUNCIOS', style: TextStyle(color: doradoOscuro, fontWeight: FontWeight.bold, letterSpacing: 1.5)), // Dorado oscuro (se lee sobre el fondo claro)
+                ), // Fin del encabezado
+              for (final anuncio in anuncios) _TarjetaAnuncio(anuncio: anuncio), // Una tarjeta por anuncio
+            ], // Fin de los elementos
+          ), // Fin de la columna
+        ), // Fin del contenido
       ], // Fin de los elementos
     ); // Fin de la lista
   } // Fin de build
 } // Fin de _DatosIglesia
 
-class _TarjetaAnuncio extends StatelessWidget { // Tarjeta blanca de un anuncio
+class _Encabezado extends StatelessWidget { // Franja marino de arriba: logo, saludo, nombre y fecha (bordes de abajo redondeados)
+  const _Encabezado({required this.iglesia}); // Constructor
+
+  final Iglesia iglesia; // Datos de la iglesia
+
+  @override // Reemplaza build
+  Widget build(BuildContext context) { // Describe cómo se ve
+    return Container( // Caja con degradado
+      padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 16, 20, 22), // Deja espacio para la hora del teléfono
+      decoration: const BoxDecoration( // Fondo
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [marinoCanaan, azulCanaan]), // Marino → azul
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)), // Bordes de abajo redondeados
+      ), // Fin del fondo
+      child: Row( // Logo a la izquierda y textos a la derecha
+        children: [ // Elementos
+          if (iglesia.logoUrl != null) // Si la iglesia subió un logo en el panel...
+            Image.network(iglesia.logoUrl!, height: 52) // ...lo muestra (pequeño)
+          else // Si no...
+            Image.asset('assets/imagenes/canaan-icono.png', height: 52), // ...el ícono oficial dorado de Canaán (va dentro de la app)
+          const SizedBox(width: 14), // Espacio
+          Expanded( // El texto ocupa el resto del ancho
+            child: Column( // Uno debajo del otro
+              crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
+              children: [ // Elementos
+                Text(saludoSegunHora(DateTime.now()), style: const TextStyle(color: doradoCanaan, fontSize: 16, fontWeight: FontWeight.bold)), // "Buenos días"…
+                Text(iglesia.nombre, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, height: 1.2)), // Nombre de la iglesia
+                Text(fechaLarga(DateTime.now()), style: const TextStyle(color: Colors.white70, fontSize: 15)), // "Jueves, 29 de octubre"
+              ], // Fin de los elementos
+            ), // Fin de la columna
+          ), // Fin del Expanded
+        ], // Fin de los elementos
+      ), // Fin de la fila
+    ); // Fin de la caja
+  } // Fin de build
+} // Fin de _Encabezado
+
+class _TarjetaAnuncio extends StatelessWidget { // Tarjeta de un anuncio (franja AZUL)
   const _TarjetaAnuncio({required this.anuncio}); // Constructor
 
   final Anuncio anuncio; // Datos del anuncio
@@ -266,50 +314,29 @@ class _TarjetaAnuncio extends StatelessWidget { // Tarjeta blanca de un anuncio
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
     final fechas = _fechas(); // Texto de las fechas
-    return Card( // Tarjeta blanca
-      margin: const EdgeInsets.only(top: 8), // Separación
-      child: Padding( // Margen interno
-        padding: const EdgeInsets.all(14), // 14 por lado
-        child: Column( // Elementos uno debajo del otro
-          crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
-          children: [ // Elementos
-            Row( // Ícono y título en fila
-              children: [ // Elementos
-                const Icon(Icons.campaign_outlined, color: azulCanaan), // Megáfono azul
-                const SizedBox(width: 8), // Espacio
-                Expanded(child: Text(anuncio.titulo, style: Theme.of(context).textTheme.titleMedium)), // Título (ocupa el resto)
-              ], // Fin de los elementos
-            ), // Fin de la fila
-            const SizedBox(height: 6), // Espacio
-            Text(anuncio.mensaje), // Texto del anuncio
-            if (fechas.isNotEmpty) // Si hay fechas...
-              Padding( // ...las muestra en gris
-                padding: const EdgeInsets.only(top: 6), // Separación
-                child: Text(fechas, style: const TextStyle(color: Colors.black54, fontSize: 12)), // Gris pequeño
-              ), // Fin de las fechas
-          ], // Fin de los elementos
-        ), // Fin de la columna
-      ), // Fin del margen
+    return TarjetaCanaan( // Tarjeta con franja azul
+      franja: azulCanaan, // Azul
+      margen: const EdgeInsets.only(top: 10), // Separación
+      child: Column( // Elementos uno debajo del otro
+        crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
+        children: [ // Elementos
+          Row( // Ícono y título en fila
+            crossAxisAlignment: CrossAxisAlignment.start, // Arriba
+            children: [ // Elementos
+              const Icon(Icons.campaign_outlined, color: azulCanaan, size: 26), // Megáfono azul
+              const SizedBox(width: 10), // Espacio
+              Expanded(child: Text(anuncio.titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan))), // Título (ocupa el resto)
+            ], // Fin de los elementos
+          ), // Fin de la fila
+          const SizedBox(height: 6), // Espacio
+          Text(anuncio.mensaje, style: const TextStyle(fontSize: 16, color: Colors.black87, height: 1.35)), // Texto del anuncio
+          if (fechas.isNotEmpty) // Si hay fechas...
+            Padding( // ...las muestra en gris
+              padding: const EdgeInsets.only(top: 8), // Separación
+              child: Text(fechas, style: const TextStyle(color: Colors.black54, fontSize: 13)), // Gris pequeño
+            ), // Fin de las fechas
+        ], // Fin de los elementos
+      ), // Fin de la columna
     ); // Fin de la tarjeta
   } // Fin de build
 } // Fin de _TarjetaAnuncio
-
-class _Etiqueta extends StatelessWidget { // Etiqueta redondeada de color (EN VIVO, Radio)
-  const _Etiqueta({required this.texto, required this.fondo, required this.letras}); // Constructor
-
-  final String texto; // Texto
-  final Color fondo; // Color de fondo
-  final Color letras; // Color de las letras
-
-  @override // Reemplaza build
-  Widget build(BuildContext context) { // Describe cómo se ve
-    return Center( // Centrada (dentro de la lista ocuparía todo el ancho)
-      child: Container( // Caja
-        margin: const EdgeInsets.only(bottom: 8), // Separación abajo
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6), // Relleno interno
-        decoration: BoxDecoration(color: fondo, borderRadius: BorderRadius.circular(20)), // Fondo y bordes redondos
-        child: Text(texto, style: TextStyle(color: letras, fontWeight: FontWeight.bold)), // Texto en negrita
-      ), // Fin de la caja
-    ); // Fin del centrado
-  } // Fin de build
-} // Fin de _Etiqueta
