@@ -1,0 +1,100 @@
+import 'package:flutter/material.dart'; // Componentes visuales de Flutter
+
+import '../componentes/imagen_y_boton.dart'; // Imagen (flyer) y botón con enlace
+import '../componentes/tarjeta_evento.dart'; // Color morado de los eventos
+import '../modelos/evento.dart'; // Molde de un evento
+import '../servicios/compartir.dart'; // Compartir
+import '../servicios/preferencias.dart'; // Eventos con recordatorio
+import '../servicios/recordatorios.dart'; // Recordatorio en el teléfono
+import '../tema.dart'; // Colores de Canaán
+
+class PantallaEvento extends StatelessWidget { // Detalle de un evento especial
+  const PantallaEvento({super.key, required this.evento}); // Constructor
+
+  final Evento evento; // Datos del evento
+
+  Future<void> _cambiarRecordatorio(BuildContext context, bool activo) async { // Activa o quita el recordatorio
+    final mensajero = ScaffoldMessenger.of(context); // Para avisar (se toma antes de esperar)
+    if (activo) { // Ya estaba: lo quita
+      await Recordatorios.desactivarEvento(evento.id); // Cancela
+      mensajero.showSnackBar(const SnackBar(content: Text('Recordatorio quitado.'))); // Aviso
+      return; // Listo
+    } // Fin del if
+    final texto = await Recordatorios.activarEvento(evento); // Programa (devuelve cuándo avisará, o null)
+    mensajero.showSnackBar(SnackBar(content: Text(texto == null // ¿Se pudo?
+        ? (Recordatorios.soportado ? 'No se pudo: falta el permiso de notificaciones o el evento ya está por empezar.' : 'Los recordatorios funcionan en la app del teléfono.') // No
+        : 'Listo: te avisaremos $texto.'))); // Sí: "mañana a las 7:00 pm"
+  } // Fin de _cambiarRecordatorio
+
+  @override // Reemplaza build
+  Widget build(BuildContext context) { // Describe cómo se ve
+    final hayBoton = evento.botonTexto != null && evento.botonUrl != null; // ¿Tiene botón?
+    return Scaffold( // Estructura
+      appBar: AppBar(title: const Text('Evento especial')), // Barra con flecha para volver
+      body: ListView( // Desplazable
+        padding: const EdgeInsets.all(16), // Márgenes
+        children: [ // Elementos
+          if (evento.imagenUrl != null) ImagenRed(url: evento.imagenUrl!, altoMaximo: 480), // Flyer grande (al tocarlo, en pantalla completa)
+          const SizedBox(height: 14), // Espacio
+          Text(evento.titulo, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: marinoCanaan)), // Nombre
+          const SizedBox(height: 10), // Espacio
+          _Dato(icono: Icons.event, texto: evento.enCurso ? 'Ahora · ${evento.cuandoTexto()}' : evento.cuandoTexto()), // Cuándo
+          if (evento.lugar != null && evento.lugar!.isNotEmpty) _Dato(icono: Icons.place_outlined, texto: evento.lugar!), // Dónde
+          if (evento.seTransmite) _Dato(icono: Icons.live_tv, texto: 'Se transmite en vivo en la app', color: Colors.red.shade700), // En vivo
+          if (evento.descripcion != null && evento.descripcion!.isNotEmpty) // Si tiene detalle...
+            Padding(padding: const EdgeInsets.only(top: 14), child: Text(evento.descripcion!, style: const TextStyle(fontSize: 17, height: 1.4))), // ...texto
+          const SizedBox(height: 20), // Espacio
+          if (hayBoton) BotonEnlace(texto: evento.botonTexto!, url: evento.botonUrl!, color: moradoEvento), // Botón del panel (ej: Inscríbete)
+          const SizedBox(height: 10), // Espacio
+          ValueListenableBuilder<Set<int>>( // Se redibuja cuando cambian los recordatorios
+            valueListenable: Preferencias.recordatoriosEventos, // Eventos con recordatorio
+            builder: (context, ids, _) { // Botón según el estado
+              final activo = ids.contains(evento.id); // ¿Ya tiene recordatorio?
+              return OutlinedButton.icon( // Botón con borde
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48), foregroundColor: activo ? doradoOscuro : marinoCanaan), // Todo el ancho
+                icon: Icon(activo ? Icons.notifications_active : Icons.notifications_none), // Campana
+                label: Text(activo ? 'Recordatorio activado (toca para quitar)' : 'Recordarme', style: const TextStyle(fontSize: 16)), // Texto
+                onPressed: () => _cambiarRecordatorio(context, activo), // Activa o quita
+              ); // Fin del botón
+            }, // Fin de builder
+          ), // Fin de ValueListenableBuilder
+          const SizedBox(height: 10), // Espacio
+          OutlinedButton.icon( // Compartir
+            style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48), foregroundColor: marinoCanaan), // Todo el ancho
+            icon: const Icon(Icons.share), // Ícono
+            label: const Text('Compartir', style: TextStyle(fontSize: 16)), // Texto
+            onPressed: () => Compartir.texto([ // Comparte nombre, fecha, lugar y enlace
+              '🎉 ${evento.titulo}', // Nombre
+              '📅 ${evento.cuandoTexto()}', // Fecha
+              if (evento.lugar != null && evento.lugar!.isNotEmpty) '📍 ${evento.lugar}', // Lugar
+              if (hayBoton) '${evento.botonTexto}: ${evento.botonUrl}', // Enlace (ej: inscripción)
+            ].join('\n')), // Un dato por renglón
+          ), // Fin del botón
+        ], // Fin de los elementos
+      ), // Fin de la lista
+    ); // Fin del Scaffold
+  } // Fin de build
+} // Fin de PantallaEvento
+
+class _Dato extends StatelessWidget { // Renglón con ícono y texto (cuándo, dónde…)
+  const _Dato({required this.icono, required this.texto, this.color = Colors.black87}); // Constructor
+
+  final IconData icono; // Ícono
+  final String texto; // Texto
+  final Color color; // Color
+
+  @override // Reemplaza build
+  Widget build(BuildContext context) { // Describe cómo se ve
+    return Padding( // Separación
+      padding: const EdgeInsets.only(top: 6), // Arriba
+      child: Row( // Ícono y texto
+        crossAxisAlignment: CrossAxisAlignment.start, // Arriba
+        children: [ // Elementos
+          Icon(icono, color: color == Colors.black87 ? moradoEvento : color, size: 22), // Ícono (morado por defecto)
+          const SizedBox(width: 10), // Espacio
+          Expanded(child: Text(texto, style: TextStyle(fontSize: 17, color: color))), // Texto
+        ], // Fin de los elementos
+      ), // Fin de la fila
+    ); // Fin del margen
+  } // Fin de build
+} // Fin de _Dato

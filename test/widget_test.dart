@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart'; // Herramientas de pruebas auto
 import 'package:canaan_app/main.dart'; // Nuestra app
 import 'package:canaan_app/modelos/actividad.dart'; // Molde de una actividad
 import 'package:canaan_app/modelos/anuncio.dart'; // Molde de un anuncio
+import 'package:canaan_app/modelos/evento.dart'; // Molde de un evento especial
 import 'package:canaan_app/modelos/iglesia.dart'; // Molde de los datos de la iglesia
 import 'package:canaan_app/modelos/predica.dart'; // Molde de una prédica
 import 'package:canaan_app/servicios/api.dart'; // La API real (de ella se hereda la falsa)
@@ -56,12 +57,14 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
   bool anuncioAreaAhora = false; // ¿Hay un anuncio "Solo área" en su ventana ahora mismo?
   bool conRepeticion = false; // ¿Hubo transmisión hace poco? (tarjeta "¿Te lo perdiste?")
   List<Map<String, dynamic>>? horario; // Horario de reemplazo (null = el culto del domingo en curso)
+  List<Map<String, dynamic>> eventos = []; // Eventos especiales del panel falso
+  bool anuncioConBoton = false; // ¿El anuncio "Ayuno" trae botón con enlace?
 
   @override // Reemplaza el método real
   Future<List<Anuncio>> obtenerAnuncios() async { // Anuncios falsos
     if (falla) throw Exception('sin internet'); // Simula el error
     return [ // Tres anuncios:
-      Anuncio.desdeJson({'id': 1, 'titulo': 'Ayuno congregacional', 'mensaje': 'Este sábado de 6 am a 12 md.', 'tipo': 'todos', 'programacion': {'fecha_inicio': '2026-10-31', 'fecha_fin': '2026-10-31'}, 'visible_hasta': null}), // Para todos: SE MUESTRA
+      Anuncio.desdeJson({'id': 1, 'titulo': 'Ayuno congregacional', 'mensaje': 'Este sábado de 6 am a 12 md.', 'tipo': 'todos', 'programacion': {'fecha_inicio': '2026-10-31', 'fecha_fin': '2026-10-31'}, 'visible_hasta': null, if (anuncioConBoton) 'boton': {'texto': 'Inscríbete', 'url': 'https://forms.gle/ayuno'}}), // Para todos: SE MUESTRA
       Anuncio.desdeJson({'id': 2, 'titulo': 'Bienvenido al templo', 'mensaje': 'Gracias por venir.', 'tipo': 'area'}), // Solo área: NO se muestra (geocerca, Paso 10)
       if (anuncioAreaAhora) Anuncio.desdeJson({'id': 9, 'titulo': 'Santa Cena hoy', 'mensaje': 'Pasa al frente al terminar la prédica.', 'tipo': 'area', 'ventana': {'inicia_en': DateTime.now().subtract(const Duration(hours: 1)).toIso8601String(), 'termina_en': DateTime.now().add(const Duration(hours: 2)).toIso8601String()}}), // De área, en su ventana
       Anuncio.desdeJson({'id': 3, 'titulo': 'Anuncio vencido', 'mensaje': 'Ya pasó.', 'tipo': 'todos', 'visible_hasta': '2020-01-01T00:00:00-06:00'}), // Vencido: NO se muestra
@@ -135,6 +138,9 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
     if (falla) throw Exception('sin internet'); // Simula el error
     return [Predica.desdeJson({'id': 1, 'titulo': 'La fe que mueve montañas', 'predicador': 'Pastor Juan', 'fecha': '2026-10-05', 'destacada': true, 'youtube_id': 'predica123', 'descripcion': 'Mateo 17:20'})]; // Una prédica destacada
   } // Fin de obtenerPredicas
+
+  @override // Reemplaza el método real
+  Future<List<Evento>> obtenerEventos() async => eventos.map(Evento.desdeJson).toList(); // Eventos falsos
 
   @override // Reemplaza el método real
   Future<List<Actividad>> obtenerActividades() async { // Horario falso
@@ -549,4 +555,40 @@ void main() { // Punto de arranque de las pruebas
     expect(find.text('Compartir'), findsOneWidget); // Botón compartir
     expect(find.text('Ofrendar'), findsNothing); // Sin ofrendas en el panel
   }); // Fin de la prueba 30
+
+  testWidgets('Eventos especiales: en Inicio, en Horario y su detalle', (WidgetTester tester) async { // Prueba 31
+    tester.view.physicalSize = const Size(800, 2400); // Pantalla alta: caben todas las tarjetas
+    tester.view.devicePixelRatio = 1; // 1 píxel = 1 punto
+    addTearDown(tester.view.reset); // Al terminar, tamaño normal
+    String? compartido; // Lo que se intentó compartir
+    Compartir.compartir = (texto) async => compartido = texto; // Compartir de mentira
+    final inicio = DateTime.now().add(const Duration(days: 20)); // Dentro de 20 días
+    final api = ApiFalsa()..eventos = [ // Un evento con botón
+      {'id': 7, 'titulo': 'Campamento de jóvenes', 'inicia_en': inicio.toIso8601String(), 'termina_en': inicio.add(const Duration(days: 2)).toIso8601String(), 'lugar': 'Finca El Paraíso', 'descripcion': 'Tres días de alabanza.', 'se_transmite': true, 'en_curso': false, 'boton': {'texto': 'Inscríbete', 'url': 'https://forms.gle/x'}},
+    ]; // Fin de los eventos
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('PRÓXIMOS EVENTOS'), findsOneWidget); // Sección en Inicio
+    expect(find.text('Campamento de jóvenes'), findsOneWidget); // El evento
+    expect(find.text('📍 Finca El Paraíso'), findsOneWidget); // Lugar
+    await tester.tap(find.text('Campamento de jóvenes')); // Abre el detalle
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Tres días de alabanza.'), findsOneWidget); // Descripción
+    expect(find.text('Inscríbete'), findsOneWidget); // Botón del panel
+    expect(find.text('Recordarme'), findsOneWidget); // Recordatorio
+    await tester.tap(find.text('Compartir')); // Comparte
+    await tester.pump(); // Espera
+    expect(compartido, contains('https://forms.gle/x')); // Con el enlace de inscripción
+    await tester.pageBack(); // Vuelve
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Horario'))); // Pestaña Horario
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('EVENTOS ESPECIALES'), findsOneWidget); // Sección arriba del horario
+  }); // Fin de la prueba 31
+
+  testWidgets('Anuncio con botón de enlace', (WidgetTester tester) async { // Prueba 32
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa()..anuncioConBoton = true)); // Anuncio con botón
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Inscríbete'), findsOneWidget); // Botón en la tarjeta
+  }); // Fin de la prueba 32
 } // Fin de main

@@ -69,6 +69,11 @@ const List<String> _mesesLargos = ['enero', 'febrero', 'marzo', 'abril', 'mayo',
 
 String fechaLarga(DateTime fecha) => '${_dias[fecha.weekday - 1]}, ${fecha.day} de ${_mesesLargos[fecha.month - 1]}'; // Ej: "Jueves, 29 de octubre"
 
+String horaCorta(DateTime hora) { // Hora en formato de 12 horas, ej: "8:00 am" o "7:30 pm"
+  final h = hora.hour % 12 == 0 ? 12 : hora.hour % 12; // 0 y 12 → 12; 13 → 1…
+  return '$h:${hora.minute.toString().padLeft(2, '0')} ${hora.hour < 12 ? 'am' : 'pm'}'; // Minutos con dos cifras
+} // Fin de horaCorta
+
 String saludoSegunHora(DateTime ahora) { // Saludo según la hora (igual que el Escritorio del panel)
   if (ahora.hour < 12) return 'Buenos días'; // Antes del mediodía
   if (ahora.hour < 19) return 'Buenas tardes'; // Antes de las 7 pm

@@ -6,10 +6,13 @@ import 'package:url_launcher/url_launcher.dart'; // Abrir YouTube y Google Maps 
 
 import '../componentes/estados.dart'; // Vistas compartidas: Cargando, ErrorConexion
 import '../componentes/carga_animada.dart'; // Pantalla de carga con el logo animado
+import '../componentes/imagen_y_boton.dart'; // Imagen (flyer) y botón con enlace de los anuncios
 import '../componentes/tarjeta.dart'; // Tarjeta con franja de color (diseño común)
+import '../componentes/tarjeta_evento.dart'; // Tarjeta de evento especial
 import '../config.dart'; // intervaloActualizacion
 import '../modelos/actividad.dart'; // Molde de una actividad (próximo culto)
 import '../modelos/anuncio.dart'; // Molde de un anuncio
+import '../modelos/evento.dart'; // Molde de un evento especial
 import '../modelos/iglesia.dart'; // Molde de los datos de la iglesia
 import '../servicios/api.dart'; // Llamadas a la API
 import '../servicios/compartir.dart'; // Compartir (versículo, anuncios)
@@ -38,6 +41,7 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
   Iglesia? _iglesia; // Últimos datos de la iglesia (null hasta la primera respuesta)
   List<Anuncio> _anuncios = []; // Últimos anuncios recibidos
   List<Actividad> _actividades = []; // Horario (para la tarjeta "Próximo culto")
+  List<Evento> _eventos = []; // Eventos especiales próximos
   bool _fallo = false; // true si la PRIMERA carga falló (luego, si falla, se conservan los datos anteriores)
   Timer? _reloj; // Reloj que vuelve a preguntar al panel cada 90 s
   Timer? _esperaAnimacion; // Espera para que la animación del logo se vea completa al abrir la app
@@ -76,14 +80,17 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
       final iglesia = widget.api.obtenerIglesia(); // Arranca la petición de la iglesia...
       final anuncios = widget.api.obtenerAnuncios().catchError((_) => <Anuncio>[]); // ...y la de anuncios a la vez (si esta falla, sin anuncios: no tumba Inicio)
       final actividades = widget.api.obtenerActividades().catchError((_) => <Actividad>[]); // ...y el horario (para "Próximo culto"; si falla, sin tarjeta)
+      final eventos = widget.api.obtenerEventos().catchError((_) => <Evento>[]); // ...y los eventos especiales (si falla, sin eventos)
       final datos = await iglesia; // Espera la iglesia
       final lista = await anuncios; // Espera los anuncios
       final horario = await actividades; // Espera el horario
+      final proximosEventos = await eventos; // Espera los eventos
       if (!mounted) return; // Si la pantalla ya se cerró, no hace nada
       setState(() { // Redibuja con lo nuevo
         _iglesia = datos; // Datos de la iglesia
         _anuncios = lista.where((a) => a.esParaTodos && a.vigente(DateTime.now())).toList(); // Solo los de "Todos" que siguen vigentes
         _actividades = horario; // Horario
+        _eventos = proximosEventos; // Eventos especiales
         _fallo = false; // Sin error
       }); // Fin de setState
       await _revisarGeocerca(datos, lista); // Revisa si está en la iglesia (solo pide la ubicación si hay anuncios de área en su ventana)
@@ -162,7 +169,7 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
           : RefreshIndicator( // Hay datos: permite "jalar hacia abajo" para actualizar
               key: const ValueKey('datos'), // Nombre para AnimatedSwitcher
               onRefresh: _cargar, // Qué hacer al jalar
-              child: _DatosIglesia(iglesia: _iglesia!, anuncios: _anuncios, actividades: _actividades, api: widget.api, registro: widget.registro, alIrAPestana: widget.alIrAPestana), // Los datos
+              child: _DatosIglesia(iglesia: _iglesia!, anuncios: _anuncios, actividades: _actividades, eventos: _eventos, api: widget.api, registro: widget.registro, alIrAPestana: widget.alIrAPestana), // Los datos
             ), // Fin de RefreshIndicator
       ), // Fin de AnimatedSwitcher
     ); // Fin de AnnotatedRegion
@@ -170,9 +177,10 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
 } // Fin de _PantallaInicioState
 
 class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando llegaron los datos
-  const _DatosIglesia({required this.iglesia, required this.anuncios, required this.actividades, required this.api, required this.registro, this.alIrAPestana}); // Constructor
+  const _DatosIglesia({required this.iglesia, required this.anuncios, required this.actividades, this.eventos = const [], required this.api, required this.registro, this.alIrAPestana}); // Constructor
 
   final List<Actividad> actividades; // Horario (para "Próximo culto")
+  final List<Evento> eventos; // Eventos especiales (se muestran los 3 más cercanos)
 
   final void Function(int pestana)? alIrAPestana; // Cambiar de pestaña (accesos rápidos)
 
@@ -289,11 +297,22 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
                     ], // Fin de los elementos
                   ), // Fin de la fila
                 ), // Fin de la tarjeta de la radio
-              if (!iglesia.enVivo.activo && !iglesia.radioDisponible && !aviso.activo && anuncios.isEmpty) // Si no hay nada que mostrar...
+              if (!iglesia.enVivo.activo && !iglesia.radioDisponible && !aviso.activo && anuncios.isEmpty && eventos.isEmpty) // Si no hay nada que mostrar...
                 const Padding( // ...confirma que la conexión funciona
                   padding: EdgeInsets.only(top: 24), // Separación
                   child: Text('✓ Conectado con el panel', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)), // Gris
                 ), // Fin del texto
+              if (eventos.isNotEmpty) // Si hay eventos especiales...
+                Padding( // ...encabezado con enlace a la lista completa (en Horario)
+                  padding: const EdgeInsets.only(top: 24, left: 4), // Separación
+                  child: Row( // Título y "Ver todos"
+                    children: [ // Elementos
+                      const Expanded(child: Text('PRÓXIMOS EVENTOS', style: TextStyle(color: moradoEvento, fontWeight: FontWeight.bold, letterSpacing: 1.5))), // Morado
+                      if (eventos.length > 3) TextButton(onPressed: () => alIrAPestana?.call(3), child: const Text('Ver todos')), // Abre Horario (ahí están todos)
+                    ], // Fin de los elementos
+                  ), // Fin de la fila
+                ), // Fin del encabezado
+              for (final evento in eventos.take(3)) TarjetaEvento(evento: evento), // Los 3 más cercanos
               if (anuncios.isNotEmpty) // Si hay anuncios...
                 const Padding( // ...encabezado de la sección
                   padding: EdgeInsets.only(top: 24, bottom: 0, left: 4), // Separación
@@ -376,12 +395,16 @@ class _TarjetaAnuncio extends StatelessWidget { // Tarjeta de un anuncio (franja
                 tooltip: 'Compartir anuncio', // Texto de ayuda
                 visualDensity: VisualDensity.compact, // Compacto
                 icon: const Icon(Icons.share, color: azulCanaan), // Ícono compartir
-                onPressed: () => Compartir.texto('📢 ${anuncio.titulo}\n\n${anuncio.mensaje}'), // Comparte título y mensaje
+                onPressed: () => Compartir.texto('📢 ${anuncio.titulo}\n\n${anuncio.mensaje}${anuncio.botonUrl != null ? '\n\n${anuncio.botonTexto}: ${anuncio.botonUrl}' : ''}'), // Comparte título, mensaje y el enlace del botón (si hay)
               ), // Fin del botón
             ], // Fin de los elementos
           ), // Fin de la fila
           const SizedBox(height: 6), // Espacio
           Text(anuncio.mensaje, style: const TextStyle(fontSize: 16, color: Colors.black87, height: 1.35)), // Texto del anuncio
+          if (anuncio.imagenUrl != null) // Si tiene imagen (flyer)...
+            Padding(padding: const EdgeInsets.only(top: 10), child: ImagenRed(url: anuncio.imagenUrl!)), // ...grande, debajo del texto (al tocarla se ve en pantalla completa)
+          if (anuncio.botonTexto != null && anuncio.botonUrl != null) // Si tiene botón...
+            Padding(padding: const EdgeInsets.only(top: 10), child: BotonEnlace(texto: anuncio.botonTexto!, url: anuncio.botonUrl!)), // ...abre el enlace (formulario, mapa…)
           if (fechas.isNotEmpty) // Si hay fechas...
             Padding( // ...las muestra en gris
               padding: const EdgeInsets.only(top: 8), // Separación

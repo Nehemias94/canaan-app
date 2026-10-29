@@ -10,6 +10,9 @@ class Anuncio { // Molde con los datos de un anuncio
   final DateTime? visibleHasta; // Hasta cuándo se muestra (null = siempre)
   final DateTime? iniciaEn; // Solo "area": desde cuándo vale estar en la iglesia
   final DateTime? terminaEn; // Solo "area": hasta cuándo
+  final String? imagenUrl; // Imagen o flyer (null si no tiene)
+  final String? botonTexto; // Texto del botón (ej: "Inscríbete")
+  final String? botonUrl; // Enlace del botón
 
   const Anuncio({ // Constructor
     required this.id, // Obligatorio
@@ -21,6 +24,9 @@ class Anuncio { // Molde con los datos de un anuncio
     this.visibleHasta, // Opcional
     this.iniciaEn, // Opcional
     this.terminaEn, // Opcional
+    this.imagenUrl, // Opcional
+    this.botonTexto, // Opcional
+    this.botonUrl, // Opcional
   }); // Fin del constructor
 
   bool get esParaTodos => tipo == 'todos'; // true si es para todos (los "area" los mostrará la geocerca)
@@ -34,6 +40,8 @@ class Anuncio { // Molde con los datos de un anuncio
         'titulo': titulo, // Título
         'mensaje': mensaje, // Texto
         'tipo': tipo, // Tipo
+        'imagen_url': imagenUrl, // Imagen
+        'boton': botonTexto == null || botonUrl == null ? null : {'texto': botonTexto, 'url': botonUrl}, // Botón
         'visible_hasta': visibleHasta?.toUtc().toIso8601String(), // Fecha y hora (en UTC: al leerla vuelve a la hora del teléfono)
         'programacion': fechaInicio == null && fechaFin == null ? null : { // Fechas (solo "todos")
           'fecha_inicio': fechaInicio?.toIso8601String().substring(0, 10), // "2026-10-06"
@@ -58,6 +66,9 @@ class Anuncio { // Molde con los datos de un anuncio
       visibleHasta: DateTime.tryParse(json['visible_hasta'] as String? ?? '')?.toLocal(), // Fecha y hora → hora del teléfono
       iniciaEn: DateTime.tryParse(ventana?['inicia_en'] as String? ?? '')?.toLocal(), // Inicio de la ventana
       terminaEn: DateTime.tryParse(ventana?['termina_en'] as String? ?? '')?.toLocal(), // Fin de la ventana
+      imagenUrl: json['imagen_url'] as String?, // Imagen (flyer)
+      botonTexto: (json['boton'] as Map<String, dynamic>?)?['texto'] as String?, // Texto del botón
+      botonUrl: (json['boton'] as Map<String, dynamic>?)?['url'] as String?, // Enlace del botón
     ); // Fin del objeto
   } // Fin de desdeJson
 } // Fin de Anuncio
