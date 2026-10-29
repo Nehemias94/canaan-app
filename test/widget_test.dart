@@ -407,4 +407,15 @@ void main() { // Punto de arranque de las pruebas
     await tester.pumpAndSettle(); // Espera (mucho menos de 90 s)
     expect(api.consultasIglesia, antes + 1); // Volvió a pedir los datos al instante
   }); // Fin de la prueba 20
+
+  testWidgets('Biblia: pestaña en el menú con botones grandes', (WidgetTester tester) async { // Prueba 21
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.text('Biblia')); // Toca "Biblia" en el menú de abajo
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Biblia · Reina-Valera 1960'), findsOneWidget); // Título de la pestaña
+    expect(find.text('A+'), findsOneWidget); // Botón para agrandar la letra
+    expect(find.text('Buscar'), findsOneWidget); // Botón buscar
+    expect(find.text('Abrir la Biblia'), findsOneWidget); // En la PC (sin WebView) ofrece abrirla afuera
+  }); // Fin de la prueba 21
 } // Fin de main
