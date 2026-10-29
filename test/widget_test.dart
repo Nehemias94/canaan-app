@@ -44,10 +44,11 @@ class RadioFalsa implements ControlRadio { // Radio de mentira: no suena, solo a
 } // Fin de RadioFalsa
 
 class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar internet
-  ApiFalsa({this.falla = false, this.radioAlAire = false}); // Constructor; falla = true simula que no hay conexión
+  ApiFalsa({this.falla = false, this.radioAlAire = false, this.avisoNivel}); // Constructor; falla = true simula que no hay conexión; avisoNivel = hay aviso urgente de ese nivel
 
   final bool falla; // ¿Simular error?
   final bool radioAlAire; // ¿La radio está al aire en el panel falso?
+  final String? avisoNivel; // Nivel del aviso urgente del panel falso (null = sin aviso)
   bool enVivoEnPanel = true; // ¿Hay transmisión en vivo en el panel falso? (se puede cambiar a mitad de la prueba)
   bool anuncioAreaAhora = false; // ¿Hay un anuncio "Solo área" en su ventana ahora mismo?
 
@@ -114,6 +115,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
       'nombre': 'Ministerio Cristiano Canaán', // Nombre
       'ubicacion': {'latitud': 13.6929, 'longitud': -89.2182, 'radio_metros': 200}, // Templo en San Salvador, radio 200 m
       'en_vivo': {'activo': enVivoEnPanel, 'titulo': 'Culto dominical', 'youtube_id': 'envivo123'}, // Transmisión activa
+      if (avisoNivel != null) 'aviso_urgente': {'activo': true, 'titulo': 'Culto cancelado', 'mensaje': 'Hoy no habrá culto por la lluvia.', 'nivel': avisoNivel}, // Aviso urgente
       if (radioAlAire) 'radio': {'disponible': true, 'titulo': 'Culto dominical', 'stream_url': 'https://radio.ejemplo/canaan', 'modo': 'siempre'}, // Radio 24/7
  // Transmisión activa
     }); // Fin de los datos
@@ -443,4 +445,15 @@ void main() { // Punto de arranque de las pruebas
     expect(find.byType(NavigationBar), findsOneWidget); // Aparece el menú
     expect(find.text('Servicios'), findsOneWidget); // Con "Servicios" (antes "Más")
   }); // Fin de la prueba 23
+
+  testWidgets('Aviso urgente: se ve como ALERTA y arriba de todo', (WidgetTester tester) async { // Prueba 24
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa(avisoNivel: 'urgente'))); // Panel con aviso urgente
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('AVISO URGENTE'), findsOneWidget); // Etiqueta de alerta
+    expect(find.text('Culto cancelado'), findsOneWidget); // Título
+    expect(find.byIcon(Icons.warning_rounded), findsOneWidget); // Ícono de advertencia
+    final alerta = tester.getTopLeft(find.text('AVISO URGENTE')).dy; // Altura de la alerta en la pantalla
+    final botones = tester.getTopLeft(find.text('Oración')).dy; // Altura de los accesos rápidos
+    expect(alerta, lessThan(botones)); // La alerta va ANTES (más arriba) que los botones
+  }); // Fin de la prueba 24
 } // Fin de main

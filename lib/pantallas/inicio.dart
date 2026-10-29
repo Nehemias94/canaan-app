@@ -213,6 +213,7 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
           child: Column( // Uno debajo del otro
             crossAxisAlignment: CrossAxisAlignment.stretch, // Todo el ancho
             children: [ // Elementos
+              if (aviso.activo) _AlertaAviso(aviso: aviso), // Aviso urgente: PRIMERO y con aspecto de alerta (fondo de color, borde e ícono)
               _AccesosRapidos( // Botones grandes con lo que NO está en el menú de abajo (Biblia y Horario ya están ahí)
                 alRadio: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaRadio(api: api))), // Abre la radio
                 alOracion: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaPeticion(api: api, registro: registro))), // Abre el formulario de petición
@@ -267,27 +268,6 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
                     ], // Fin de los elementos
                   ), // Fin de la fila
                 ), // Fin de la tarjeta de la radio
-              if (aviso.activo) // Si hay un aviso urgente vigente...
-                TarjetaCanaan( // ...tarjeta con franja según el nivel (rojo urgente, dorado importante, azul informativo)
-                  franja: colorDeNivel(aviso.nivel), // Color del nivel
-                  child: Row( // Ícono y textos
-                    crossAxisAlignment: CrossAxisAlignment.start, // Arriba
-                    children: [ // Elementos
-                      Icon(Icons.campaign, color: colorDeNivel(aviso.nivel) == doradoCanaan ? doradoOscuro : colorDeNivel(aviso.nivel), size: 30), // Megáfono del color del nivel
-                      const SizedBox(width: 12), // Espacio
-                      Expanded( // Textos
-                        child: Column( // Uno debajo del otro
-                          crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
-                          children: [ // Elementos
-                            Text(aviso.titulo ?? 'Aviso', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan)), // Título
-                            const SizedBox(height: 4), // Espacio
-                            Text(aviso.mensaje ?? '', style: const TextStyle(fontSize: 16, color: Colors.black87, height: 1.35)), // Mensaje
-                          ], // Fin de los elementos
-                        ), // Fin de la columna
-                      ), // Fin de los textos
-                    ], // Fin de los elementos
-                  ), // Fin de la fila
-                ), // Fin de la tarjeta del aviso
               if (!iglesia.enVivo.activo && !iglesia.radioDisponible && !aviso.activo && anuncios.isEmpty) // Si no hay nada que mostrar...
                 const Padding( // ...confirma que la conexión funciona
                   padding: EdgeInsets.only(top: 24), // Separación
@@ -482,3 +462,58 @@ class _ProximoCulto extends StatelessWidget { // Tarjeta "Próximo culto": lo qu
     ); // Fin de la tarjeta
   } // Fin de build
 } // Fin de _ProximoCulto
+
+class _AlertaAviso extends StatelessWidget { // Aviso urgente con aspecto de ALERTA (no de anuncio): fondo de color, borde, ícono fuerte y etiqueta
+  const _AlertaAviso({required this.aviso}); // Constructor
+
+  final AvisoUrgente aviso; // Datos del aviso
+
+  @override // Reemplaza build
+  Widget build(BuildContext context) { // Describe cómo se ve
+    final (Color fuerte, Color fondo, IconData icono, String etiqueta) = switch (aviso.nivel) { // Estilo según el nivel (igual que el panel)
+      'urgente' => (const Color(0xFFC62828), const Color(0xFFFDECEC), Icons.warning_rounded, 'AVISO URGENTE'), // Rojo
+      'importante' => (const Color(0xFFB45309), const Color(0xFFFFF4DB), Icons.priority_high_rounded, 'IMPORTANTE'), // Ámbar
+      _ => (azulCanaan, const Color(0xFFE8F1FA), Icons.info_rounded, 'AVISO'), // Informativo: azul
+    }; // Fin del estilo
+    return Semantics( // Para lectores de pantalla: se anuncia como alerta
+      liveRegion: true, // Lo lee en voz alta al aparecer
+      label: '$etiqueta: ${aviso.titulo ?? ''}. ${aviso.mensaje ?? ''}', // Texto completo
+      excludeSemantics: true, // No repite cada parte
+      child: Container( // Caja de la alerta
+        margin: const EdgeInsets.only(top: 14), // Separación del encabezado
+        padding: const EdgeInsets.all(16), // Margen interno
+        decoration: BoxDecoration( // Aspecto
+          color: fondo, // Fondo de color suave
+          borderRadius: BorderRadius.circular(16), // Esquinas redondeadas
+          border: Border.all(color: fuerte, width: 2), // Borde del color fuerte
+          boxShadow: [BoxShadow(color: fuerte.withValues(alpha: 0.18), blurRadius: 12, offset: const Offset(0, 4))], // Sombra del mismo color (resalta)
+        ), // Fin del aspecto
+        child: Row( // Ícono a la izquierda y textos a la derecha
+          crossAxisAlignment: CrossAxisAlignment.start, // Arriba
+          children: [ // Elementos
+            Container( // Círculo de color fuerte con el ícono blanco
+              padding: const EdgeInsets.all(10), // Tamaño del círculo
+              decoration: BoxDecoration(color: fuerte, shape: BoxShape.circle), // Círculo
+              child: Icon(icono, color: Colors.white, size: 30), // Ícono grande blanco
+            ), // Fin del círculo
+            const SizedBox(width: 14), // Espacio
+            Expanded( // Textos
+              child: Column( // Uno debajo del otro
+                crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
+                children: [ // Elementos
+                  Text(etiqueta, style: TextStyle(color: fuerte, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1.3)), // "AVISO URGENTE"
+                  const SizedBox(height: 2), // Espacio
+                  Text(aviso.titulo ?? 'Aviso', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1F2937), height: 1.2)), // Título grande
+                  if ((aviso.mensaje ?? '').isNotEmpty) ...[ // Si tiene mensaje...
+                    const SizedBox(height: 6), // Espacio
+                    Text(aviso.mensaje!, style: const TextStyle(fontSize: 16, color: Color(0xFF374151), height: 1.35)), // ...el mensaje
+                  ], // Fin del mensaje
+                ], // Fin de los elementos
+              ), // Fin de la columna
+            ), // Fin de los textos
+          ], // Fin de los elementos
+        ), // Fin de la fila
+      ), // Fin de la caja
+    ); // Fin de Semantics
+  } // Fin de build
+} // Fin de _AlertaAviso
