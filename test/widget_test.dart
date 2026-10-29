@@ -420,12 +420,19 @@ void main() { // Punto de arranque de las pruebas
     expect(find.text('Abrir la Biblia'), findsOneWidget); // En la PC (sin WebView) ofrece abrirla afuera
   }); // Fin de la prueba 21
 
-  testWidgets('Accesos rápidos de Inicio: Horario cambia de pestaña', (WidgetTester tester) async { // Prueba 22
+  testWidgets('Inicio: accesos rápidos sin repetir el menú y tarjeta Próximo culto', (WidgetTester tester) async { // Prueba 22
     await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Abre la app
     await tester.pumpAndSettle(); // Espera (presentación incluida)
-    await tester.tap(find.descendant(of: find.byType(Card), matching: find.text('Horario')).first); // Toca el botón grande "Horario" de Inicio
+    expect(find.text('Radio'), findsOneWidget); // Botón Radio
+    expect(find.text('Oración'), findsOneWidget); // Botón Oración
+    expect(find.text('Cómo llegar'), findsOneWidget); // Botón Cómo llegar (el panel falso tiene ubicación)
+    expect(find.text('YouTube'), findsNothing); // Sin canal en el panel falso: no se muestra
+    expect(find.text('Biblia'), findsOneWidget); // "Biblia" solo en el menú de abajo (ya no repetido)
+    expect(find.text('AHORA EN LA IGLESIA'), findsOneWidget); // Tarjeta del culto en curso
+    expect(find.text('Ahora · Culto general'), findsOneWidget); // Con su nombre
+    await tester.tap(find.text('Ahora · Culto general')); // La toca
     await tester.pumpAndSettle(); // Espera
-    expect(find.text('Horario de cultos'), findsOneWidget); // Está en la pestaña Horario
+    expect(find.text('Horario de cultos'), findsOneWidget); // Abre la pestaña Horario
   }); // Fin de la prueba 22
 
   testWidgets('Presentación: el menú de abajo se oculta mientras se ve el logo', (WidgetTester tester) async { // Prueba 23

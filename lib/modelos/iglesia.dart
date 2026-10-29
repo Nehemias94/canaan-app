@@ -9,6 +9,7 @@ class Iglesia { // Molde con los datos que usa la app
   final double? latitud; // Ubicación del templo (para la geocerca; null si no se ha configurado)
   final double? longitud; // Ubicación del templo
   final int radioMetros; // Distancia que cuenta como "estar en la iglesia"
+  final String? youtubeCanal; // Enlace del canal de YouTube de la iglesia (null si no se configuró en el panel)
 
   bool get tieneUbicacion => latitud != null && longitud != null; // ¿Se configuró la ubicación en el panel?
 
@@ -23,6 +24,7 @@ class Iglesia { // Molde con los datos que usa la app
     this.latitud, // Opcional
     this.longitud, // Opcional
     this.radioMetros = 200, // Por defecto 200 m
+    this.youtubeCanal, // Opcional
   }); // Fin del constructor
 
   factory Iglesia.desdeJson(Map<String, dynamic> json) { // Convierte el JSON de la API en un objeto Iglesia
@@ -35,6 +37,7 @@ class Iglesia { // Molde con los datos que usa la app
       latitud: ((json['ubicacion'] as Map<String, dynamic>?)?['latitud'] as num?)?.toDouble(), // ...la latitud del templo (num → decimal)
       longitud: ((json['ubicacion'] as Map<String, dynamic>?)?['longitud'] as num?)?.toDouble(), // ...la longitud
       radioMetros: ((json['ubicacion'] as Map<String, dynamic>?)?['radio_metros'] as num?)?.toInt() ?? 200, // ...y el radio en metros
+      youtubeCanal: (json['youtube'] as Map<String, dynamic>?)?['canal_url'] as String?, // ...y el canal de YouTube (bloque "youtube")
     ); // Fin del objeto
   } // Fin de desdeJson
 } // Fin de Iglesia

@@ -2,11 +2,13 @@ import 'dart:async'; // Timer (actualizar cada 90 s)
 
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 import 'package:flutter/services.dart'; // SystemUiOverlayStyle (colores de la barra de arriba del teléfono)
+import 'package:url_launcher/url_launcher.dart'; // Abrir YouTube y Google Maps fuera de la app
 
 import '../componentes/estados.dart'; // Vistas compartidas: Cargando, ErrorConexion
 import '../componentes/carga_animada.dart'; // Pantalla de carga con el logo animado
 import '../componentes/tarjeta.dart'; // Tarjeta con franja de color (diseño común)
 import '../config.dart'; // intervaloActualizacion
+import '../modelos/actividad.dart'; // Molde de una actividad (próximo culto)
 import '../modelos/anuncio.dart'; // Molde de un anuncio
 import '../modelos/iglesia.dart'; // Molde de los datos de la iglesia
 import '../servicios/api.dart'; // Llamadas a la API
@@ -34,6 +36,7 @@ class PantallaInicio extends StatefulWidget { // Pestaña "Inicio"; "Stateful" p
 class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObserver { // Estado de Inicio; "WidgetsBindingObserver" = se entera cuando la app vuelve a primer plano
   Iglesia? _iglesia; // Últimos datos de la iglesia (null hasta la primera respuesta)
   List<Anuncio> _anuncios = []; // Últimos anuncios recibidos
+  List<Actividad> _actividades = []; // Horario (para la tarjeta "Próximo culto")
   bool _fallo = false; // true si la PRIMERA carga falló (luego, si falla, se conservan los datos anteriores)
   Timer? _reloj; // Reloj que vuelve a preguntar al panel cada 90 s
   Timer? _esperaAnimacion; // Espera para que la animación del logo se vea completa al abrir la app
@@ -71,12 +74,15 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
     try { // Intenta
       final iglesia = widget.api.obtenerIglesia(); // Arranca la petición de la iglesia...
       final anuncios = widget.api.obtenerAnuncios().catchError((_) => <Anuncio>[]); // ...y la de anuncios a la vez (si esta falla, sin anuncios: no tumba Inicio)
+      final actividades = widget.api.obtenerActividades().catchError((_) => <Actividad>[]); // ...y el horario (para "Próximo culto"; si falla, sin tarjeta)
       final datos = await iglesia; // Espera la iglesia
       final lista = await anuncios; // Espera los anuncios
+      final horario = await actividades; // Espera el horario
       if (!mounted) return; // Si la pantalla ya se cerró, no hace nada
       setState(() { // Redibuja con lo nuevo
         _iglesia = datos; // Datos de la iglesia
         _anuncios = lista.where((a) => a.esParaTodos && a.vigente(DateTime.now())).toList(); // Solo los de "Todos" que siguen vigentes
+        _actividades = horario; // Horario
         _fallo = false; // Sin error
       }); // Fin de setState
       await _revisarGeocerca(datos, lista); // Revisa si está en la iglesia (solo pide la ubicación si hay anuncios de área en su ventana)
@@ -155,7 +161,7 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
           : RefreshIndicator( // Hay datos: permite "jalar hacia abajo" para actualizar
               key: const ValueKey('datos'), // Nombre para AnimatedSwitcher
               onRefresh: _cargar, // Qué hacer al jalar
-              child: _DatosIglesia(iglesia: _iglesia!, anuncios: _anuncios, api: widget.api, registro: widget.registro, alIrAPestana: widget.alIrAPestana), // Los datos
+              child: _DatosIglesia(iglesia: _iglesia!, anuncios: _anuncios, actividades: _actividades, api: widget.api, registro: widget.registro, alIrAPestana: widget.alIrAPestana), // Los datos
             ), // Fin de RefreshIndicator
       ), // Fin de AnimatedSwitcher
     ); // Fin de AnnotatedRegion
@@ -163,7 +169,9 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
 } // Fin de _PantallaInicioState
 
 class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando llegaron los datos
-  const _DatosIglesia({required this.iglesia, required this.anuncios, required this.api, required this.registro, this.alIrAPestana}); // Constructor
+  const _DatosIglesia({required this.iglesia, required this.anuncios, required this.actividades, required this.api, required this.registro, this.alIrAPestana}); // Constructor
+
+  final List<Actividad> actividades; // Horario (para "Próximo culto")
 
   final void Function(int pestana)? alIrAPestana; // Cambiar de pestaña (accesos rápidos)
 
@@ -171,6 +179,12 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
   final List<Anuncio> anuncios; // Anuncios vigentes (solo "Todos")
   final Api api; // Se pasa a la pantalla del video
   final RegistroDispositivo registro; // Se pasa a la pantalla del video
+
+  Future<void> _abrirAfuera(BuildContext context, String enlace) async { // Abre YouTube o Google Maps (fuera de la app)
+    final mensajero = ScaffoldMessenger.of(context); // Para avisar si falla (se toma antes de esperar)
+    final abrio = await launchUrl(Uri.parse(enlace), mode: LaunchMode.externalApplication).catchError((_) => false); // Abre la app (YouTube/Maps) o el navegador
+    if (!abrio) mensajero.showSnackBar(const SnackBar(content: Text('No se pudo abrir. Revisa tu conexión a internet.'))); // Aviso amable
+  } // Fin de _abrirAfuera
 
   void _abrirEnVivo(BuildContext context) { // Abre la transmisión en vivo
     Navigator.push( // Abre el video encima
@@ -199,12 +213,16 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
           child: Column( // Uno debajo del otro
             crossAxisAlignment: CrossAxisAlignment.stretch, // Todo el ancho
             children: [ // Elementos
-              _AccesosRapidos( // Botones grandes: Biblia · Radio · Oración · Horario (más fácil que buscar en el menú)
-                alBiblia: () => alIrAPestana?.call(2), // Pestaña 2 = Biblia
+              _AccesosRapidos( // Botones grandes con lo que NO está en el menú de abajo (Biblia y Horario ya están ahí)
                 alRadio: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaRadio(api: api))), // Abre la radio
                 alOracion: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaPeticion(api: api, registro: registro))), // Abre el formulario de petición
-                alHorario: () => alIrAPestana?.call(3), // Pestaña 3 = Horario
+                alYoutube: iglesia.youtubeCanal == null ? null : () => _abrirAfuera(context, iglesia.youtubeCanal!), // Canal de YouTube (si el panel lo tiene)
+                alComoLlegar: !iglesia.tieneUbicacion ? null : () => _abrirAfuera( // Google Maps con la ubicación del templo (si el panel la tiene)
+                  context, // Para el mensaje de error
+                  'https://www.google.com/maps/search/?api=1&query=${iglesia.latitud},${iglesia.longitud}', // Enlace universal de Google Maps (abre la app de Maps si está)
+                ), // Fin de cómo llegar
               ), // Fin de los accesos rápidos
+              _ProximoCulto(actividades: actividades, alTocar: () => alIrAPestana?.call(3)), // Tarjeta "Próximo culto" (al tocar, abre Horario)
               if (iglesia.enVivo.activo) // Si hay transmisión en vivo...
                 TarjetaCanaan( // ...tarjeta con franja ROJA
                   franja: Colors.red.shade700, // Rojo
@@ -368,17 +386,17 @@ class _TarjetaAnuncio extends StatelessWidget { // Tarjeta de un anuncio (franja
   } // Fin de build
 } // Fin de _TarjetaAnuncio
 
-class _AccesosRapidos extends StatelessWidget { // Tarjeta con 4 botones grandes debajo del saludo (pensado para adultos mayores)
-  const _AccesosRapidos({required this.alBiblia, required this.alRadio, required this.alOracion, required this.alHorario}); // Constructor
+class _AccesosRapidos extends StatelessWidget { // Tarjeta con botones grandes debajo del saludo (pensado para adultos mayores)
+  const _AccesosRapidos({required this.alRadio, required this.alOracion, this.alYoutube, this.alComoLlegar}); // Constructor
 
-  final VoidCallback alBiblia; // Qué hacer al tocar Biblia
   final VoidCallback alRadio; // Qué hacer al tocar Radio
   final VoidCallback alOracion; // Qué hacer al tocar Oración
-  final VoidCallback alHorario; // Qué hacer al tocar Horario
+  final VoidCallback? alYoutube; // Qué hacer al tocar YouTube (null = el panel no tiene canal: no se muestra)
+  final VoidCallback? alComoLlegar; // Qué hacer al tocar Cómo llegar (null = sin ubicación del templo: no se muestra)
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
-    Widget boton(String texto, IconData icono, Color color, VoidCallback alTocar) => Expanded( // Un botón (ocupa 1/4 del ancho)
+    Widget boton(String texto, IconData icono, Color color, VoidCallback alTocar) => Expanded( // Un botón (reparte el ancho)
           child: InkWell( // Efecto al tocar
             onTap: alTocar, // Qué hace
             borderRadius: BorderRadius.circular(12), // Efecto con esquinas redondeadas
@@ -392,7 +410,7 @@ class _AccesosRapidos extends StatelessWidget { // Tarjeta con 4 botones grandes
                     child: Icon(icono, color: color, size: 30), // Ícono grande
                   ), // Fin de la burbuja
                   const SizedBox(height: 6), // Espacio
-                  Text(texto, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: marinoCanaan)), // Texto
+                  Text(texto, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: marinoCanaan)), // Texto
                 ], // Fin de los elementos
               ), // Fin de la columna
             ), // Fin del margen
@@ -402,15 +420,65 @@ class _AccesosRapidos extends StatelessWidget { // Tarjeta con 4 botones grandes
       margin: const EdgeInsets.only(top: 14), // Separación del encabezado
       child: Padding( // Margen interno
         padding: const EdgeInsets.symmetric(horizontal: 4), // Poco a los lados
-        child: Row( // Los 4 botones en fila
+        child: Row( // Los botones en fila
           children: [ // Botones
-            boton('Biblia', Icons.menu_book, azulCanaan, alBiblia), // Biblia (azul)
             boton('Radio', Icons.headphones, doradoOscuro, alRadio), // Radio (dorado)
             boton('Oración', Icons.volunteer_activism, const Color(0xFFB4235A), alOracion), // Petición de oración (vino)
-            boton('Horario', Icons.calendar_month, const Color(0xFF15803D), alHorario), // Horario (verde)
+            if (alYoutube != null) boton('YouTube', Icons.smart_display, const Color(0xFFDC2626), alYoutube!), // Canal de la iglesia (rojo YouTube)
+            if (alComoLlegar != null) boton('Cómo llegar', Icons.place, const Color(0xFF15803D), alComoLlegar!), // Google Maps (verde)
           ], // Fin de los botones
         ), // Fin de la fila
       ), // Fin del margen
     ); // Fin de la tarjeta
   } // Fin de build
 } // Fin de _AccesosRapidos
+
+class _ProximoCulto extends StatelessWidget { // Tarjeta "Próximo culto": lo que está ocurriendo AHORA o lo siguiente del horario
+  const _ProximoCulto({required this.actividades, required this.alTocar}); // Constructor
+
+  final List<Actividad> actividades; // Horario completo
+  final VoidCallback alTocar; // Al tocar: abre la pestaña Horario
+
+  static const _verde = Color(0xFF15803D); // Verde (igual que "Ahora" en Horario)
+
+  String _cuando(DateTime fecha) { // "Hoy", "Mañana" o el día de la semana, ej: "Domingo"
+    final hoy = DateTime.now(); // Ahora
+    final dias = DateTime(fecha.year, fecha.month, fecha.day).difference(DateTime(hoy.year, hoy.month, hoy.day)).inDays; // Días de diferencia (solo fechas)
+    if (dias == 0) return 'Hoy'; // Hoy
+    if (dias == 1) return 'Mañana'; // Mañana
+    return fechaLarga(fecha).split(',').first; // Ej: "Domingo" (de "Domingo, 1 de noviembre")
+  } // Fin de _cuando
+
+  @override // Reemplaza build
+  Widget build(BuildContext context) { // Describe cómo se ve
+    final ahora = actividades.where((a) => a.enCurso).toList(); // Las que están ocurriendo
+    final siguientes = actividades.where((a) => !a.enCurso && a.proxima != null).toList()..sort((a, b) => a.proxima!.compareTo(b.proxima!)); // Las demás, de la más cercana a la más lejana
+    final actividad = ahora.isNotEmpty ? ahora.first : (siguientes.isNotEmpty ? siguientes.first : null); // La que se muestra
+    if (actividad == null) return const SizedBox.shrink(); // Sin horario: no se muestra la tarjeta
+    final enCurso = actividad.enCurso; // ¿Es ahora?
+    final cuando = enCurso ? 'Ahora' : _cuando(actividad.proxima!); // "Ahora", "Hoy", "Mañana" o el día
+    final detalle = [actividad.horario, actividad.lugar].where((t) => t != null && t.isNotEmpty).join(' · '); // "7:00 pm – 8:30 pm · Templo principal"
+    return TarjetaCanaan( // Tarjeta con franja verde
+      franja: _verde, // Verde
+      alTocar: alTocar, // Abre Horario
+      child: Row( // Ícono, textos y flechita
+        children: [ // Elementos
+          const Icon(Icons.event_available, color: _verde, size: 30), // Calendario con palomita
+          const SizedBox(width: 12), // Espacio
+          Expanded( // Textos
+            child: Column( // Uno debajo del otro
+              crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
+              children: [ // Elementos
+                Text(enCurso ? 'AHORA EN LA IGLESIA' : 'PRÓXIMO CULTO', style: const TextStyle(color: _verde, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)), // Encabezado pequeño
+                const SizedBox(height: 2), // Espacio
+                Text('$cuando · ${actividad.nombre}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan)), // "Hoy · Culto de oración"
+                if (detalle.isNotEmpty) Text(detalle, style: const TextStyle(fontSize: 15, color: Colors.black54)), // Hora y lugar
+              ], // Fin de los elementos
+            ), // Fin de la columna
+          ), // Fin de los textos
+          const Icon(Icons.chevron_right, color: Colors.black38), // Flechita: se puede tocar
+        ], // Fin de los elementos
+      ), // Fin de la fila
+    ); // Fin de la tarjeta
+  } // Fin de build
+} // Fin de _ProximoCulto

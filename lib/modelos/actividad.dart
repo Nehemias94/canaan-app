@@ -10,6 +10,7 @@ class Actividad { // Molde con los datos de un culto o actividad
   final String? descripcion; // Detalle (puede venir vacío)
   final bool seTransmite; // true = se transmite en vivo
   final bool enCurso; // true = está ocurriendo ahora
+  final DateTime? proxima; // Próxima vez que ocurre (hora del teléfono); null si no vino
 
   const Actividad({ // Constructor
     required this.id, // Obligatorio
@@ -21,6 +22,7 @@ class Actividad { // Molde con los datos de un culto o actividad
     this.descripcion, // Opcional
     this.seTransmite = false, // Por defecto, no se transmite
     this.enCurso = false, // Por defecto, no está en curso
+    this.proxima, // Opcional
   }); // Fin del constructor
 
   factory Actividad.desdeJson(Map<String, dynamic> json) { // Convierte el JSON de la API en una Actividad
@@ -34,6 +36,7 @@ class Actividad { // Molde con los datos de un culto o actividad
       descripcion: json['descripcion'] as String?, // Descripción
       seTransmite: json['se_transmite'] == true, // ¿Se transmite?
       enCurso: json['en_curso'] == true, // ¿Está ocurriendo ahora?
+      proxima: DateTime.tryParse(json['proxima'] as String? ?? '')?.toLocal(), // Próxima fecha (ISO del panel → hora del teléfono)
     ); // Fin del objeto
   } // Fin de desdeJson
 } // Fin de Actividad
