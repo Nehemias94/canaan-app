@@ -30,12 +30,19 @@ class TarjetaEvento extends StatelessWidget { // Tarjeta de un evento especial (
             evento.enCurso ? '● AHORA' : evento.cuandoTexto().toUpperCase(), // "● AHORA" o "SÁBADO, 20 DE NOVIEMBRE · 8:00 AM"
             style: TextStyle(color: evento.enCurso ? Colors.green.shade700 : context.cc.morado, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.8), // Pequeño y en color
           ), // Fin del texto
-          const SizedBox(height: 4), // Espacio
-          Row( // Ícono y nombre
+          Row( // Ícono, nombre y botones
             children: [ // Elementos
-              Icon(Icons.celebration_outlined, color: context.cc.morado, size: 24), // Ícono de celebración
-              const SizedBox(width: 8), // Espacio
-              Expanded(child: Text(evento.titulo, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cc.titulo))), // Nombre
+              Expanded( // El nombre ocupa el resto
+                child: evento.imagenUrl != null // ¿Tiene flyer?
+                    ? Semantics(label: evento.titulo, child: const SizedBox(height: 8)) // Sí: el nombre ya está en la imagen (no se repite); los lectores de pantalla sí lo leen
+                    : Row( // No: ícono y nombre
+                        children: [ // Elementos
+                          Icon(Icons.celebration_outlined, color: context.cc.morado, size: 24), // Ícono de celebración
+                          const SizedBox(width: 8), // Espacio
+                          Expanded(child: Text(evento.titulo, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cc.titulo))), // Nombre
+                        ], // Fin de los elementos
+                      ), // Fin de la fila
+              ), // Fin del nombre
               CampanitaEvento(evento: evento), // 🔔 Recordatorio (avisos que eligió el panel)
               IconButton( // Botón compartir (sin abrir el evento)
                 tooltip: 'Compartir evento', // Texto de ayuda (y para lectores de pantalla)

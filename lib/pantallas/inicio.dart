@@ -167,11 +167,20 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
                     : CargaAnimada(datosListos: _iglesia != null), // No: logo animado (arca + "Canaán" letra por letra)
               ), // Fin de SafeArea
             ) // Fin de la pantalla de carga
-          : RefreshIndicator( // Hay datos: permite "jalar hacia abajo" para actualizar
+          : Stack( // Hay datos: la lista y, encima, una franja fija detrás de la hora y la batería
               key: const ValueKey('datos'), // Nombre para AnimatedSwitcher
-              onRefresh: _cargar, // Qué hacer al jalar
-              child: _DatosIglesia(iglesia: _iglesia!, anuncios: _anuncios, actividades: _actividades, eventos: _eventos, api: widget.api, registro: widget.registro, alIrAPestana: widget.alIrAPestana), // Los datos
-            ), // Fin de RefreshIndicator
+              children: [ // Capas
+                RefreshIndicator( // Permite "jalar hacia abajo" para actualizar
+                  onRefresh: _cargar, // Qué hacer al jalar
+                  child: _DatosIglesia(iglesia: _iglesia!, anuncios: _anuncios, actividades: _actividades, eventos: _eventos, api: widget.api, registro: widget.registro, alIrAPestana: widget.alIrAPestana), // Los datos
+                ), // Fin de RefreshIndicator
+                Positioned( // Franja marino arriba (al bajar, las tarjetas blancas pasan por DEBAJO y la hora y la batería se siguen viendo)
+                  top: 0, left: 0, right: 0, // Arriba, todo el ancho
+                  height: MediaQuery.paddingOf(context).top, // Alto de la barra del teléfono
+                  child: const ColoredBox(color: marinoCanaan), // Marino
+                ), // Fin de la franja
+              ], // Fin de las capas
+            ), // Fin de Stack
       ), // Fin de AnimatedSwitcher
     ); // Fin de AnnotatedRegion
   } // Fin de build
@@ -253,7 +262,7 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
                   'https://www.google.com/maps/search/?api=1&query=${iglesia.latitud},${iglesia.longitud}', // Enlace universal de Google Maps (abre la app de Maps si está)
                 ), // Fin de cómo llegar
               ), // Fin de los accesos rápidos
-              _ProximoCulto(actividades: actividades, enVivoActivo: iglesia.enVivo.activo, alTocar: () => _abrirHorario(context)), // Tarjeta "Próximo culto" con cuenta regresiva si se transmite (al tocar, abre Horario)
+              _ProximoCulto(actividades: actividades, enVivoActivo: iglesia.enVivo.activo, mostrarCuenta: iglesia.cuentaRegresivaMostrar, horasCuenta: iglesia.cuentaRegresivaHoras, alTocar: () => _abrirHorario(context)), // Tarjeta "Próximo culto" con cuenta regresiva si se transmite (al tocar, abre Horario)
               if (iglesia.versiculo != null) _TarjetaVersiculo(versiculo: iglesia.versiculo!), // Versículo del día (se puede compartir)
               if (iglesia.enVivo.activo) // Si hay transmisión en vivo...
                 TarjetaCanaan( // ...tarjeta con franja ROJA
@@ -471,7 +480,10 @@ class _AccesosRapidos extends StatelessWidget { // Tarjeta con botones grandes d
 } // Fin de _AccesosRapidos
 
 class _ProximoCulto extends StatefulWidget { // Tarjeta "Próximo culto": lo que está ocurriendo AHORA o lo siguiente del horario (con cuenta regresiva si se transmite)
-  const _ProximoCulto({required this.actividades, required this.enVivoActivo, required this.alTocar}); // Constructor
+  const _ProximoCulto({required this.actividades, required this.enVivoActivo, this.mostrarCuenta = true, this.horasCuenta = 2, required this.alTocar}); // Constructor
+
+  final bool mostrarCuenta; // Configuración del panel: ¿mostrar la línea de la transmisión?
+  final int horasCuenta; // Configuración del panel: la cuenta regresiva sale desde estas horas antes
 
   final List<Actividad> actividades; // Horario completo
   final bool enVivoActivo; // ¿Ya hay transmisión en vivo? (entonces no hace falta la cuenta regresiva)
@@ -498,14 +510,15 @@ class _ProximoCultoState extends State<_ProximoCulto> { // Estado: un reloj redi
   } // Fin de dispose
 
   String? _cuentaRegresiva(Actividad actividad) { // Texto rojo de la transmisión; null si no se transmite o ya está en vivo
-    if (!actividad.seTransmite || widget.enVivoActivo) return null; // Sin transmisión o ya en vivo (la tarjeta roja lo muestra)
+    if (!actividad.seTransmite || widget.enVivoActivo || !widget.mostrarCuenta) return null; // Sin transmisión, ya en vivo (la tarjeta roja lo muestra) o el panel no la quiere
     if (actividad.enCurso) return 'La transmisión aparecerá aquí al empezar'; // Ya es la hora, pero YouTube aún no empieza
     final falta = actividad.proxima!.difference(DateTime.now()); // Tiempo que falta
-    if (falta.inHours >= 24) return 'Se transmite en vivo en la app'; // Lejos: solo avisa que se transmite
+    if (falta.inMinutes >= widget.horasCuenta * 60) return 'Se transmite en vivo en la app'; // Todavía lejos (según Configuración): solo avisa que se transmite
     if (falta.inMinutes < 1) return 'En vivo en un momento'; // Ya casi
     final horas = falta.inHours; // Horas completas
     final minutos = falta.inMinutes % 60; // Minutos sobrantes
-    final texto = horas > 0 ? '$horas h${minutos > 0 ? ' $minutos min' : ''}' : '$minutos min'; // "2 h 15 min" o "15 min"
+    const nb = '\u00A0'; // Espacio que NO se corta (así "5 h 12 min" nunca se parte en dos renglones)
+    final texto = horas > 0 ? '$horas${nb}h${minutos > 0 ? '$nb$minutos${nb}min' : ''}' : '$minutos${nb}min'; // "2 h 15 min" o "15 min"
     return 'En vivo en la app · faltan $texto'; // Ej: "En vivo en la app · faltan 2 h 15 min"
   } // Fin de _cuentaRegresiva
 

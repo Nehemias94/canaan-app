@@ -3,6 +3,7 @@ import 'dart:async'; // unawaited (arrancar algo sin esperar a que termine)
 import 'package:firebase_core/firebase_core.dart'; // Arranque de Firebase
 import 'package:firebase_messaging/firebase_messaging.dart'; // Notificaciones de Firebase
 import 'package:flutter/foundation.dart'; // kIsWeb y debugPrint
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // Crear el canal "Anuncios y avisos" de Android
 
 import '../firebase_config.dart'; // Datos del proyecto de Firebase (vacíos = sin notificaciones)
 import 'api.dart'; // Para enviar el fcm_token al panel
@@ -37,6 +38,8 @@ Future<void> mensajeEnSegundoPlano(RemoteMessage mensaje) async { // Mensaje rec
 // 1) arranca Firebase, 2) pide permiso, 3) obtiene la dirección del teléfono (fcm_token) y se la envía al panel,
 // 4) en Android/iPhone se suscribe al tema "todos" (el panel envía UNA notificación a ese tema y llega a todos),
 // 5) avisa a la pantalla cuando llega una notificación con la app abierta, o cuando la persona toca una.
+const String canalAvisos = 'avisos'; // Canal de Android de las notificaciones del panel (igual que Notificaciones::CANAL_ANDROID; también en AndroidManifest.xml)
+
 class ServicioNotificaciones { // Todo lo de notificaciones en un solo lugar
   static const String tema = 'todos'; // Tema al que envía el panel los avisos invisibles (igual que App\Support\Notificaciones::TEMA)
   static const String temaEnVivo = 'en_vivo'; // "¡Estamos en vivo!" (Notificaciones::TEMA_EN_VIVO)
@@ -70,6 +73,16 @@ class ServicioNotificaciones { // Todo lo de notificaciones en un solo lugar
       await Firebase.initializeApp(options: opcionesFirebase()); // 1) Arranca Firebase con los datos del proyecto
       final mensajeria = FirebaseMessaging.instance; // Atajo a la mensajería
       if (!kIsWeb) FirebaseMessaging.onBackgroundMessage(mensajeEnSegundoPlano); // Mensajes con la app cerrada (el aviso silencioso de anuncios de área); en el navegador no aplica
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) { // En Android...
+        await FlutterLocalNotificationsPlugin() // ...crea (o actualiza) el canal de las notificaciones del panel
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>() // Parte de Android del paquete
+            ?.createNotificationChannel(const AndroidNotificationChannel( // Canal
+              canalAvisos, // Id (el panel lo manda en cada notificación: Notificaciones::CANAL_ANDROID)
+              'Anuncios y avisos', // Nombre que ve la persona en Ajustes → Notificaciones de Canaán
+              description: 'Anuncios, "¡Estamos en vivo!" y el versículo del día', // Explicación en Ajustes
+              importance: Importance.high, // Alta: aparece flotando arriba de la pantalla (como WhatsApp)
+            )); // Fin del canal
+      } // Fin del if
 
       final permiso = await mensajeria.requestPermission(); // 2) Pide permiso (Android 13+, iPhone y navegador muestran una ventana)
       if (permiso.authorizationStatus == AuthorizationStatus.denied) { // Si dijo que no...

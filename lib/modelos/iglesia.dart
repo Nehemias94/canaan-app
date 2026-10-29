@@ -14,6 +14,8 @@ class Iglesia { // Molde con los datos que usa la app
   final Ofrendas ofrendas; // Ofrendas y diezmos (cuentas y QR)
   final VersiculoDia? versiculo; // Versículo del día (null si no hay)
   final Repeticion? repeticion; // Última transmisión terminada hace poco ("¿Te lo perdiste?"); null si no hay
+  final bool cuentaRegresivaMostrar; // Configuración: ¿mostrar la cuenta regresiva del próximo culto transmitido?
+  final int cuentaRegresivaHoras; // Configuración: desde cuántas horas antes
 
   bool get tieneUbicacion => latitud != null && longitud != null; // ¿Se configuró la ubicación en el panel?
 
@@ -33,6 +35,8 @@ class Iglesia { // Molde con los datos que usa la app
     this.ofrendas = const Ofrendas(mostrar: false), // Por defecto, sin ofrendas
     this.versiculo, // Opcional
     this.repeticion, // Opcional
+    this.cuentaRegresivaMostrar = true, // Por defecto, sí
+    this.cuentaRegresivaHoras = 2, // Por defecto, 2 horas antes
   }); // Fin del constructor
 
   factory Iglesia.desdeJson(Map<String, dynamic> json) { // Convierte el JSON de la API en un objeto Iglesia
@@ -49,7 +53,9 @@ class Iglesia { // Molde con los datos que usa la app
       whatsapp: (json['contacto'] as Map<String, dynamic>?)?['whatsapp'] as String?, // ...el WhatsApp (bloque "contacto")
       ofrendas: Ofrendas.desdeJson(json['ofrendas'] as Map<String, dynamic>? ?? {}), // ...las ofrendas
       versiculo: json['versiculo_dia'] == null ? null : VersiculoDia.desdeJson(json['versiculo_dia'] as Map<String, dynamic>), // ...el versículo del día
-      repeticion: json['repeticion'] == null ? null : Repeticion.desdeJson(json['repeticion'] as Map<String, dynamic>), // ...y la repetición del culto (si hubo transmisión en las últimas 12 h)
+      repeticion: json['repeticion'] == null ? null : Repeticion.desdeJson(json['repeticion'] as Map<String, dynamic>), // ...la repetición del culto (si hubo transmisión en las últimas 12 h)
+      cuentaRegresivaMostrar: (json['cuenta_regresiva'] as Map<String, dynamic>?)?['mostrar'] != false, // ...si se muestra la cuenta regresiva (si no viene: sí)
+      cuentaRegresivaHoras: ((json['cuenta_regresiva'] as Map<String, dynamic>?)?['horas'] as num?)?.toInt() ?? 2, // ...y desde cuántas horas antes
     ); // Fin del objeto
   } // Fin de desdeJson
 } // Fin de Iglesia

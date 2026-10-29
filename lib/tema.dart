@@ -105,6 +105,8 @@ String fechaCorta(DateTime? fecha) { // Convierte una fecha en texto corto, ej: 
 const List<String> _dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']; // Días (Dart: lunes = 1 … domingo = 7)
 const List<String> _mesesLargos = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']; // Meses completos
 
+String fechaSinDiaSemana(DateTime fecha) => '${fecha.day} de ${_mesesLargos[fecha.month - 1]}'; // Ej: "20 de noviembre"
+
 String fechaLarga(DateTime fecha) => '${_dias[fecha.weekday - 1]}, ${fecha.day} de ${_mesesLargos[fecha.month - 1]}'; // Ej: "Jueves, 29 de octubre"
 
 String horaCorta(DateTime hora) { // Hora en formato de 12 horas, ej: "8:00 am" o "7:30 pm"

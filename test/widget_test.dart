@@ -61,6 +61,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
   String tituloPredica = 'La fe que mueve montañas'; // Título de la prédica falsa (se puede cambiar a mitad de la prueba)
   List<Map<String, dynamic>>? horario; // Horario de reemplazo (null = el culto del domingo en curso)
   List<Map<String, dynamic>> eventos = []; // Eventos especiales del panel falso
+  Map<String, dynamic>? cuentaRegresiva; // Configuración de la cuenta regresiva (null = la del panel por defecto)
   bool anuncioConBoton = false; // ¿El anuncio "Ayuno" trae botón con enlace?
 
   @override // Reemplaza el método real
@@ -130,6 +131,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
       if (conExtras) 'ofrendas': {'mostrar': true, 'mensaje': 'Dios ama al dador alegre.', 'cuentas': [{'banco': 'Banco Agrícola', 'tipo': 'Ahorro', 'numero': '3000-123456', 'titular': 'MCC'}], 'qr_url': null}, // Ofrendas
       if (conExtras) 'versiculo_dia': {'texto': 'Jehová es mi pastor; nada me faltará.', 'referencia': 'Salmos 23:1'}, // Versículo
       if (avisoNivel != null) 'aviso_urgente': {'activo': true, 'titulo': 'Culto cancelado', 'mensaje': 'Hoy no habrá culto por la lluvia.', 'nivel': avisoNivel}, // Aviso urgente
+      if (cuentaRegresiva != null) 'cuenta_regresiva': cuentaRegresiva, // Configuración de la cuenta regresiva
       if (conRepeticion) 'repeticion': {'titulo': 'Culto dominical', 'youtube_id': 'repeti123', 'termino': DateTime.now().toIso8601String()}, // Repetición del culto
       if (radioAlAire) 'radio': {'disponible': true, 'titulo': 'Culto dominical', 'stream_url': 'https://radio.ejemplo/canaan', 'modo': 'siempre'}, // Radio 24/7
  // Transmisión activa
@@ -551,11 +553,11 @@ void main() { // Punto de arranque de las pruebas
 
   testWidgets('Cuenta regresiva del próximo culto transmitido', (WidgetTester tester) async { // Prueba 29
     final api = ApiFalsa()..enVivoEnPanel = false; // Sin en vivo
-    final proxima = DateTime.now().add(const Duration(hours: 2, minutes: 15, seconds: 20)); // Dentro de 2 h 15 min
+    final proxima = DateTime.now().add(const Duration(hours: 1, minutes: 15, seconds: 20)); // Dentro de 1 h 15 min (dentro de las 2 horas de Configuración)
     api.horario = [{'id': 5, 'nombre': 'Culto de oración', 'dia_semana': proxima.weekday % 7, 'dia': 'Hoy', 'horario': '7:00 pm', 'se_transmite': true, 'en_curso': false, 'proxima': proxima.toIso8601String()}]; // Un culto transmitido
     await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
     await tester.pumpAndSettle(); // Espera
-    expect(find.text('En vivo en la app · faltan 2 h 15 min'), findsOneWidget); // Cuenta regresiva
+    expect(find.text('En vivo en la app · faltan 1\u00A0h\u00A015\u00A0min'), findsOneWidget); // Cuenta regresiva (con espacios que no se cortan)
     expect(find.text('¿TE LO PERDISTE?'), findsNothing); // Sin repetición
   }); // Fin de la prueba 29
 
@@ -728,4 +730,28 @@ void main() { // Punto de arranque de las pruebas
     await tester.pump(); // Espera el aviso
     expect(find.text('Los recordatorios funcionan en la app del teléfono.'), findsOneWidget); // Explica por qué no se activó
   }); // Fin de la prueba 39
+
+  testWidgets('Cuenta regresiva: respeta las horas y la casilla de Configuración', (WidgetTester tester) async { // Prueba 40
+    final proxima = DateTime.now().add(const Duration(hours: 5)); // Dentro de 5 horas
+    final culto = {'id': 5, 'nombre': 'Culto de oración', 'dia_semana': proxima.weekday % 7, 'dia': 'Hoy', 'horario': '7:00 pm', 'se_transmite': true, 'en_curso': false, 'proxima': proxima.toIso8601String()}; // Culto transmitido
+    final api = ApiFalsa()..enVivoEnPanel = false..horario = [culto]; // Sin en vivo; cuenta desde 2 h (por defecto)
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Se transmite en vivo en la app'), findsOneWidget); // Faltan 5 h y la cuenta sale desde 2 h: solo el aviso
+    expect(find.textContaining('faltan'), findsNothing); // Sin cuenta regresiva
+    api.cuentaRegresiva = {'mostrar': true, 'horas': 6}; // El panel la pone desde 6 horas antes
+    tocarTimbreInicio(); // Inicio recarga
+    await tester.pumpAndSettle(); // Espera
+    expect(find.textContaining('faltan'), findsOneWidget); // Ahora sí hay cuenta regresiva
+    api.cuentaRegresiva = {'mostrar': false, 'horas': 6}; // El panel la apaga
+    tocarTimbreInicio(); // Inicio recarga
+    await tester.pumpAndSettle(); // Espera
+    expect(find.textContaining('faltan'), findsNothing); // Sin cuenta regresiva
+    expect(find.text('Se transmite en vivo en la app'), findsNothing); // Ni la línea
+  }); // Fin de la prueba 40
+
+  test('Eventos: fecha corta para varios días', () { // Prueba 41
+    expect(Evento(id: 1, titulo: 'A', iniciaEn: DateTime(2026, 11, 20, 8), terminaEn: DateTime(2026, 11, 22, 16)).cuandoTexto(), '20 al 22 de noviembre'); // Mismo mes
+    expect(Evento(id: 2, titulo: 'B', iniciaEn: DateTime(2026, 11, 30, 8), terminaEn: DateTime(2026, 12, 2, 16)).cuandoTexto(), '30 de noviembre al 2 de diciembre'); // Distinto mes
+  }); // Fin de la prueba 41
 } // Fin de main

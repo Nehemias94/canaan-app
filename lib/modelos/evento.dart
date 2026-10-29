@@ -68,6 +68,8 @@ class Evento { // Molde con los datos de un evento (campamento, aniversario, con
     final fin = terminaEn; // Atajo
     final mismoDia = fin == null || (fin.year == iniciaEn.year && fin.month == iniciaEn.month && fin.day == iniciaEn.day); // ¿Empieza y termina el mismo día?
     if (mismoDia) return '${fechaLarga(iniciaEn)} · ${horaCorta(iniciaEn)}'; // Un solo día: con la hora
-    return 'Del ${fechaLarga(iniciaEn)} al ${fechaLarga(fin)}'; // Varios días: rango
+    return fin.month == iniciaEn.month && fin.year == iniciaEn.year // Varios días: rango corto
+        ? '${iniciaEn.day} al ${fechaSinDiaSemana(fin)}' // Mismo mes: "20 al 22 de noviembre"
+        : '${fechaSinDiaSemana(iniciaEn)} al ${fechaSinDiaSemana(fin)}'; // Distinto mes: "30 de noviembre al 2 de diciembre"
   } // Fin de cuandoTexto
 } // Fin de Evento
