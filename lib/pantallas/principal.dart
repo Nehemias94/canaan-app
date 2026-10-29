@@ -1,6 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart'; // RemoteMessage (una notificación recibida)
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 
+import '../componentes/carga_animada.dart'; // presentacionEnCurso: ocultar el menú mientras se ve el logo animado
 import '../servicios/api.dart'; // Llamadas a la API (se pasa a cada pestaña)
 import '../servicios/notificaciones.dart'; // Notificaciones (Firebase)
 import '../servicios/registro.dart'; // Registro del teléfono en el panel
@@ -55,14 +56,17 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
       body: IndexedStack( // Muestra solo la pestaña elegida, pero MANTIENE las otras vivas (no se recargan al volver)
         index: _pestana, // Cuál mostrar
         children: [ // Las 5 pestañas, en el mismo orden que el menú
-          PantallaInicio(api: widget.api, registro: widget.registro), // 0: Inicio
+          PantallaInicio(api: widget.api, registro: widget.registro, alIrAPestana: (i) => setState(() => _pestana = i)), // 0: Inicio (sus accesos rápidos cambian de pestaña)
           PantallaPredicas(api: widget.api, registro: widget.registro), // 1: Prédicas
           const PantallaBiblia(), // 2: Biblia
           PantallaHorario(api: widget.api), // 3: Horario
-          PantallaMas(api: widget.api, registro: widget.registro), // 4: Más (peticiones de oración y estado del teléfono)
+          PantallaMas(api: widget.api, registro: widget.registro), // 4: Servicios (radio, peticiones de oración, aviso al llegar)
         ], // Fin de las pestañas
       ), // Fin de IndexedStack
-      bottomNavigationBar: NavigationBar( // Menú de abajo (estilo Material 3)
+      bottomNavigationBar: ValueListenableBuilder<bool>( // Escucha si se está viendo la presentación del logo
+        valueListenable: presentacionEnCurso, // Aviso que cambia Inicio
+        builder: (context, enPresentacion, menu) => enPresentacion ? const SizedBox.shrink() : menu!, // Durante la presentación: sin menú (pantalla completa)
+        child: NavigationBar( // Menú de abajo (estilo Material 3)
         selectedIndex: _pestana, // Opción resaltada
         onDestinationSelected: (i) => setState(() => _pestana = i), // Al tocar una opción, cambia de pestaña y redibuja
         destinations: const [ // Opciones del menú
@@ -70,9 +74,10 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
           NavigationDestination(icon: Icon(Icons.video_library_outlined), selectedIcon: Icon(Icons.video_library), label: 'Prédicas'), // Videos
           NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Biblia'), // Libro abierto
           NavigationDestination(icon: Icon(Icons.calendar_month_outlined), selectedIcon: Icon(Icons.calendar_month), label: 'Horario'), // Calendario
-          NavigationDestination(icon: Icon(Icons.menu), label: 'Más'), // Tres rayas
+          NavigationDestination(icon: Icon(Icons.apps_outlined), selectedIcon: Icon(Icons.apps), label: 'Servicios'), // Cuadritos: radio, oración, avisos
         ], // Fin de las opciones
       ), // Fin del menú
+      ), // Fin de ValueListenableBuilder
     ); // Fin del Scaffold
   } // Fin de build
 } // Fin de _PantallaPrincipalState

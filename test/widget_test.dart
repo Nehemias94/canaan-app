@@ -167,7 +167,7 @@ void main() { // Punto de arranque de las pruebas
     await tester.pumpWidget(CanaanApp(api: ApiFalsa(falla: true))); // Dibuja la app con una API que falla
     await tester.pumpAndSettle(); // Espera
     expect(find.text('Reintentar'), findsWidgets); // Sale el botón Reintentar
-    await tester.tap(find.text('Más')); // Va a la pestaña Más
+    await tester.tap(find.text('Servicios')); // Va a la pestaña Más
     await tester.pumpAndSettle(); // Espera
     expect(find.text('Este teléfono no está conectado'), findsOneWidget); // El registro también falló y lo avisa
   }); // Fin de la prueba 3
@@ -176,7 +176,7 @@ void main() { // Punto de arranque de las pruebas
     final api = ApiFalsa(); // API falsa (para revisar cuántas veces se registró)
     await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
     await tester.pumpAndSettle(); // Espera
-    await tester.tap(find.text('Más')); // Va a la pestaña Más
+    await tester.tap(find.text('Servicios')); // Va a la pestaña Más
     await tester.pumpAndSettle(); // Espera
     expect(find.text('Teléfono conectado con la iglesia'), findsOneWidget); // Registrado
     expect(find.textContaining('Número 7'), findsOneWidget); // Con el número del panel falso
@@ -200,7 +200,7 @@ void main() { // Punto de arranque de las pruebas
     final api = ApiFalsa(); // Panel falso
     await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
     await tester.pumpAndSettle(); // Espera
-    await tester.tap(find.text('Más')); // Pestaña Más
+    await tester.tap(find.text('Servicios')); // Pestaña Más
     await tester.pumpAndSettle(); // Espera
     await tester.tap(find.text('Petición de oración')); // Abre el formulario
     await tester.pumpAndSettle(); // Espera
@@ -267,7 +267,7 @@ void main() { // Punto de arranque de las pruebas
     ControlRadio.crear = () => radio; // La app usará la de mentira
     await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Panel SIN radio al aire
     await tester.pumpAndSettle(); // Espera
-    await tester.tap(find.text('Más')); // Pestaña Más
+    await tester.tap(find.text('Servicios')); // Pestaña Más
     await tester.pumpAndSettle(); // Espera
     await tester.tap(find.text('Escuchar radio')); // Abre la radio
     await tester.pumpAndSettle(); // Espera
@@ -412,11 +412,28 @@ void main() { // Punto de arranque de las pruebas
   testWidgets('Biblia: pestaña en el menú con botones grandes', (WidgetTester tester) async { // Prueba 21
     await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Abre la app
     await tester.pumpAndSettle(); // Espera
-    await tester.tap(find.text('Biblia')); // Toca "Biblia" en el menú de abajo
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Biblia'))); // Toca "Biblia" en el menú de abajo (también hay un acceso rápido con ese nombre en Inicio)
     await tester.pumpAndSettle(); // Espera
     expect(find.text('Biblia · Reina-Valera 1960'), findsOneWidget); // Título de la pestaña
     expect(find.text('A+'), findsOneWidget); // Botón para agrandar la letra
     expect(find.text('Buscar'), findsOneWidget); // Botón buscar
     expect(find.text('Abrir la Biblia'), findsOneWidget); // En la PC (sin WebView) ofrece abrirla afuera
   }); // Fin de la prueba 21
+
+  testWidgets('Accesos rápidos de Inicio: Horario cambia de pestaña', (WidgetTester tester) async { // Prueba 22
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Abre la app
+    await tester.pumpAndSettle(); // Espera (presentación incluida)
+    await tester.tap(find.descendant(of: find.byType(Card), matching: find.text('Horario')).first); // Toca el botón grande "Horario" de Inicio
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Horario de cultos'), findsOneWidget); // Está en la pestaña Horario
+  }); // Fin de la prueba 22
+
+  testWidgets('Presentación: el menú de abajo se oculta mientras se ve el logo', (WidgetTester tester) async { // Prueba 23
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Abre la app
+    await tester.pump(const Duration(seconds: 1)); // A mitad de la presentación
+    expect(find.byType(NavigationBar), findsNothing); // Sin menú (pantalla completa)
+    await tester.pumpAndSettle(); // Termina la presentación
+    expect(find.byType(NavigationBar), findsOneWidget); // Aparece el menú
+    expect(find.text('Servicios'), findsOneWidget); // Con "Servicios" (antes "Más")
+  }); // Fin de la prueba 23
 } // Fin de main

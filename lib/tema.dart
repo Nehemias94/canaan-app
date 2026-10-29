@@ -45,12 +45,12 @@ ThemeData temaCanaan() { // Tema (colores y estilos) de toda la app
       backgroundColor: marinoCanaan, // Fondo marino (igual que las barras de título)
       indicatorColor: doradoCanaan.withValues(alpha: 0.22), // "Pastilla" dorada suave detrás de la opción elegida
       iconTheme: WidgetStateProperty.resolveWith((estado) => IconThemeData( // Íconos según si están elegidos
-            color: estado.contains(WidgetState.selected) ? doradoCanaan : Colors.white70, // Elegido: dorado; los demás: blanco suave
+            color: estado.contains(WidgetState.selected) ? doradoCanaan : Colors.white.withValues(alpha: 0.85), // Elegido: dorado; los demás: blanco claro (se lee mejor)
             size: 26, // Un poco más grandes (adultos mayores)
           )), // Fin de los íconos
       labelTextStyle: WidgetStateProperty.resolveWith((estado) => TextStyle( // Textos según si están elegidos
-            color: estado.contains(WidgetState.selected) ? doradoCanaan : Colors.white70, // Elegido: dorado; los demás: blanco suave
-            fontSize: 13, // Tamaño legible
+            color: estado.contains(WidgetState.selected) ? doradoCanaan : Colors.white.withValues(alpha: 0.85), // Elegido: dorado; los demás: blanco claro (se lee mejor)
+            fontSize: 14, // Un poco más grande (adultos mayores)
             fontWeight: estado.contains(WidgetState.selected) ? FontWeight.bold : FontWeight.w500, // Elegido en negrita
           )), // Fin de los textos
     ), // Fin del estilo del menú

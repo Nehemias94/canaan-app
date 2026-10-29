@@ -72,7 +72,7 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
     return Scaffold( // Estructura de la pantalla
-      appBar: AppBar(title: const Text('Más')), // Barra de título
+      appBar: AppBar(title: const Text('Servicios')), // Barra de título (antes "Más")
       body: ListView( // Lista de opciones
         padding: const EdgeInsets.all(14), // Margen alrededor de las tarjetas
         children: [ // Opciones

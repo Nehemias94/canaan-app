@@ -15,11 +15,14 @@ import '../servicios/geocerca_fondo.dart'; // Geocerca con la app cerrada (Paso 
 import '../servicios/recarga.dart'; // "Timbre" para recargar al instante (aviso urgente)
 import '../servicios/registro.dart'; // Registro del teléfono (para las señales del en vivo)
 import '../tema.dart'; // Colores de Canaán
+import 'peticion.dart'; // Formulario de petición de oración (acceso rápido)
 import 'radio.dart'; // Pantalla de la radio
 import 'video.dart'; // Pantalla del video (transmisión en vivo)
 
 class PantallaInicio extends StatefulWidget { // Pestaña "Inicio"; "Stateful" porque cambia (cargando → datos o error)
-  const PantallaInicio({super.key, required this.api, required this.registro}); // Constructor: recibe la API (en pruebas, una falsa) y el registro
+  const PantallaInicio({super.key, required this.api, required this.registro, this.alIrAPestana}); // Constructor: recibe la API (en pruebas, una falsa) y el registro
+
+  final void Function(int pestana)? alIrAPestana; // Cambiar de pestaña desde los accesos rápidos (Biblia, Horario); lo da la pantalla principal
 
   final Api api; // De dónde se sacan los datos
   final RegistroDispositivo registro; // Para las señales del en vivo
@@ -129,6 +132,10 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
+    final enPresentacion = !_fallo && (_iglesia == null || !_animacionVista); // ¿Se está viendo la presentación del logo?
+    if (presentacionEnCurso.value != enPresentacion) { // Si cambió...
+      WidgetsBinding.instance.addPostFrameCallback((_) => presentacionEnCurso.value = enPresentacion); // ...avisa al menú de abajo (después de dibujar: no se puede cambiar durante el dibujo)
+    } // Fin del if
     return AnnotatedRegion<SystemUiOverlayStyle>( // Estilo de la barra de arriba del teléfono (hora, batería) mientras se ve Inicio
       value: barraSuperiorClara, // Íconos en blanco: arriba siempre hay marino
       child: AnimatedSwitcher( // Cambio SUAVE entre el logo animado e Inicio (uno se desvanece mientras aparece el otro)
@@ -148,7 +155,7 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
           : RefreshIndicator( // Hay datos: permite "jalar hacia abajo" para actualizar
               key: const ValueKey('datos'), // Nombre para AnimatedSwitcher
               onRefresh: _cargar, // Qué hacer al jalar
-              child: _DatosIglesia(iglesia: _iglesia!, anuncios: _anuncios, api: widget.api, registro: widget.registro), // Los datos
+              child: _DatosIglesia(iglesia: _iglesia!, anuncios: _anuncios, api: widget.api, registro: widget.registro, alIrAPestana: widget.alIrAPestana), // Los datos
             ), // Fin de RefreshIndicator
       ), // Fin de AnimatedSwitcher
     ); // Fin de AnnotatedRegion
@@ -156,7 +163,9 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
 } // Fin de _PantallaInicioState
 
 class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando llegaron los datos
-  const _DatosIglesia({required this.iglesia, required this.anuncios, required this.api, required this.registro}); // Constructor
+  const _DatosIglesia({required this.iglesia, required this.anuncios, required this.api, required this.registro, this.alIrAPestana}); // Constructor
+
+  final void Function(int pestana)? alIrAPestana; // Cambiar de pestaña (accesos rápidos)
 
   final Iglesia iglesia; // Datos de la iglesia
   final List<Anuncio> anuncios; // Anuncios vigentes (solo "Todos")
@@ -190,6 +199,12 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
           child: Column( // Uno debajo del otro
             crossAxisAlignment: CrossAxisAlignment.stretch, // Todo el ancho
             children: [ // Elementos
+              _AccesosRapidos( // Botones grandes: Biblia · Radio · Oración · Horario (más fácil que buscar en el menú)
+                alBiblia: () => alIrAPestana?.call(2), // Pestaña 2 = Biblia
+                alRadio: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaRadio(api: api))), // Abre la radio
+                alOracion: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaPeticion(api: api, registro: registro))), // Abre el formulario de petición
+                alHorario: () => alIrAPestana?.call(3), // Pestaña 3 = Horario
+              ), // Fin de los accesos rápidos
               if (iglesia.enVivo.activo) // Si hay transmisión en vivo...
                 TarjetaCanaan( // ...tarjeta con franja ROJA
                   franja: Colors.red.shade700, // Rojo
@@ -352,3 +367,50 @@ class _TarjetaAnuncio extends StatelessWidget { // Tarjeta de un anuncio (franja
     ); // Fin de la tarjeta
   } // Fin de build
 } // Fin de _TarjetaAnuncio
+
+class _AccesosRapidos extends StatelessWidget { // Tarjeta con 4 botones grandes debajo del saludo (pensado para adultos mayores)
+  const _AccesosRapidos({required this.alBiblia, required this.alRadio, required this.alOracion, required this.alHorario}); // Constructor
+
+  final VoidCallback alBiblia; // Qué hacer al tocar Biblia
+  final VoidCallback alRadio; // Qué hacer al tocar Radio
+  final VoidCallback alOracion; // Qué hacer al tocar Oración
+  final VoidCallback alHorario; // Qué hacer al tocar Horario
+
+  @override // Reemplaza build
+  Widget build(BuildContext context) { // Describe cómo se ve
+    Widget boton(String texto, IconData icono, Color color, VoidCallback alTocar) => Expanded( // Un botón (ocupa 1/4 del ancho)
+          child: InkWell( // Efecto al tocar
+            onTap: alTocar, // Qué hace
+            borderRadius: BorderRadius.circular(12), // Efecto con esquinas redondeadas
+            child: Padding( // Margen interno
+              padding: const EdgeInsets.symmetric(vertical: 12), // Alto cómodo para tocar
+              child: Column( // Ícono arriba, texto abajo
+                children: [ // Elementos
+                  Container( // Burbuja de color detrás del ícono
+                    padding: const EdgeInsets.all(12), // Tamaño de la burbuja
+                    decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle), // Círculo del color, muy suave
+                    child: Icon(icono, color: color, size: 30), // Ícono grande
+                  ), // Fin de la burbuja
+                  const SizedBox(height: 6), // Espacio
+                  Text(texto, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: marinoCanaan)), // Texto
+                ], // Fin de los elementos
+              ), // Fin de la columna
+            ), // Fin del margen
+          ), // Fin del efecto
+        ); // Fin de boton
+    return Card( // Tarjeta blanca
+      margin: const EdgeInsets.only(top: 14), // Separación del encabezado
+      child: Padding( // Margen interno
+        padding: const EdgeInsets.symmetric(horizontal: 4), // Poco a los lados
+        child: Row( // Los 4 botones en fila
+          children: [ // Botones
+            boton('Biblia', Icons.menu_book, azulCanaan, alBiblia), // Biblia (azul)
+            boton('Radio', Icons.headphones, doradoOscuro, alRadio), // Radio (dorado)
+            boton('Oración', Icons.volunteer_activism, const Color(0xFFB4235A), alOracion), // Petición de oración (vino)
+            boton('Horario', Icons.calendar_month, const Color(0xFF15803D), alHorario), // Horario (verde)
+          ], // Fin de los botones
+        ), // Fin de la fila
+      ), // Fin del margen
+    ); // Fin de la tarjeta
+  } // Fin de build
+} // Fin de _AccesosRapidos

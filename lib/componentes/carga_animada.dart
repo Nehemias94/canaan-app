@@ -2,6 +2,10 @@ import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 
 import '../tema.dart'; // Colores de Canaán
 
+// true mientras se ve la presentación del logo al abrir la app: el menú de abajo se oculta para que se vea a pantalla completa.
+// Lo cambia Inicio; lo escucha la pantalla principal (donde está el menú).
+final ValueNotifier<bool> presentacionEnCurso = ValueNotifier<bool>(true);
+
 // Pantalla de carga animada (mientras la app se conecta con el panel), igual al logo oficial:
 // 1) aparece el arca dorada, 2) a su lado se escribe "Canaán" letra por letra, 3) aparecen "MINISTERIO CRISTIANO" y
 // "DE LAS ASAMBLEAS DE DIOS", 4) si sigue cargando, abajo sale "Conectando…". La animación corre UNA vez (no se repite).
