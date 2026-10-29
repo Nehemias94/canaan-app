@@ -698,15 +698,20 @@ void main() { // Punto de arranque de las pruebas
 
   test('Eventos: avisos según lo elegido en el panel', () { // Prueba 38 (sin pantalla: solo el cálculo)
     final ahora = DateTime(2026, 11, 1, 12, 0); // "Ahora" fijo: 1 de noviembre, mediodía
-    final evento = Evento(id: 7, titulo: 'Cantata', iniciaEn: DateTime(2026, 11, 10, 18, 0), diasAntes: 2, minutosAntes: 30); // 10 nov 6:00 pm; 2 días antes y 30 min antes
+    final evento = Evento(id: 7, titulo: 'Cantata', iniciaEn: DateTime(2026, 11, 10, 18, 0), diasAntes: 3, horasAviso: const ['09:00', '18:00'], minutosAntes: 30); // 10 nov 6:00 pm; cada día desde 3 días antes, 2 por día; 30 min antes
     final avisos = Recordatorios.avisosDeEvento(evento, ahora); // Cálculo
-    expect(avisos.length, 2); // Dos avisos
-    expect(avisos[0].cuando, DateTime(2026, 11, 8, 9, 0)); // 8 nov a las 9:00 am
-    expect(avisos[0].titulo, '📅 En 2 días: Cantata'); // Título
-    expect(avisos[1].cuando, DateTime(2026, 11, 10, 17, 30)); // 5:30 pm del mismo día
-    expect(avisos[1].titulo, '⏰ En 30 minutos: Cantata'); // Título
+    expect(avisos.map((a) => a.cuando).toList(), [ // 3 días × 2 + 1 = 7 avisos, en orden
+      DateTime(2026, 11, 7, 9, 0), DateTime(2026, 11, 7, 18, 0), // En 3 días
+      DateTime(2026, 11, 8, 9, 0), DateTime(2026, 11, 8, 18, 0), // En 2 días
+      DateTime(2026, 11, 9, 9, 0), DateTime(2026, 11, 9, 18, 0), // Mañana
+      DateTime(2026, 11, 10, 17, 30), // El mismo día, 30 min antes
+    ]); // Fin de la lista
+    expect(avisos.first.titulo, '📅 En 3 días: Cantata'); // Título del primero
+    expect(avisos[4].titulo, '📅 Mañana: Cantata'); // La víspera
+    expect(avisos.last.titulo, '⏰ En 30 minutos: Cantata'); // El mismo día
+    expect(Recordatorios.explicacionDeEvento(evento, ahora), 'cada día desde 3 días antes (9:00 am y 6:00 pm) y 30 minutos antes de empezar'); // Mensaje al activar
     final manana = Evento(id: 8, titulo: 'Ayuno', iniciaEn: DateTime(2026, 11, 2, 6, 0), diasAntes: 1, minutosAntes: 60); // Mañana a las 6:00 am
-    expect(Recordatorios.avisosDeEvento(manana, ahora).map((a) => a.titulo), ['⏰ En 1 hora: Ayuno']); // El de "1 día antes" (hoy 9:00 am) ya pasó: solo queda el de 1 hora
+    expect(Recordatorios.avisosDeEvento(manana, ahora).map((a) => a.titulo), ['⏰ En 1 hora: Ayuno']); // El de la víspera (hoy 9:00 am) ya pasó: solo queda el de 1 hora
     final nada = Evento(id: 9, titulo: 'Sin aviso', iniciaEn: DateTime(2026, 11, 20, 8, 0), diasAntes: 0, minutosAntes: 0); // El panel no quiere avisos
     expect(Recordatorios.avisosDeEvento(nada, ahora), isEmpty); // Ninguno
   }); // Fin de la prueba 38

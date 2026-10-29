@@ -9,6 +9,7 @@ import 'package:timezone/timezone.dart' as tz; // Fechas con zona horaria
 
 import '../modelos/actividad.dart'; // Molde de una actividad del horario
 import '../modelos/evento.dart'; // Molde de un evento especial
+import '../tema.dart'; // horaCorta (texto de las horas)
 import 'preferencias.dart'; // Lista de cultos con recordatorio
 
 // Recordatorios de cultos: el teléfono avisa 30 minutos antes, CADA SEMANA, aunque no haya internet ni la app esté abierta.
@@ -73,33 +74,46 @@ class Recordatorios { // Todo lo de recordatorios
     } // Fin del try
   } // Fin de sincronizar
 
-  static const horaAvisoDias = 9; // Hora del aviso de "días antes" (9:00 am, igual que Evento::HORA_AVISO_DIAS del panel)
+  static const _porEvento = 25; // Números reservados por evento (máximo: 7 días × 3 por día + 1 del mismo día = 22)
 
   static String _tiempo(int minutos) => minutos % 60 == 0 // "1 hora", "2 horas" o "30 minutos"
       ? '${minutos ~/ 60} ${minutos == 60 ? 'hora' : 'horas'}' // Horas exactas
       : '$minutos minutos'; // Minutos
 
-  static List<({DateTime cuando, String titulo, String explicacion})> avisosDeEvento(Evento evento, DateTime ahora) { // Los avisos que el teléfono programaría para un evento (solo los que aún no pasan). Pública para las pruebas
-    final avisos = <({DateTime cuando, String titulo, String explicacion})>[]; // Lista
+  static List<({DateTime cuando, String titulo})> avisosDeEvento(Evento evento, DateTime ahora) { // Los avisos que el teléfono programaría para un evento (solo los que aún no pasan), en orden. Pública para las pruebas
+    final avisos = <({DateTime cuando, String titulo})>[]; // Lista
     final inicio = evento.iniciaEn; // Cuándo empieza
-    if (evento.diasAntes > 0) { // Aviso de días antes
-      final cuando = DateTime(inicio.year, inicio.month, inicio.day - evento.diasAntes, horaAvisoDias); // N días antes a las 9:00 am
-      final dias = evento.diasAntes; // Atajo
-      if (cuando.isAfter(ahora)) avisos.add((cuando: cuando, titulo: dias == 1 ? '📅 Mañana: ${evento.titulo}' : '📅 En $dias días: ${evento.titulo}', explicacion: '${dias == 1 ? 'un día' : '$dias días'} antes (9:00 am)')); // Solo si aún no pasa
-    } // Fin del if
+    for (var dias = evento.diasAntes; dias >= 1; dias--) { // Cada día desde N días antes hasta la víspera
+      for (final hora in evento.horasAviso) { // Cada hora de ese día (1, 2 o 3)
+        final partes = hora.split(':'); // "18:00" → ["18", "00"]
+        final cuando = DateTime(inicio.year, inicio.month, inicio.day - dias, int.parse(partes[0]), int.parse(partes[1])); // Ese día a esa hora
+        if (cuando.isAfter(ahora) && cuando.isBefore(inicio)) avisos.add((cuando: cuando, titulo: dias == 1 ? '📅 Mañana: ${evento.titulo}' : '📅 En $dias días: ${evento.titulo}')); // Solo si aún no pasa
+      } // Fin del for de horas
+    } // Fin del for de días
     if (evento.minutosAntes > 0) { // Aviso del mismo día
       final cuando = inicio.subtract(Duration(minutes: evento.minutosAntes)); // Minutos antes de empezar
-      if (cuando.isAfter(ahora)) avisos.add((cuando: cuando, titulo: '⏰ En ${_tiempo(evento.minutosAntes)}: ${evento.titulo}', explicacion: '${_tiempo(evento.minutosAntes)} antes de empezar')); // Solo si aún no pasa
+      if (cuando.isAfter(ahora)) avisos.add((cuando: cuando, titulo: '⏰ En ${_tiempo(evento.minutosAntes)}: ${evento.titulo}')); // Solo si aún no pasa
     } // Fin del if
     return avisos; // Lista (puede estar vacía)
   } // Fin de avisosDeEvento
+
+  static String explicacionDeEvento(Evento evento, DateTime ahora) { // Para el mensaje al activar la 🔔, ej: "cada día desde 3 días antes (9:00 am y 6:00 pm) y 1 hora antes de empezar"
+    final avisos = avisosDeEvento(evento, ahora); // Los que aún no pasan
+    final partes = <String>[]; // Partes del texto
+    if (avisos.any((a) => a.titulo.startsWith('📅'))) { // Quedan avisos de días antes
+      final horas = evento.horasAviso.map((h) { final p = h.split(':'); return horaCorta(DateTime(2000, 1, 1, int.parse(p[0]), int.parse(p[1]))); }).join(' y '); // "9:00 am y 6:00 pm"
+      partes.add('${evento.diasAntes == 1 ? 'un día antes' : 'cada día desde ${evento.diasAntes} días antes'} ($horas)'); // Días antes
+    } // Fin del if
+    if (avisos.any((a) => a.titulo.startsWith('⏰'))) partes.add('${_tiempo(evento.minutosAntes)} antes de empezar'); // El mismo día
+    return partes.join(' y '); // Todo junto
+  } // Fin de explicacionDeEvento
 
   static Future<void> _programarEvento(Evento evento) async { // Programa (o reemplaza) los avisos de un evento
     await _cancelarEvento(evento.id); // Quita los anteriores (por si el panel cambió la fecha o el recordatorio)
     final avisos = avisosDeEvento(evento, DateTime.now()); // Los que aún no pasan
     for (var k = 0; k < avisos.length; k++) { // Cada aviso
       await _notificaciones.zonedSchedule( // Programa (una sola vez: sin matchDateTimeComponents)
-        id: _baseEventos + evento.id * 2 + k, // Número: dos por evento (días antes y mismo día)
+        id: _baseEventos + evento.id * _porEvento + k, // Número: hasta 25 por evento
         scheduledDate: tz.TZDateTime.from(avisos[k].cuando, tz.local), // Cuándo
         title: avisos[k].titulo, // Título
         body: [evento.cuandoTexto(), evento.lugar].where((t) => t != null && t.isNotEmpty).join(' · '), // Fecha y lugar
@@ -113,7 +127,10 @@ class Recordatorios { // Todo lo de recordatorios
   } // Fin de _programarEvento
 
   static Future<void> _cancelarEvento(int eventoId) async { // Cancela los avisos de un evento
-    for (final id in [_baseEventos + eventoId * 2, _baseEventos + eventoId * 2 + 1, _baseEventos + eventoId]) { // Los dos de ahora y el de la versión anterior de la app
+    for (var k = 0; k < _porEvento; k++) { // Todos los números reservados del evento
+      await _notificaciones.cancel(id: _baseEventos + eventoId * _porEvento + k); // Cancela
+    } // Fin del for
+    for (final id in [_baseEventos + eventoId * 2, _baseEventos + eventoId * 2 + 1, _baseEventos + eventoId]) { // Números de versiones anteriores de la app
       await _notificaciones.cancel(id: id); // Cancela
     } // Fin del for
   } // Fin de _cancelarEvento
@@ -126,7 +143,7 @@ class Recordatorios { // Todo lo de recordatorios
     await _preparar(); // Prepara
     await _programarEvento(evento); // Programa los avisos
     await Preferencias.guardarRecordatoriosEventos({...Preferencias.recordatoriosEventos.value, evento.id}); // Lo recuerda
-    return avisos.map((a) => a.explicacion).join(' y '); // Ej: "un día antes (9:00 am) y 1 hora antes de empezar"
+    return explicacionDeEvento(evento, DateTime.now()); // Ej: "cada día desde 3 días antes (9:00 am y 6:00 pm) y 1 hora antes de empezar"
   } // Fin de activarEvento
 
   static Future<void> desactivarEvento(int eventoId) async { // Quita la 🔔 de un evento

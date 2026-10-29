@@ -14,7 +14,8 @@ class Evento { // Molde con los datos de un evento (campamento, aniversario, con
   final bool enCurso; // ¿Está ocurriendo ahora?
   final String? botonTexto; // Texto del botón (ej: "Inscríbete")
   final String? botonUrl; // Enlace del botón
-  final int diasAntes; // Recordatorio (🔔): días antes, a las 9:00 am (0 = no avisar); lo elige el panel
+  final int diasAntes; // Recordatorio (🔔): CADA DÍA desde N días antes hasta la víspera (0 = no avisar); lo elige el panel
+  final List<String> horasAviso; // Horas de los avisos de cada uno de esos días, ej: ["09:00", "18:00"]
   final int minutosAntes; // Recordatorio (🔔): el mismo día, minutos antes de empezar (0 = no avisar)
 
   const Evento({ // Constructor
@@ -30,6 +31,7 @@ class Evento { // Molde con los datos de un evento (campamento, aniversario, con
     this.botonTexto, // Opcional
     this.botonUrl, // Opcional
     this.diasAntes = 1, // Por defecto, 1 día antes
+    this.horasAviso = const ['09:00'], // Por defecto, a las 9:00 am
     this.minutosAntes = 60, // Por defecto, 1 hora antes
   }); // Fin del constructor
 
@@ -49,6 +51,7 @@ class Evento { // Molde con los datos de un evento (campamento, aniversario, con
       botonTexto: boton?['texto'] as String?, // Texto del botón
       botonUrl: boton?['url'] as String?, // Enlace del botón
       diasAntes: (recordatorio?['dias_antes'] as num?)?.toInt() ?? 1, // Días antes (si no viene: 1)
+      horasAviso: (recordatorio?['horas'] as List?)?.cast<String>() ?? const ['09:00'], // Horas de cada día (si no viene: 9:00 am)
       minutosAntes: (recordatorio?['minutos_antes'] as num?)?.toInt() ?? 60, // Minutos antes (si no viene: 60)
     ); // Fin del objeto
   } // Fin de desdeJson
