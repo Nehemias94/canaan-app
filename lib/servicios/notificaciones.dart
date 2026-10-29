@@ -34,7 +34,13 @@ class ServicioNotificaciones { // Todo lo de notificaciones en un solo lugar
 
       // ignore: deprecated_member_use (getToken sigue funcionando; el método nuevo register()/onRegistered entrega otro tipo de id: revisar al actualizar el paquete)
       final fcmToken = await mensajeria.getToken(vapidKey: kIsWeb ? vapidKey : null); // 3) Dirección de este teléfono en Firebase (en el navegador necesita la clave VAPID)
-      if (fcmToken != null) await registro.conLlave((t) => api.guardarFcmToken(token: t, fcmToken: fcmToken)); // La envía al panel
+      if (fcmToken != null) { // Si Firebase dio la dirección...
+        try { // ...intenta enviarla al panel (si falla, NO detiene lo demás: el tema "todos" no depende del panel)
+          await registro.conLlave((t) => api.guardarFcmToken(token: t, fcmToken: fcmToken)); // La envía al panel
+        } catch (error) { // Sin internet o panel dormido: se vuelve a intentar la próxima vez que se abra la app
+          debugPrint('Notificaciones: no se pudo guardar la dirección en el panel: $error'); // Solo lo anota
+        } // Fin del try
+      } // Fin del if
       // ignore: deprecated_member_use (mismo motivo que getToken)
       mensajeria.onTokenRefresh.listen((nuevo) { // Si Firebase la cambia más adelante...
         unawaited(registro.conLlave((t) => api.guardarFcmToken(token: t, fcmToken: nuevo)).catchError((_) {})); // ...envía la nueva

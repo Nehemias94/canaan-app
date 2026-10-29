@@ -11,7 +11,7 @@ const String _remitenteId = '43213134071'; // "messagingSenderId", ej: "12345678
 const String _apiKey = 'AIzaSyDH7rc6-MYMOrMXZh_dzfezpBX1-UUJKZQ'; // "apiKey", ej: "AIzaSy…"
 
 const String _appIdWeb = '1:43213134071:web:370e52fbc7bd349c2f1bf2'; // "appId" de la app WEB, ej: "1:123456789012:web:abc123"
-const String _appIdAndroid = ''; // "appId" de la app ANDROID, ej: "1:123456789012:android:def456"
+const String _appIdAndroid = '1:43213134071:android:3073546340d6a1032f1bf2'; // "appId" de la app ANDROID, ej: "1:123456789012:android:def456"
 const String _appIdIos = ''; // "appId" de la app iPHONE (más adelante)
 
 const String vapidKey = 'BM81BBG6-Q13ig2ErGo2vlGGQO_dRgmU53RbeNtshE1OgsCWvUhc7_sUA086E_joAbWoCVQJd2G3Fek0ixW-TzY'; // Solo web: Firebase → Cloud Messaging → "Certificados push web" → par de claves (empieza con "B…")
