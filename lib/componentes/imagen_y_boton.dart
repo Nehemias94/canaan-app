@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 import 'package:url_launcher/url_launcher.dart'; // Abrir el enlace del botón fuera de la app
 
+import '../servicios/compartir.dart'; // Compartir la foto que se está viendo
+
 // Piezas que comparten los anuncios y los eventos especiales: la imagen (flyer) y el botón con enlace.
 
 class ImagenRed extends StatelessWidget { // Imagen de internet con esquinas redondeadas; al tocarla se ve en grande
@@ -77,3 +79,46 @@ class BotonEnlace extends StatelessWidget { // Botón grande que abre un enlace 
     ); // Fin del botón
   } // Fin de build
 } // Fin de BotonEnlace
+
+class VisorGaleria extends StatefulWidget { // Fotos de un evento en pantalla completa: se pasan deslizando, se acercan con dos dedos y se comparten
+  const VisorGaleria({super.key, required this.fotos, required this.titulo, this.inicial = 0}); // Constructor
+
+  final List<String> fotos; // Direcciones de las fotos
+  final String titulo; // Nombre del evento (para compartir)
+  final int inicial; // Foto que se abre primero
+
+  @override // Reemplaza createState
+  State<VisorGaleria> createState() => _VisorGaleriaState(); // Crea el estado
+} // Fin de VisorGaleria
+
+class _VisorGaleriaState extends State<VisorGaleria> { // Estado: foto actual
+  late final _paginas = PageController(initialPage: widget.inicial); // Control de las páginas
+  late int _actual = widget.inicial; // Foto que se ve
+
+  @override // Reemplaza dispose
+  void dispose() { // Al cerrar
+    _paginas.dispose(); // Libera el control
+    super.dispose(); // Lo de Flutter por defecto
+  } // Fin de dispose
+
+  @override // Reemplaza build
+  Widget build(BuildContext context) { // Describe cómo se ve
+    return Scaffold( // Estructura
+      backgroundColor: Colors.black, // Fondo negro
+      appBar: AppBar( // Barra con flecha para volver
+        backgroundColor: Colors.black, foregroundColor: Colors.white, // Negra
+        title: Text('${_actual + 1} / ${widget.fotos.length}'), // "3 / 20"
+        actions: [IconButton(tooltip: 'Compartir foto', icon: const Icon(Icons.share), onPressed: () => Compartir.conImagen('📷 ${widget.titulo}', widget.fotos[_actual]))], // Compartir esta foto
+      ), // Fin de la barra
+      body: PageView.builder( // Una foto por página
+        controller: _paginas, // Control
+        itemCount: widget.fotos.length, // Cuántas
+        onPageChanged: (i) => setState(() => _actual = i), // Actualiza el contador
+        itemBuilder: (context, i) => InteractiveViewer( // Acercar con dos dedos
+          maxScale: 5, // Hasta 5 veces
+          child: Center(child: Image.network(widget.fotos[i], fit: BoxFit.contain, errorBuilder: (c, e, p) => const Icon(Icons.broken_image, color: Colors.white54, size: 64))), // Foto (o ícono si no carga)
+        ), // Fin de la página
+      ), // Fin de PageView
+    ); // Fin del Scaffold
+  } // Fin de build
+} // Fin de _VisorGaleriaState

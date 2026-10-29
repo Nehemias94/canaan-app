@@ -8,6 +8,7 @@ import '../config.dart'; // intervaloActualizacion (90 s)
 import '../modelos/evento.dart'; // Molde de un evento
 import '../servicios/api.dart'; // Llamadas a la API
 import '../servicios/recarga.dart'; // Timbre "recargarEventos" (al tocar la pestaña)
+import '../tema.dart'; // Colores (context.cc)
 import '../servicios/recordatorios.dart'; // Reprogramar las 🔔 si el panel cambió algo
 
 class PantallaEventos extends StatefulWidget { // Pestaña "Eventos" (menú de abajo): eventos especiales del panel
@@ -21,6 +22,7 @@ class PantallaEventos extends StatefulWidget { // Pestaña "Eventos" (menú de a
 
 class _PantallaEventosState extends State<PantallaEventos> with WidgetsBindingObserver { // Estado; "WidgetsBindingObserver" = se entera cuando la app vuelve a primer plano
   List<Evento>? _eventos; // Eventos recibidos (null = todavía no llegan)
+  List<Evento> _pasados = []; // Eventos que ya pasaron y tienen fotos
   bool _fallo = false; // true si la PRIMERA carga falló (luego se conserva lo que ya se veía)
   Timer? _reloj; // Reloj que vuelve a preguntar cada 90 s
 
@@ -49,7 +51,8 @@ class _PantallaEventosState extends State<PantallaEventos> with WidgetsBindingOb
   Future<void> _cargar() async { // Pide los eventos sin mostrar "cargando" (la lista se cambia cuando llegan)
     try { // Intenta
       final eventos = await widget.api.obtenerEventos(); // Petición
-      if (mounted) setState(() { _eventos = eventos; _fallo = false; }); // Redibuja con lo nuevo
+      final pasados = await widget.api.obtenerEventosPasados().catchError((_) => <Evento>[]); // Pasados con fotos (si falla, sin ellos)
+      if (mounted) setState(() { _eventos = eventos; _pasados = pasados; _fallo = false; }); // Redibuja con lo nuevo
       await Recordatorios.sincronizarEventos(eventos); // Reprograma las 🔔 (fecha u opciones cambiadas; olvida los borrados)
     } catch (_) { // Sin internet, servidor dormido…
       if (mounted && _eventos == null) setState(() => _fallo = true); // Solo muestra el error si no había nada en pantalla
@@ -65,11 +68,16 @@ class _PantallaEventosState extends State<PantallaEventos> with WidgetsBindingOb
           ? (_fallo ? ErrorConexion(alReintentar: _cargar) : const Cargando()) // Error o esperando
           : RefreshIndicator( // "Jalar hacia abajo" para actualizar
               onRefresh: _cargar, // Qué hacer al jalar
-              child: eventos.isEmpty // ¿Está vacía?
+              child: eventos.isEmpty && _pasados.isEmpty // ¿No hay nada?
                   ? const Vacio(icono: Icons.celebration_outlined, mensaje: 'Por ahora no hay eventos especiales.\nPronto anunciaremos nuevos.') // Sí: mensaje amable
                   : ListView( // No: una tarjeta por evento
                       padding: const EdgeInsets.fromLTRB(16, 6, 16, 24), // Márgenes
-                      children: [for (final evento in eventos) TarjetaEvento(key: ValueKey('evento-${evento.id}'), evento: evento)], // Tarjetas (al tocar, abren el detalle)
+                      children: [ // Próximos y, abajo, los pasados con fotos
+                        if (eventos.isEmpty) Padding(padding: const EdgeInsets.symmetric(vertical: 16), child: Text('Por ahora no hay próximos eventos.', textAlign: TextAlign.center, style: TextStyle(color: context.cc.suave))), // Sin próximos
+                        for (final evento in eventos) TarjetaEvento(key: ValueKey('evento-${evento.id}'), evento: evento), // Tarjetas (al tocar, abren el detalle)
+                        if (_pasados.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 26, left: 4), child: Text('EVENTOS PASADOS · FOTOS', style: TextStyle(color: context.cc.morado, fontWeight: FontWeight.bold, letterSpacing: 1.5))), // Encabezado
+                        for (final evento in _pasados) TarjetaEvento(key: ValueKey('pasado-${evento.id}'), evento: evento), // Pasados con su galería
+                      ], // Fin de los elementos
                     ), // Fin de la lista
             ), // Fin de RefreshIndicator
     ); // Fin del Scaffold

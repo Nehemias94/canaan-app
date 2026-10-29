@@ -10,6 +10,8 @@ class Evento { // Molde con los datos de un evento (campamento, aniversario, con
   final DateTime? terminaEn; // Fin (null = termina ese mismo día)
   final String? lugar; // Lugar
   final String? imagenUrl; // Imagen o flyer
+  final List<String> fotos; // Galería: direcciones de las fotos (vacía si no hay)
+  final bool terminado; // ¿Ya pasó? (sale en "Eventos pasados")
   final bool seTransmite; // ¿Se transmite en vivo?
   final bool enCurso; // ¿Está ocurriendo ahora?
   final String? botonTexto; // Texto del botón (ej: "Inscríbete")
@@ -29,6 +31,8 @@ class Evento { // Molde con los datos de un evento (campamento, aniversario, con
     this.terminaEn, // Opcional
     this.lugar, // Opcional
     this.imagenUrl, // Opcional
+    this.fotos = const [], // Por defecto, sin fotos
+    this.terminado = false, // Por defecto, no ha pasado
     this.seTransmite = false, // Por defecto, no
     this.enCurso = false, // Por defecto, no
     this.botonTexto, // Opcional
@@ -53,6 +57,8 @@ class Evento { // Molde con los datos de un evento (campamento, aniversario, con
       terminaEn: DateTime.tryParse(json['termina_en'] as String? ?? '')?.toLocal(), // Fin
       lugar: json['lugar'] as String?, // Lugar
       imagenUrl: json['imagen_url'] as String?, // Imagen
+      fotos: (json['fotos'] as List?)?.cast<String>() ?? const [], // Galería
+      terminado: json['terminado'] == true, // ¿Ya pasó?
       seTransmite: json['se_transmite'] == true, // ¿Se transmite?
       enCurso: json['en_curso'] == true, // ¿Ahora?
       botonTexto: boton?['texto'] as String?, // Texto del botón

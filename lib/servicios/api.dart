@@ -227,4 +227,9 @@ class Api { // Todas las llamadas a la API del panel se hacen desde aquí
         .map((e) => Evento.desdeJson(e as Map<String, dynamic>)) // ...cada elemento se convierte en Evento...
         .toList(); // ...y se devuelve como lista
   } // Fin de obtenerEventos
+
+  Future<List<Evento>> obtenerEventosPasados() async { // Eventos que ya pasaron y tienen fotos (GET /api/eventos/pasados)
+    final json = await _leer('eventos/pasados', null, null, true); // Pide la lista (con copia: sirve sin internet)
+    return (json['data'] as List).map((e) => Evento.desdeJson(e as Map<String, dynamic>)).toList(); // A objetos
+  } // Fin de obtenerEventosPasados
 } // Fin de Api

@@ -44,7 +44,7 @@ class TarjetaEvento extends StatelessWidget { // Tarjeta de un evento especial (
                         ], // Fin de los elementos
                       ), // Fin de la fila
               ), // Fin del nombre
-              CampanitaEvento(evento: evento), // 🔔 Recordatorio (avisos que eligió el panel)
+              if (!evento.terminado) CampanitaEvento(evento: evento), // 🔔 Recordatorio (no si ya pasó)
               IconButton( // Botón compartir (sin abrir el evento)
                 tooltip: 'Compartir evento', // Texto de ayuda (y para lectores de pantalla)
                 visualDensity: VisualDensity.compact, // Compacto
@@ -55,7 +55,9 @@ class TarjetaEvento extends StatelessWidget { // Tarjeta de un evento especial (
           ), // Fin de la fila
           if (evento.lugar != null && evento.lugar!.isNotEmpty) // Si tiene lugar...
             Padding(padding: const EdgeInsets.only(top: 4), child: Text('📍 ${evento.lugar}', style: TextStyle(fontSize: 15, color: context.cc.suave))), // ...con pin
-          if (evento.inscripcionesActivas) // Si acepta inscripciones...
+          if (evento.fotos.isNotEmpty) // Si tiene galería...
+            Padding(padding: const EdgeInsets.only(top: 6), child: Text('📷 ${evento.fotos.length} foto(s) · toca para verlas', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: context.cc.morado))), // Cuántas fotos
+          if (evento.inscripcionesActivas && !evento.terminado) // Si acepta inscripciones...
             Padding( // ...etiqueta
               padding: const EdgeInsets.only(top: 6), // Separación
               child: Text( // Texto

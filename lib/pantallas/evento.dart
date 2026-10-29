@@ -32,11 +32,12 @@ class PantallaEvento extends StatelessWidget { // Detalle de un evento especial
           if (evento.seTransmite) _Dato(icono: Icons.live_tv, texto: 'Se transmite en vivo en la app', color: context.vivo(Colors.red.shade700)), // En vivo
           if (evento.descripcion != null && evento.descripcion!.isNotEmpty) // Si tiene detalle...
             Padding(padding: const EdgeInsets.only(top: 14), child: Text(evento.descripcion!, style: const TextStyle(fontSize: 17, height: 1.4))), // ...texto
-          if (evento.inscripcionesActivas) _RecuadroInscripcion(evento: evento), // Inscripción desde la app
+          if (evento.fotos.isNotEmpty) _Galeria(evento: evento), // Fotos del evento
+          if (evento.inscripcionesActivas && !evento.terminado) _RecuadroInscripcion(evento: evento), // Inscripción desde la app (no si ya pasó)
           const SizedBox(height: 20), // Espacio
           if (hayBoton) BotonEnlace(texto: evento.botonTexto!, url: evento.botonUrl!, color: context.cc.morado), // Botón del panel (ej: Inscríbete)
           const SizedBox(height: 10), // Espacio
-          ValueListenableBuilder<Set<int>>( // Se redibuja cuando cambian los recordatorios
+          if (!evento.terminado) ValueListenableBuilder<Set<int>>( // Se redibuja cuando cambian los recordatorios (no si ya pasó)
             valueListenable: Preferencias.recordatoriosEventos, // Eventos con recordatorio
             builder: (context, ids, _) { // Botón según el estado
               final activo = ids.contains(evento.id); // ¿Ya tiene recordatorio?
@@ -177,3 +178,36 @@ class _RecuadroInscripcionState extends State<_RecuadroInscripcion> { // Estado 
     ); // Fin de la tarjeta
   } // Fin de build
 } // Fin de _RecuadroInscripcionState
+
+class _Galeria extends StatelessWidget { // Cuadrícula de fotos del evento (al tocar, pantalla completa)
+  const _Galeria({required this.evento}); // Constructor
+
+  final Evento evento; // Evento
+
+  @override // Reemplaza build
+  Widget build(BuildContext context) { // Describe cómo se ve
+    return Padding( // Separación
+      padding: const EdgeInsets.only(top: 18), // Arriba
+      child: Column( // Título y cuadrícula
+        crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
+        children: [ // Elementos
+          Text('📷 FOTOS (${evento.fotos.length})', style: TextStyle(color: context.cc.morado, fontWeight: FontWeight.bold, letterSpacing: 1.2)), // Título
+          const SizedBox(height: 8), // Espacio
+          GridView.builder( // Cuadrícula
+            shrinkWrap: true, // Solo el alto necesario (va dentro de la lista)
+            physics: const NeverScrollableScrollPhysics(), // Se desliza con la pantalla, no sola
+            itemCount: evento.fotos.length, // Cuántas
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, mainAxisSpacing: 4, crossAxisSpacing: 4), // 3 por fila
+            itemBuilder: (context, i) => GestureDetector( // Se puede tocar
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => VisorGaleria(fotos: evento.fotos, titulo: evento.titulo, inicial: i))), // Pantalla completa
+              child: ClipRRect( // Esquinas redondeadas
+                borderRadius: BorderRadius.circular(8), // Radio
+                child: Image.network(evento.fotos[i], fit: BoxFit.cover, errorBuilder: (c, e, p) => Container(color: Colors.black12)), // Miniatura
+              ), // Fin del recorte
+            ), // Fin de la foto
+          ), // Fin de la cuadrícula
+        ], // Fin de los elementos
+      ), // Fin de la columna
+    ); // Fin del margen
+  } // Fin de build
+} // Fin de _Galeria

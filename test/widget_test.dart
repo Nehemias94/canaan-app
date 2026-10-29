@@ -162,6 +162,11 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
   @override // Reemplaza el método real
   Future<List<Evento>> obtenerEventos() async => eventos.map(Evento.desdeJson).toList(); // Eventos falsos
 
+  List<Map<String, dynamic>> pasados = []; // Eventos pasados con fotos del panel falso
+
+  @override // Reemplaza el método real
+  Future<List<Evento>> obtenerEventosPasados() async => pasados.map(Evento.desdeJson).toList(); // Pasados falsos
+
   final interesesMarcados = <int, bool>{}; // 🔔 avisadas al panel falso (evento → activo)
   InscripcionEvento? inscripcionFalsa; // Inscripción de este teléfono en el panel falso
 
@@ -875,4 +880,23 @@ void main() { // Punto de arranque de las pruebas
     expect(find.text('📝 Ver bosquejo'), findsNothing); // La parte 2 no tiene bosquejo
     expect(find.textContaining('SIGUIENTE EN LA SERIE'), findsNothing); // Y es la última
   }); // Fin de la prueba 45
+
+  testWidgets('Galería: eventos pasados con fotos y visor en pantalla completa', (WidgetTester tester) async { // Prueba 46
+    pantallaAlta(tester); // Pantalla alta
+    final api = ApiFalsa()..pasados = [{'id': 8, 'titulo': 'Campamento 2026', 'inicia_en': DateTime.now().subtract(const Duration(days: 10)).toIso8601String(), 'terminado': true, 'fotos': ['https://ejemplo.com/1.jpg', 'https://ejemplo.com/2.jpg', 'https://ejemplo.com/3.jpg']}]; // Un evento pasado con 3 fotos
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Eventos'))); // Pestaña Eventos
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('EVENTOS PASADOS · FOTOS'), findsOneWidget); // Sección de pasados
+    expect(find.text('📷 3 foto(s) · toca para verlas'), findsOneWidget); // Cuántas fotos
+    expect(find.byTooltip('Recordarme este evento'), findsNothing); // Sin 🔔 (ya pasó)
+    await tester.tap(find.text('Campamento 2026')); // Abre el detalle
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('📷 FOTOS (3)'), findsOneWidget); // Cuadrícula
+    expect(find.text('Recordarme'), findsNothing); // Sin recordatorio (ya pasó)
+    await tester.tap(find.byType(GestureDetector).at(1)); // Toca la segunda foto
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('2 / 3'), findsOneWidget); // Visor en la foto 2 de 3
+  }); // Fin de la prueba 46
 } // Fin de main
