@@ -1,6 +1,7 @@
 import 'dart:async'; // Timer (actualizar cada 90 s)
 
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
+import 'package:flutter/services.dart'; // SystemUiOverlayStyle (colores de la barra de arriba del teléfono)
 
 import '../componentes/estados.dart'; // Vistas compartidas: Cargando, ErrorConexion
 import '../config.dart'; // intervaloActualizacion
@@ -117,7 +118,9 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
-    return Container( // Caja que ocupa toda la pestaña
+    return AnnotatedRegion<SystemUiOverlayStyle>( // Estilo de la barra de arriba del teléfono (hora, batería) mientras se ve Inicio
+      value: barraSuperiorClara, // Íconos en blanco: se leen sobre el fondo azul oscuro (no hay barra de título aquí)
+      child: Container( // Caja que ocupa toda la pestaña
       decoration: const BoxDecoration( // Fondo
         gradient: LinearGradient( // Degradado
           begin: Alignment.topCenter, // De arriba...
@@ -135,7 +138,8 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
                     child: _DatosIglesia(iglesia: _iglesia!, anuncios: _anuncios, api: widget.api, registro: widget.registro), // Los datos
                   ), // Fin de RefreshIndicator
       ), // Fin de SafeArea
-    ); // Fin del Container
+      ), // Fin del Container
+    ); // Fin de AnnotatedRegion
   } // Fin de build
 } // Fin de _PantallaInicioState
 

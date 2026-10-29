@@ -1,4 +1,13 @@
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter (Color, ThemeData…)
+import 'package:flutter/services.dart'; // SystemUiOverlayStyle (colores de la barra de arriba del teléfono)
+
+// Barra de arriba del teléfono (hora, batería, señal) con íconos BLANCOS y fondo transparente:
+// se usa sobre fondos oscuros (barras de título marino y el degradado de Inicio). Sin esto salían negros y no se leían.
+const SystemUiOverlayStyle barraSuperiorClara = SystemUiOverlayStyle(
+  statusBarColor: Colors.transparent, // Fondo transparente: se ve el color de la pantalla detrás
+  statusBarIconBrightness: Brightness.light, // Android: íconos claros (blancos)
+  statusBarBrightness: Brightness.dark, // iPhone: "fondo oscuro" = letras blancas (en iPhone se indica al revés)
+); // Fin del estilo
 
 // Colores oficiales de Canaán (los mismos del panel)
 const Color azulCanaan = Color(0xFF004B82); // Azul principal
@@ -18,6 +27,7 @@ ThemeData temaCanaan() { // Tema (colores y estilos) de toda la app
       backgroundColor: marinoCanaan, // Fondo marino
       foregroundColor: Colors.white, // Título e íconos en blanco
       centerTitle: true, // Título centrado
+      systemOverlayStyle: barraSuperiorClara, // Hora y batería en blanco sobre el marino
     ), // Fin del estilo de la barra
     navigationBarTheme: NavigationBarThemeData( // Estilo de la barra de abajo (menú)
       indicatorColor: doradoCanaan.withValues(alpha: 0.35), // "Pastilla" dorada suave detrás de la opción elegida
