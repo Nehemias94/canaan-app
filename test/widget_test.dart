@@ -760,6 +760,7 @@ void main() { // Punto de arranque de las pruebas
     Color? enClaro; Color? enOscuro; double? burbuja; // Resultados
     await tester.pumpWidget(MaterialApp(theme: temaCanaan(), home: Builder(builder: (c) { enClaro = c.vivo(verde); return const SizedBox(); }))); // Tema claro
     await tester.pumpWidget(MaterialApp(theme: temaCanaan(oscuro: true), home: Builder(builder: (c) { enOscuro = c.vivo(verde); burbuja = c.alfaBurbuja; return const SizedBox(); }))); // Tema oscuro
+    await tester.pumpAndSettle(); // Espera a que termine el cambio suave de tema (de claro a oscuro)
     expect(enClaro, verde); // En claro: el mismo
     expect(HSLColor.fromColor(enOscuro!).lightness, greaterThanOrEqualTo(0.68)); // En oscuro: mucho más claro
     expect(burbuja, 0.24); // Burbuja más visible
