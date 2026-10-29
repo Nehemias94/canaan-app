@@ -10,6 +10,7 @@ import '../servicios/geocerca_fondo.dart'; // Aviso al llegar a la iglesia con l
 import '../servicios/api.dart'; // Llamadas a la API (se pasa al formulario de peticiones)
 import '../servicios/registro.dart'; // Registro del teléfono en el panel
 import '../tema.dart'; // Colores de Canaán
+import 'ministerios.dart'; // Directorio de ministerios
 import 'ofrendas.dart'; // Pantalla "Ofrendas y diezmos"
 import 'peticion.dart'; // Formulario "Petición de oración"
 import 'radio.dart'; // Pantalla de la radio
@@ -135,6 +136,13 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
               trailing: const Icon(Icons.chevron_right), // Flechita
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaOfrendas(ofrendas: _iglesia!.ofrendas))), // Abre la pantalla
             ), // Fin de la opción
+          ListTile( // Opción: Ministerios
+            leading: Icon(Icons.groups, color: context.cc.azul), // Grupo de personas
+            title: const Text('Ministerios'), // Texto
+            subtitle: const Text('Jóvenes, damas, niños, alabanza… y cómo unirte'), // Explicación
+            trailing: const Icon(Icons.chevron_right), // Flechita
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaMinisterios(api: widget.api))), // Abre el directorio
+          ), // Fin de la opción
           ListTile( // Opción: Peticiones de oración
             leading: Icon(Icons.volunteer_activism, color: context.cc.azul), // Ícono de manos
             title: const Text('Petición de oración'), // Texto

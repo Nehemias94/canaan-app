@@ -14,6 +14,7 @@ import 'package:canaan_app/modelos/iglesia.dart'; // Molde de los datos de la ig
 import 'package:canaan_app/modelos/predica.dart'; // Molde de una prédica
 import 'package:canaan_app/servicios/api.dart'; // La API real (de ella se hereda la falsa)
 import 'package:canaan_app/servicios/registro.dart'; // Registro del teléfono
+import 'package:canaan_app/pantallas/ministerios.dart'; // Molde de un ministerio
 import 'package:canaan_app/pantallas/video.dart'; // Pantalla del video (para cambiar el reproductor por uno de prueba)
 import 'package:canaan_app/servicios/geocerca.dart'; // Geocerca (distancia)
 import 'package:canaan_app/servicios/ubicacion.dart'; // Servicio de ubicación (para cambiarlo por uno de prueba)
@@ -147,6 +148,9 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
   Future<List<SerieResumen>> obtenerSeries() async => conSerie ? [const SerieResumen(id: 2, nombre: 'La familia', partes: 2)] : []; // Series falsas
 
   bool conSerie = false; // ¿El panel falso tiene una serie de 2 partes?
+
+  @override // Reemplaza el método real
+  Future<List<Ministerio>> obtenerMinisterios() async => [const Ministerio(id: 1, nombre: 'Ministerio de jóvenes', horario: 'Sábados 4:00 pm', lider: 'Carlos', whatsapp: '50370001234')]; // Un ministerio falso
 
   @override // Reemplaza el método real
   Future<List<Predica>> obtenerPredicas({String buscar = '', int? serieId}) async { // Prédicas falsas
@@ -899,4 +903,18 @@ void main() { // Punto de arranque de las pruebas
     await tester.pumpAndSettle(); // Espera
     expect(find.text('2 / 3'), findsOneWidget); // Visor en la foto 2 de 3
   }); // Fin de la prueba 46
+
+  testWidgets('Servicios → Ministerios: directorio con WhatsApp', (WidgetTester tester) async { // Prueba 47
+    pantallaAlta(tester); // Pantalla alta
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Servicios'))); // Pestaña Servicios
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.text('Ministerios')); // Abre el directorio
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Ministerio de jóvenes'), findsOneWidget); // Nombre
+    expect(find.text('🕒 Sábados 4:00 pm'), findsOneWidget); // Horario
+    expect(find.text('👤 Líder: Carlos'), findsOneWidget); // Líder
+    expect(find.text('Escribir por WhatsApp'), findsOneWidget); // Botón
+  }); // Fin de la prueba 47
 } // Fin de main

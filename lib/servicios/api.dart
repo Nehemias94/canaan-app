@@ -9,6 +9,7 @@ import '../modelos/evento.dart'; // Molde de un evento especial
 import '../modelos/anuncio.dart'; // Molde de un anuncio
 import '../modelos/iglesia.dart'; // Molde de los datos de la iglesia
 import '../modelos/predica.dart'; // Molde de una prédica
+import '../pantallas/ministerios.dart'; // Molde de un ministerio
 
 class ErrorApi implements Exception { // Error de la API con su código (ej: 401 = token inválido)
   const ErrorApi(this.codigo, [this.mensaje]); // Constructor: código y, si el panel lo envió, su mensaje (los [] lo hacen opcional)
@@ -206,6 +207,11 @@ class Api { // Todas las llamadas a la API del panel se hacen desde aquí
     final json = await _leer('series', null, null, true); // Pide la lista (con copia: sirve sin internet)
     return (json['data'] as List).map((s) => SerieResumen.desdeJson(s as Map<String, dynamic>)).toList(); // A objetos
   } // Fin de obtenerSeries
+
+  Future<List<Ministerio>> obtenerMinisterios() async { // Directorio de ministerios (GET /api/ministerios)
+    final json = await _leer('ministerios', null, null, true); // Pide la lista (con copia: sirve sin internet)
+    return (json['data'] as List).map((m) => Ministerio.desdeJson(m as Map<String, dynamic>)).toList(); // A objetos
+  } // Fin de obtenerMinisterios
 
   Future<List<Anuncio>> obtenerAnuncios() async { // Anuncios visibles (GET /api/anuncios), los más recientes primero
     final json = await _leer('anuncios', null, null, true); // Pide la lista (con copia: sirve sin internet)
