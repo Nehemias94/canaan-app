@@ -1,5 +1,3 @@
-import 'dart:async'; // unawaited (pedir los eventos sin esperar)
-
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 
 import '../componentes/estados.dart'; // Vistas compartidas: Cargando, ErrorConexion, Vacio
@@ -7,8 +5,6 @@ import '../modelos/actividad.dart'; // Molde de una actividad
 import '../servicios/api.dart'; // Llamadas a la API
 import '../servicios/preferencias.dart'; // Lista de cultos con recordatorio
 import '../servicios/recordatorios.dart'; // Recordatorio 30 min antes
-import '../componentes/tarjeta_evento.dart'; // Tarjeta de evento especial
-import '../modelos/evento.dart'; // Molde de un evento especial
 import '../tema.dart'; // Colores de Canaán
 
 class PantallaHorario extends StatefulWidget { // Pestaña "Horario"
@@ -22,25 +18,15 @@ class PantallaHorario extends StatefulWidget { // Pestaña "Horario"
 
 class _PantallaHorarioState extends State<PantallaHorario> { // Estado de la pestaña Horario
   late Future<List<Actividad>> _peticion; // Petición en curso
-  List<Evento> _eventos = []; // Eventos especiales (arriba del horario semanal)
 
   @override // Reemplaza initState
   void initState() { // Al abrir la pestaña por primera vez
     super.initState(); // Lo de Flutter por defecto
     _peticion = widget.api.obtenerActividades(); // Pide el horario
     _peticion.then(Recordatorios.sincronizar).catchError((_) {}); // Reprograma los recordatorios con las horas nuevas (por si el panel las cambió)
-    _cargarEventos(); // Pide los eventos especiales
   } // Fin de initState
 
-  Future<void> _cargarEventos() async { // Pide los eventos especiales (si falla, la lista queda como estaba)
-    try { // Intenta
-      final eventos = await widget.api.obtenerEventos(); // Petición
-      if (mounted) setState(() => _eventos = eventos); // Redibuja
-    } catch (_) {} // Sin eventos: el horario se ve igual
-  } // Fin de _cargarEventos
-
   Future<void> _recargar() async { // Vuelve a pedir el horario
-    unawaited(_cargarEventos()); // Y los eventos (a la vez)
     setState(() => _peticion = widget.api.obtenerActividades()); // Nueva petición y redibuja
     try { await _peticion; } catch (_) {} // Espera a que termine
   } // Fin de _recargar
@@ -57,7 +43,7 @@ class _PantallaHorarioState extends State<PantallaHorario> { // Estado de la pes
           final actividades = estado.data!; // Lista recibida (ya viene ordenada por día y hora)
           return RefreshIndicator( // "Jalar hacia abajo" para actualizar
             onRefresh: _recargar, // Qué hacer al jalar
-            child: actividades.isEmpty && _eventos.isEmpty // ¿No hay nada?
+            child: actividades.isEmpty // ¿Está vacía?
                 ? const Vacio(icono: Icons.event_busy, mensaje: 'Aún no hay actividades en el horario.') // Sí: mensaje
                 : ListView( // No: lista agrupada por día
                     padding: const EdgeInsets.only(bottom: 16), // Margen abajo
@@ -70,14 +56,7 @@ class _PantallaHorarioState extends State<PantallaHorario> { // Estado de la pes
   } // Fin de build
 
   List<Widget> _armarLista(List<Actividad> actividades) { // Intercala un encabezado cada vez que cambia el día
-    final elementos = <Widget>[ // Lista que se va llenando; arriba, los eventos especiales
-      if (_eventos.isNotEmpty) // Si hay eventos...
-        Padding( // ...encabezado
-          padding: EdgeInsets.fromLTRB(16, 20, 16, 0), // Margen
-          child: Text('EVENTOS ESPECIALES', style: TextStyle(color: context.cc.morado, fontWeight: FontWeight.bold, letterSpacing: 1.2)), // Morado
-        ), // Fin del encabezado
-      for (final evento in _eventos) Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: TarjetaEvento(evento: evento)), // Una tarjeta por evento
-    ]; // Fin del inicio de la lista
+    final elementos = <Widget>[]; // Lista que se va llenando
     int? diaAnterior; // Día de la actividad anterior (null al principio)
     for (final actividad in actividades) { // Recorre las actividades en orden
       if (actividad.diaSemana != diaAnterior) { // Si empieza un día nuevo...

@@ -21,6 +21,7 @@ import '../servicios/geocerca_fondo.dart'; // Geocerca con la app cerrada (Paso 
 import '../servicios/recarga.dart'; // "Timbre" para recargar al instante (aviso urgente)
 import '../servicios/registro.dart'; // Registro del teléfono (para las señales del en vivo)
 import '../tema.dart'; // Colores de Canaán
+import 'horario.dart'; // Horario de cultos (acceso rápido)
 import 'peticion.dart'; // Formulario de petición de oración (acceso rápido)
 import 'radio.dart'; // Pantalla de la radio
 import 'video.dart'; // Pantalla del video (transmisión en vivo)
@@ -211,6 +212,8 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
     ); // Fin de Navigator.push
   } // Fin de _abrirEnVivo
 
+  void _abrirHorario(BuildContext context) => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaHorario(api: api))); // Horario de cultos (con flecha para volver)
+
   void _abrirRepeticion(BuildContext context, Repeticion repeticion) { // Abre la repetición del culto de hoy
     Navigator.push( // Abre el video encima
       context, // Desde aquí
@@ -240,7 +243,8 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
             crossAxisAlignment: CrossAxisAlignment.stretch, // Todo el ancho
             children: [ // Elementos
               if (aviso.activo) _AlertaAviso(aviso: aviso), // Aviso urgente: PRIMERO y con aspecto de alerta (fondo de color, borde e ícono)
-              _AccesosRapidos( // Botones grandes con lo que NO está en el menú de abajo (Biblia y Horario ya están ahí)
+              _AccesosRapidos( // Botones grandes con lo que NO está en el menú de abajo (Horario, Radio, Oración, YouTube, Cómo llegar)
+                alHorario: () => _abrirHorario(context), // Abre el horario de cultos
                 alRadio: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaRadio(api: api))), // Abre la radio
                 alOracion: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaPeticion(api: api, registro: registro))), // Abre el formulario de petición
                 alYoutube: iglesia.youtubeCanal == null ? null : () => _abrirAfuera(context, iglesia.youtubeCanal!), // Canal de YouTube (si el panel lo tiene)
@@ -249,7 +253,7 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
                   'https://www.google.com/maps/search/?api=1&query=${iglesia.latitud},${iglesia.longitud}', // Enlace universal de Google Maps (abre la app de Maps si está)
                 ), // Fin de cómo llegar
               ), // Fin de los accesos rápidos
-              _ProximoCulto(actividades: actividades, enVivoActivo: iglesia.enVivo.activo, alTocar: () => alIrAPestana?.call(3)), // Tarjeta "Próximo culto" con cuenta regresiva si se transmite (al tocar, abre Horario)
+              _ProximoCulto(actividades: actividades, enVivoActivo: iglesia.enVivo.activo, alTocar: () => _abrirHorario(context)), // Tarjeta "Próximo culto" con cuenta regresiva si se transmite (al tocar, abre Horario)
               if (iglesia.versiculo != null) _TarjetaVersiculo(versiculo: iglesia.versiculo!), // Versículo del día (se puede compartir)
               if (iglesia.enVivo.activo) // Si hay transmisión en vivo...
                 TarjetaCanaan( // ...tarjeta con franja ROJA
@@ -308,7 +312,7 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
                   child: Row( // Título y "Ver todos"
                     children: [ // Elementos
                       Expanded(child: Text('PRÓXIMOS EVENTOS', style: TextStyle(color: context.cc.morado, fontWeight: FontWeight.bold, letterSpacing: 1.5))), // Morado
-                      if (eventos.length > 3) TextButton(onPressed: () => alIrAPestana?.call(3), child: const Text('Ver todos')), // Abre Horario (ahí están todos)
+                      if (eventos.length > 3) TextButton(onPressed: () => alIrAPestana?.call(3), child: const Text('Ver todos')), // Abre la pestaña Eventos (ahí están todos)
                     ], // Fin de los elementos
                   ), // Fin de la fila
                 ), // Fin del encabezado
@@ -417,7 +421,9 @@ class _TarjetaAnuncio extends StatelessWidget { // Tarjeta de un anuncio (franja
 } // Fin de _TarjetaAnuncio
 
 class _AccesosRapidos extends StatelessWidget { // Tarjeta con botones grandes debajo del saludo (pensado para adultos mayores)
-  const _AccesosRapidos({required this.alRadio, required this.alOracion, this.alYoutube, this.alComoLlegar}); // Constructor
+  const _AccesosRapidos({required this.alHorario, required this.alRadio, required this.alOracion, this.alYoutube, this.alComoLlegar}); // Constructor
+
+  final VoidCallback alHorario; // Qué hacer al tocar Horario
 
   final VoidCallback alRadio; // Qué hacer al tocar Radio
   final VoidCallback alOracion; // Qué hacer al tocar Oración
@@ -435,12 +441,12 @@ class _AccesosRapidos extends StatelessWidget { // Tarjeta con botones grandes d
               child: Column( // Ícono arriba, texto abajo
                 children: [ // Elementos
                   Container( // Burbuja de color detrás del ícono
-                    padding: const EdgeInsets.all(12), // Tamaño de la burbuja
+                    padding: const EdgeInsets.all(10), // Tamaño de la burbuja
                     decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle), // Círculo del color, muy suave
-                    child: Icon(icono, color: color, size: 30), // Ícono grande
+                    child: Icon(icono, color: color, size: 28), // Ícono grande
                   ), // Fin de la burbuja
                   const SizedBox(height: 6), // Espacio
-                  Text(texto, textAlign: TextAlign.center, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: context.cc.titulo)), // Texto
+                  Text(texto, textAlign: TextAlign.center, maxLines: 2, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.cc.titulo, height: 1.15)), // Texto (hasta 2 renglones: "Cómo llegar")
                 ], // Fin de los elementos
               ), // Fin de la columna
             ), // Fin del margen
@@ -452,10 +458,11 @@ class _AccesosRapidos extends StatelessWidget { // Tarjeta con botones grandes d
         padding: const EdgeInsets.symmetric(horizontal: 4), // Poco a los lados
         child: Row( // Los botones en fila
           children: [ // Botones
+            boton('Horario', Icons.calendar_month, const Color(0xFF15803D), alHorario), // Horario de cultos (verde)
             boton('Radio', Icons.headphones, doradoOscuro, alRadio), // Radio (dorado)
             boton('Oración', Icons.volunteer_activism, const Color(0xFFB4235A), alOracion), // Petición de oración (vino)
             if (alYoutube != null) boton('YouTube', Icons.smart_display, const Color(0xFFDC2626), alYoutube!), // Canal de la iglesia (rojo YouTube)
-            if (alComoLlegar != null) boton('Cómo llegar', Icons.place, const Color(0xFF15803D), alComoLlegar!), // Google Maps (verde)
+            if (alComoLlegar != null) boton('Cómo llegar', Icons.place, const Color(0xFF0E7490), alComoLlegar!), // Google Maps (verde azulado: el verde es del Horario)
           ], // Fin de los botones
         ), // Fin de la fila
       ), // Fin del margen

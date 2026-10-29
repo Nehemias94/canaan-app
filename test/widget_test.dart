@@ -172,7 +172,7 @@ void main() { // Punto de arranque de las pruebas
     expect(find.text('Culto dominical'), findsOneWidget); // Con el título de la transmisión
   }); // Fin de la prueba 1
 
-  testWidgets('El menú cambia a Prédicas y a Horario', (WidgetTester tester) async { // Prueba 2
+  testWidgets('El menú cambia a Prédicas, y Horario se abre desde Inicio', (WidgetTester tester) async { // Prueba 2
     await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Dibuja la app
     await tester.pumpAndSettle(); // Espera los datos
     await tester.tap(find.text('Prédicas')); // Toca "Prédicas" en el menú de abajo
@@ -180,7 +180,10 @@ void main() { // Punto de arranque de las pruebas
     expect(find.text('La fe que mueve montañas'), findsOneWidget); // Sale la prédica
     expect(find.text('★ DESTACADA'), findsOneWidget); // Con la etiqueta de destacada
     expect(find.text('Pastor Juan · 5 oct 2026'), findsOneWidget); // Predicador y fecha en español
-    await tester.tap(find.text('Horario')); // Toca "Horario"
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Inicio'))); // Vuelve a Inicio
+    await tester.pumpAndSettle(); // Espera
+    expect(find.descendant(of: find.byType(NavigationBar), matching: find.text('Horario')), findsNothing); // Horario ya NO está en el menú
+    await tester.tap(find.text('Horario')); // Toca el acceso rápido "Horario" de Inicio
     await tester.pumpAndSettle(); // Espera el cambio
     expect(find.text('DOMINGO'), findsOneWidget); // Encabezado del día
     expect(find.text('Culto general'), findsOneWidget); // La actividad
@@ -566,7 +569,7 @@ void main() { // Punto de arranque de las pruebas
     expect(find.text('Ofrendar'), findsNothing); // Sin ofrendas en el panel
   }); // Fin de la prueba 30
 
-  testWidgets('Eventos especiales: en Inicio, en Horario y su detalle', (WidgetTester tester) async { // Prueba 31
+  testWidgets('Eventos especiales: en Inicio, en la pestaña Eventos y su detalle', (WidgetTester tester) async { // Prueba 31
     tester.view.physicalSize = const Size(800, 2400); // Pantalla alta: caben todas las tarjetas
     tester.view.devicePixelRatio = 1; // 1 píxel = 1 punto
     addTearDown(tester.view.reset); // Al terminar, tamaño normal
@@ -591,9 +594,10 @@ void main() { // Punto de arranque de las pruebas
     expect(compartido, contains('https://forms.gle/x')); // Con el enlace de inscripción
     await tester.pageBack(); // Vuelve
     await tester.pumpAndSettle(); // Espera
-    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Horario'))); // Pestaña Horario
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Eventos'))); // Pestaña Eventos del menú
     await tester.pumpAndSettle(); // Espera
-    expect(find.text('EVENTOS ESPECIALES'), findsOneWidget); // Sección arriba del horario
+    expect(find.text('Eventos especiales'), findsOneWidget); // Título de la pestaña
+    expect(find.text('Campamento de jóvenes'), findsOneWidget); // El evento
   }); // Fin de la prueba 31
 
   testWidgets('Anuncio con botón de enlace', (WidgetTester tester) async { // Prueba 32

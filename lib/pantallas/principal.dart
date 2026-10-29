@@ -6,7 +6,7 @@ import '../servicios/api.dart'; // Llamadas a la API (se pasa a cada pestaña)
 import '../servicios/notificaciones.dart'; // Notificaciones (Firebase)
 import '../servicios/registro.dart'; // Registro del teléfono en el panel
 import 'biblia.dart'; // Pestaña Biblia (YouVersion, Reina-Valera 1960)
-import 'horario.dart'; // Pestaña Horario
+import 'eventos.dart'; // Pestaña Eventos (eventos especiales)
 import 'inicio.dart'; // Pestaña Inicio
 import 'mas.dart'; // Pestaña Más
 import 'predicas.dart'; // Pestaña Prédicas
@@ -59,7 +59,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
           PantallaInicio(api: widget.api, registro: widget.registro, alIrAPestana: (i) => setState(() => _pestana = i)), // 0: Inicio (sus accesos rápidos cambian de pestaña)
           PantallaPredicas(api: widget.api, registro: widget.registro), // 1: Prédicas
           const PantallaBiblia(), // 2: Biblia
-          PantallaHorario(api: widget.api), // 3: Horario
+          PantallaEventos(api: widget.api), // 3: Eventos (el Horario se abre desde Inicio)
           PantallaMas(api: widget.api, registro: widget.registro), // 4: Servicios (radio, peticiones de oración, aviso al llegar)
         ], // Fin de las pestañas
       ), // Fin de IndexedStack
@@ -73,7 +73,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
           NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Inicio'), // Casa (rellena si está elegida)
           NavigationDestination(icon: Icon(Icons.video_library_outlined), selectedIcon: Icon(Icons.video_library), label: 'Prédicas'), // Videos
           NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Biblia'), // Libro abierto
-          NavigationDestination(icon: Icon(Icons.calendar_month_outlined), selectedIcon: Icon(Icons.calendar_month), label: 'Horario'), // Calendario
+          NavigationDestination(icon: Icon(Icons.celebration_outlined), selectedIcon: Icon(Icons.celebration), label: 'Eventos'), // Celebración: eventos especiales
           NavigationDestination(icon: Icon(Icons.apps_outlined), selectedIcon: Icon(Icons.apps), label: 'Servicios'), // Cuadritos: radio, oración, avisos
         ], // Fin de las opciones
       ), // Fin del menú
