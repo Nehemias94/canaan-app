@@ -12,6 +12,7 @@ import '../modelos/actividad.dart'; // Molde de una actividad (próximo culto)
 import '../modelos/anuncio.dart'; // Molde de un anuncio
 import '../modelos/iglesia.dart'; // Molde de los datos de la iglesia
 import '../servicios/api.dart'; // Llamadas a la API
+import '../servicios/compartir.dart'; // Compartir (versículo, anuncios)
 import '../servicios/geocerca.dart'; // Geocerca (anuncios "Solo área", Paso 10)
 import '../servicios/geocerca_fondo.dart'; // Geocerca con la app cerrada (Paso 11): se actualiza si el panel cambió la ubicación
 import '../servicios/recarga.dart'; // "Timbre" para recargar al instante (aviso urgente)
@@ -224,6 +225,7 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
                 ), // Fin de cómo llegar
               ), // Fin de los accesos rápidos
               _ProximoCulto(actividades: actividades, alTocar: () => alIrAPestana?.call(3)), // Tarjeta "Próximo culto" (al tocar, abre Horario)
+              if (iglesia.versiculo != null) _TarjetaVersiculo(versiculo: iglesia.versiculo!), // Versículo del día (se puede compartir)
               if (iglesia.enVivo.activo) // Si hay transmisión en vivo...
                 TarjetaCanaan( // ...tarjeta con franja ROJA
                   franja: Colors.red.shade700, // Rojo
@@ -351,6 +353,12 @@ class _TarjetaAnuncio extends StatelessWidget { // Tarjeta de un anuncio (franja
               const Icon(Icons.campaign_outlined, color: azulCanaan, size: 26), // Megáfono azul
               const SizedBox(width: 10), // Espacio
               Expanded(child: Text(anuncio.titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan))), // Título (ocupa el resto)
+              IconButton( // Botón compartir
+                tooltip: 'Compartir anuncio', // Texto de ayuda
+                visualDensity: VisualDensity.compact, // Compacto
+                icon: const Icon(Icons.share, color: azulCanaan), // Ícono compartir
+                onPressed: () => Compartir.texto('📢 ${anuncio.titulo}\n\n${anuncio.mensaje}'), // Comparte título y mensaje
+              ), // Fin del botón
             ], // Fin de los elementos
           ), // Fin de la fila
           const SizedBox(height: 6), // Espacio
@@ -517,3 +525,41 @@ class _AlertaAviso extends StatelessWidget { // Aviso urgente con aspecto de ALE
     ); // Fin de Semantics
   } // Fin de build
 } // Fin de _AlertaAviso
+
+class _TarjetaVersiculo extends StatelessWidget { // Versículo del día (franja dorada, letra un poco más grande, botón Compartir)
+  const _TarjetaVersiculo({required this.versiculo}); // Constructor
+
+  final VersiculoDia versiculo; // Texto y cita
+
+  @override // Reemplaza build
+  Widget build(BuildContext context) { // Describe cómo se ve
+    return TarjetaCanaan( // Tarjeta con franja dorada
+      franja: doradoCanaan, // Dorado
+      child: Column( // Uno debajo del otro
+        crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
+        children: [ // Elementos
+          const Row( // Encabezado
+            children: [ // Elementos
+              Icon(Icons.auto_stories, color: doradoOscuro, size: 22), // Libro abierto
+              SizedBox(width: 8), // Espacio
+              Text('VERSÍCULO DEL DÍA', style: TextStyle(color: doradoOscuro, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)), // Título pequeño
+            ], // Fin de los elementos
+          ), // Fin del encabezado
+          const SizedBox(height: 8), // Espacio
+          Text('“${versiculo.texto}”', style: const TextStyle(fontSize: 18, height: 1.45, fontStyle: FontStyle.italic, color: Color(0xFF1F2937))), // Texto entre comillas
+          const SizedBox(height: 6), // Espacio
+          Row( // Cita y botón
+            children: [ // Elementos
+              Expanded(child: Text(versiculo.referencia, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: marinoCanaan))), // "Juan 3:16"
+              TextButton.icon( // Compartir
+                onPressed: () => Compartir.texto('📖 “${versiculo.texto}”\n${versiculo.referencia}'), // Comparte
+                icon: const Icon(Icons.share, size: 20), // Ícono
+                label: const Text('Compartir', style: TextStyle(fontSize: 15)), // Texto
+              ), // Fin del botón
+            ], // Fin de los elementos
+          ), // Fin de la fila
+        ], // Fin de los elementos
+      ), // Fin de la columna
+    ); // Fin de la tarjeta
+  } // Fin de build
+} // Fin de _TarjetaVersiculo

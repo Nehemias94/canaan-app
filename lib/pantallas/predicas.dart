@@ -4,6 +4,7 @@ import '../componentes/estados.dart'; // Vistas compartidas: Cargando, ErrorCone
 import '../modelos/predica.dart'; // Molde de una prédica
 import '../servicios/api.dart'; // Llamadas a la API
 import '../servicios/registro.dart'; // Registro del teléfono (para contar las vistas)
+import '../servicios/compartir.dart'; // Compartir la prédica
 import '../tema.dart'; // Colores y fechaCorta()
 import 'video.dart'; // Pantalla del video
 
@@ -162,7 +163,22 @@ class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la
                 children: [ // Elementos
                   if (predica.destacada) // Si es la destacada...
                     const Text('★ DESTACADA', style: TextStyle(color: Color(0xFFB07A00), fontWeight: FontWeight.bold, fontSize: 12)), // ...etiqueta dorada oscura (legible sobre blanco)
-                  Text(predica.titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan)), // Título en negrita marino (igual que los anuncios de Inicio)
+                  Row( // Título y botón compartir
+                    crossAxisAlignment: CrossAxisAlignment.start, // Arriba
+                    children: [ // Elementos
+                      Expanded(child: Text(predica.titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: marinoCanaan))), // Título en negrita marino (igual que los anuncios de Inicio)
+                      IconButton( // Compartir
+                        tooltip: 'Compartir prédica', // Texto de ayuda
+                        visualDensity: VisualDensity.compact, // Compacto
+                        icon: const Icon(Icons.share, color: azulCanaan), // Ícono
+                        onPressed: () => Compartir.texto([ // Título, predicador y enlace de YouTube
+                          '🎥 ${predica.titulo}', // Título
+                          if (_subtitulo().isNotEmpty) _subtitulo(), // Predicador · fecha
+                          if (predica.youtubeId != null) 'https://www.youtube.com/watch?v=${predica.youtubeId}', // Enlace del video
+                        ].join('\n')), // Fin del texto
+                      ), // Fin del botón
+                    ], // Fin de los elementos
+                  ), // Fin de la fila
                   const SizedBox(height: 2), // Espacio
                   Text(_subtitulo(), style: const TextStyle(color: Colors.black54)), // Predicador · fecha
                   if (predica.reproducciones > 0) // Si alguien la ha visto...

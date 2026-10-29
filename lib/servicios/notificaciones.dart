@@ -8,6 +8,7 @@ import '../firebase_config.dart'; // Datos del proyecto de Firebase (vacíos = s
 import 'api.dart'; // Para enviar el fcm_token al panel
 import 'geocerca.dart'; // Copia de los anuncios "Solo área" (se actualiza con el aviso silencioso)
 import 'recarga.dart'; // "Timbre" para recargar Inicio al instante (aviso urgente)
+import 'preferencias.dart'; // Qué notificaciones quiere recibir la persona
 import 'registro.dart'; // Llave del teléfono
 
 const String avisoActualizarArea = 'actualizar_area'; // Tipo del aviso SILENCIOSO del panel: "actualiza tus anuncios de área" (igual que en App\Models\Anuncio)
@@ -37,7 +38,24 @@ Future<void> mensajeEnSegundoPlano(RemoteMessage mensaje) async { // Mensaje rec
 // 4) en Android/iPhone se suscribe al tema "todos" (el panel envía UNA notificación a ese tema y llega a todos),
 // 5) avisa a la pantalla cuando llega una notificación con la app abierta, o cuando la persona toca una.
 class ServicioNotificaciones { // Todo lo de notificaciones en un solo lugar
-  static const String tema = 'todos'; // Tema al que envía el panel (igual que App\Support\Notificaciones::TEMA)
+  static const String tema = 'todos'; // Tema al que envía el panel los avisos invisibles (igual que App\Support\Notificaciones::TEMA)
+  static const String temaEnVivo = 'en_vivo'; // "¡Estamos en vivo!" (Notificaciones::TEMA_EN_VIVO)
+  static const String temaAnuncios = 'anuncios'; // Anuncios (Notificaciones::TEMA_ANUNCIOS)
+  static bool _iniciado = false; // ¿Firebase ya arrancó? (para no tocar los temas antes)
+
+  static bool get temasSoportados => !kIsWeb; // Los temas solo existen en Android/iPhone (el navegador recibe por su dirección)
+
+  static Future<void> aplicarTemas() async { // Se suscribe / da de baja según las preferencias (al abrir la app y al tocar los interruptores de Servicios)
+    if (!_iniciado || !temasSoportados) return; // Sin Firebase o en el navegador: nada
+    try { // Sin internet puede fallar: se reintenta la próxima vez que se abra la app
+      final mensajeria = FirebaseMessaging.instance; // Atajo
+      await mensajeria.subscribeToTopic(tema); // Siempre: avisos invisibles (aviso urgente, anuncios de área)
+      Preferencias.avisosEnVivo.value ? await mensajeria.subscribeToTopic(temaEnVivo) : await mensajeria.unsubscribeFromTopic(temaEnVivo); // En vivo: según el interruptor
+      Preferencias.avisosAnuncios.value ? await mensajeria.subscribeToTopic(temaAnuncios) : await mensajeria.unsubscribeFromTopic(temaAnuncios); // Anuncios: según el interruptor
+    } catch (error) { // Falló
+      debugPrint('Notificaciones: no se pudieron aplicar los temas: $error'); // Solo lo anota
+    } // Fin del try
+  } // Fin de aplicarTemas
 
   static Future<void> iniciar({ // Arranca todo; si Firebase no está configurado, no hace nada
     required Api api, // Para enviar el fcm_token
@@ -71,7 +89,8 @@ class ServicioNotificaciones { // Todo lo de notificaciones en un solo lugar
         unawaited(registro.conLlave((t) => api.guardarFcmToken(token: t, fcmToken: nuevo)).catchError((_) {})); // ...envía la nueva
       }); // Fin de la escucha
 
-      if (!kIsWeb) await mensajeria.subscribeToTopic(tema); // 4) Android/iPhone: se suscribe al tema "todos" (el navegador no admite temas)
+      _iniciado = true; // Firebase ya arrancó
+      await aplicarTemas(); // 4) Android/iPhone: temas "todos" + en_vivo / anuncios según las preferencias (el navegador no admite temas)
 
       FirebaseMessaging.onMessage.listen((mensaje) { // 5a) Llega con la app abierta...
         if (esAvisoSilencioso(mensaje)) { // ...si es el aviso invisible del panel...

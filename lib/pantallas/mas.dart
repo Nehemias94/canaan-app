@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
+import 'package:url_launcher/url_launcher.dart'; // Abrir WhatsApp
+
+import '../firebase_config.dart'; // ¿Hay notificaciones? (para mostrar sus interruptores)
+import '../modelos/iglesia.dart'; // Datos de la iglesia (WhatsApp, ofrendas)
+import '../servicios/notificaciones.dart'; // Aplicar los temas al cambiar los interruptores
+import '../servicios/preferencias.dart'; // Letra grande y qué notificaciones recibir
 
 import '../servicios/geocerca_fondo.dart'; // Aviso al llegar a la iglesia con la app cerrada (Paso 11)
 import '../servicios/api.dart'; // Llamadas a la API (se pasa al formulario de peticiones)
 import '../servicios/registro.dart'; // Registro del teléfono en el panel
 import '../tema.dart'; // Colores de Canaán
+import 'ofrendas.dart'; // Pantalla "Ofrendas y diezmos"
 import 'peticion.dart'; // Formulario "Petición de oración"
 import 'radio.dart'; // Pantalla de la radio
 
@@ -19,6 +26,7 @@ class PantallaMas extends StatefulWidget { // Pestaña "Más": opciones extra (s
 
 class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña Más
   late Future<void> _registro; // Proceso de registro que se vigila
+  Iglesia? _iglesia; // Datos de la iglesia (WhatsApp y ofrendas; null mientras carga o si no hay internet)
   bool _avisoIglesia = false; // ¿Está activado "Avisarme al llegar a la iglesia"?
   bool _cambiandoAviso = false; // true mientras se piden permisos (para mostrar una rueda)
 
@@ -26,10 +34,27 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
   void initState() { // Al crear la pestaña
     super.initState(); // Lo de Flutter por defecto
     _registro = widget.registro.iniciar(); // Usa el mismo registro que arrancó la app (no lo repite)
+    widget.api.obtenerIglesia().then((datos) { if (mounted) setState(() => _iglesia = datos); }).catchError((_) {}); // Pide WhatsApp y ofrendas (si falla, no se muestran)
     if (GeocercaFondo.soportada) { // Solo en teléfonos...
       GeocercaFondo.estaActiva().then((activa) { if (mounted) setState(() => _avisoIglesia = activa); }); // ...lee si la persona ya lo activó
     } // Fin del if
   } // Fin de initState
+
+  Future<void> _abrirWhatsApp(String numero) async { // Abre un chat de WhatsApp con la iglesia
+    final enlace = Uri.https('wa.me', '/$numero', {'text': 'Hola, les escribo desde la app de Canaán. '}); // wa.me con un saludo ya escrito
+    final abrio = await launchUrl(enlace, mode: LaunchMode.externalApplication).catchError((_) => false); // Abre WhatsApp (o el navegador)
+    if (!abrio && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo abrir WhatsApp.'))); // Aviso si falla
+  } // Fin de _abrirWhatsApp
+
+  Future<void> _cambiarAvisarEnVivo(bool valor) async { // Interruptor "Avisarme cuando estemos en vivo"
+    await Preferencias.cambiarAvisosEnVivo(valor); // Lo guarda
+    await ServicioNotificaciones.aplicarTemas(); // Se suscribe o se da de baja del tema en_vivo
+  } // Fin de _cambiarAvisarEnVivo
+
+  Future<void> _cambiarAvisarAnuncios(bool valor) async { // Interruptor "Avisarme de anuncios"
+    await Preferencias.cambiarAvisosAnuncios(valor); // Lo guarda
+    await ServicioNotificaciones.aplicarTemas(); // Se suscribe o se da de baja del tema anuncios
+  } // Fin de _cambiarAvisarAnuncios
 
   Future<void> _cambiarAvisoIglesia(bool activar) async { // Interruptor "Avisarme al llegar a la iglesia"
     if (!activar) { // Apagarlo...
@@ -76,6 +101,16 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
       body: ListView( // Lista de opciones
         padding: const EdgeInsets.all(14), // Margen alrededor de las tarjetas
         children: [ // Opciones
+          if (_iglesia?.whatsapp != null) // Si el panel tiene la casilla de WhatsApp marcada...
+            Padding( // ...botón verde grande
+              padding: const EdgeInsets.only(bottom: 14), // Separación
+              child: FilledButton.icon( // Botón
+                onPressed: () => _abrirWhatsApp(_iglesia!.whatsapp!), // Abre el chat
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFF1FA855), foregroundColor: Colors.white, minimumSize: const Size.fromHeight(58), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))), // Verde WhatsApp, alto, redondeado
+                icon: const Icon(Icons.chat, size: 26), // Ícono de chat
+                label: const Text('Escríbenos por WhatsApp', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), // Texto
+              ), // Fin del botón
+            ), // Fin del margen
           Card( // Tarjeta 1: lo que la persona usa (radio, peticiones, aviso al llegar)
             clipBehavior: Clip.antiAlias, // El efecto al tocar respeta las esquinas redondeadas
             margin: EdgeInsets.zero, // Sin margen extra (lo da la lista)
@@ -87,6 +122,14 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
             trailing: const Icon(Icons.chevron_right), // Flechita: abre otra pantalla
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaRadio(api: widget.api))), // Al tocar, abre la radio
           ), // Fin de la opción
+          if (_iglesia?.ofrendas.mostrar ?? false) // Si el panel tiene marcada "Ofrendas y diezmos"...
+            ListTile( // ...opción para verlas
+              leading: const Icon(Icons.savings, color: azulCanaan), // Alcancía
+              title: const Text('Ofrendas y diezmos'), // Texto
+              subtitle: const Text('Cuentas para dar y código QR'), // Explicación
+              trailing: const Icon(Icons.chevron_right), // Flechita
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaOfrendas(ofrendas: _iglesia!.ofrendas))), // Abre la pantalla
+            ), // Fin de la opción
           ListTile( // Opción: Peticiones de oración
             leading: const Icon(Icons.volunteer_activism, color: azulCanaan), // Ícono de manos
             title: const Text('Petición de oración'), // Texto
@@ -108,6 +151,43 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
               onChanged: _cambiandoAviso ? null : _cambiarAvisoIglesia, // Al tocar (bloqueado mientras pide permisos)
             ), // Fin del interruptor
             ])), // Fin de la tarjeta 1
+          const SizedBox(height: 14), // Espacio entre tarjetas
+          Card( // Tarjeta de PREFERENCIAS: letra grande y qué notificaciones recibir
+            clipBehavior: Clip.antiAlias, // Esquinas redondeadas
+            margin: EdgeInsets.zero, // Sin margen extra
+            child: Column(children: [ // Interruptores
+              ValueListenableBuilder<bool>( // Escucha "letra grande"
+                valueListenable: Preferencias.letraGrande, // Preferencia
+                builder: (context, grande, _) => SwitchListTile( // Interruptor
+                  secondary: const Icon(Icons.text_increase, color: azulCanaan), // Ícono de agrandar texto
+                  title: const Text('Letra grande'), // Texto
+                  subtitle: const Text('Agranda los textos de toda la app'), // Explicación
+                  value: grande, // Encendido o apagado
+                  onChanged: Preferencias.cambiarLetraGrande, // Al tocar: guarda y la app se redibuja
+                ), // Fin del interruptor
+              ), // Fin de la escucha
+              if (firebaseConfigurado && ServicioNotificaciones.temasSoportados) ...[ // Solo con notificaciones en el teléfono
+                ValueListenableBuilder<bool>( // Escucha "avisos en vivo"
+                  valueListenable: Preferencias.avisosEnVivo, // Preferencia
+                  builder: (context, activo, _) => SwitchListTile( // Interruptor
+                    secondary: const Icon(Icons.live_tv, color: azulCanaan), // Ícono de transmisión
+                    title: const Text('Avisarme cuando estemos en vivo'), // Texto
+                    value: activo, // Encendido o apagado
+                    onChanged: _cambiarAvisarEnVivo, // Al tocar
+                  ), // Fin del interruptor
+                ), // Fin de la escucha
+                ValueListenableBuilder<bool>( // Escucha "avisos de anuncios"
+                  valueListenable: Preferencias.avisosAnuncios, // Preferencia
+                  builder: (context, activo, _) => SwitchListTile( // Interruptor
+                    secondary: const Icon(Icons.campaign, color: azulCanaan), // Ícono de megáfono
+                    title: const Text('Avisarme de anuncios'), // Texto
+                    subtitle: const Text('Los avisos urgentes siempre se muestran'), // Aclaración
+                    value: activo, // Encendido o apagado
+                    onChanged: _cambiarAvisarAnuncios, // Al tocar
+                  ), // Fin del interruptor
+                ), // Fin de la escucha
+              ], // Fin de las notificaciones
+            ])), // Fin de la tarjeta de preferencias
           const SizedBox(height: 14), // Espacio entre tarjetas
           Card( // Tarjeta 2: información (estado del teléfono, acerca de)
             clipBehavior: Clip.antiAlias, // El efecto al tocar respeta las esquinas redondeadas

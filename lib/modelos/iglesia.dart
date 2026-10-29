@@ -10,6 +10,9 @@ class Iglesia { // Molde con los datos que usa la app
   final double? longitud; // Ubicación del templo
   final int radioMetros; // Distancia que cuenta como "estar en la iglesia"
   final String? youtubeCanal; // Enlace del canal de YouTube de la iglesia (null si no se configuró en el panel)
+  final String? whatsapp; // Número de WhatsApp para wa.me (null = el panel no quiere mostrar el botón)
+  final Ofrendas ofrendas; // Ofrendas y diezmos (cuentas y QR)
+  final VersiculoDia? versiculo; // Versículo del día (null si no hay)
 
   bool get tieneUbicacion => latitud != null && longitud != null; // ¿Se configuró la ubicación en el panel?
 
@@ -25,6 +28,9 @@ class Iglesia { // Molde con los datos que usa la app
     this.longitud, // Opcional
     this.radioMetros = 200, // Por defecto 200 m
     this.youtubeCanal, // Opcional
+    this.whatsapp, // Opcional
+    this.ofrendas = const Ofrendas(mostrar: false), // Por defecto, sin ofrendas
+    this.versiculo, // Opcional
   }); // Fin del constructor
 
   factory Iglesia.desdeJson(Map<String, dynamic> json) { // Convierte el JSON de la API en un objeto Iglesia
@@ -37,7 +43,10 @@ class Iglesia { // Molde con los datos que usa la app
       latitud: ((json['ubicacion'] as Map<String, dynamic>?)?['latitud'] as num?)?.toDouble(), // ...la latitud del templo (num → decimal)
       longitud: ((json['ubicacion'] as Map<String, dynamic>?)?['longitud'] as num?)?.toDouble(), // ...la longitud
       radioMetros: ((json['ubicacion'] as Map<String, dynamic>?)?['radio_metros'] as num?)?.toInt() ?? 200, // ...y el radio en metros
-      youtubeCanal: (json['youtube'] as Map<String, dynamic>?)?['canal_url'] as String?, // ...y el canal de YouTube (bloque "youtube")
+      youtubeCanal: (json['youtube'] as Map<String, dynamic>?)?['canal_url'] as String?, // ...el canal de YouTube (bloque "youtube")
+      whatsapp: (json['contacto'] as Map<String, dynamic>?)?['whatsapp'] as String?, // ...el WhatsApp (bloque "contacto")
+      ofrendas: Ofrendas.desdeJson(json['ofrendas'] as Map<String, dynamic>? ?? {}), // ...las ofrendas
+      versiculo: json['versiculo_dia'] == null ? null : VersiculoDia.desdeJson(json['versiculo_dia'] as Map<String, dynamic>), // ...y el versículo del día
     ); // Fin del objeto
   } // Fin de desdeJson
 } // Fin de Iglesia
@@ -95,3 +104,47 @@ class RadioIglesia { // Radio en línea de la iglesia (bloque "radio" de /api/ig
     ); // Fin del objeto
   } // Fin de desdeJson
 } // Fin de RadioIglesia
+
+class Ofrendas { // Ofrendas y diezmos (bloque "ofrendas" de /api/iglesia)
+  final bool mostrar; // true = mostrar la opción en Servicios
+  final String? mensaje; // Mensaje de introducción
+  final List<CuentaOfrenda> cuentas; // Cuentas bancarias
+  final String? qrUrl; // Imagen del código QR (null si no hay)
+
+  const Ofrendas({required this.mostrar, this.mensaje, this.cuentas = const [], this.qrUrl}); // Constructor
+
+  factory Ofrendas.desdeJson(Map<String, dynamic> json) => Ofrendas( // Desde el JSON
+        mostrar: json['mostrar'] == true, // ¿Mostrar?
+        mensaje: json['mensaje'] as String?, // Mensaje
+        cuentas: ((json['cuentas'] as List?) ?? []).map((c) => CuentaOfrenda.desdeJson(c as Map<String, dynamic>)).toList(), // Cuentas
+        qrUrl: json['qr_url'] as String?, // QR
+      ); // Fin
+} // Fin de Ofrendas
+
+class CuentaOfrenda { // Una cuenta bancaria para ofrendar
+  final String banco; // Ej: "Banco Agrícola"
+  final String? tipo; // Ej: "Ahorro"
+  final String numero; // Número de cuenta
+  final String? titular; // A nombre de
+
+  const CuentaOfrenda({required this.banco, this.tipo, required this.numero, this.titular}); // Constructor
+
+  factory CuentaOfrenda.desdeJson(Map<String, dynamic> json) => CuentaOfrenda( // Desde el JSON
+        banco: json['banco'] as String? ?? '', // Banco
+        tipo: json['tipo'] as String?, // Tipo
+        numero: json['numero'] as String? ?? '', // Número
+        titular: json['titular'] as String?, // Titular
+      ); // Fin
+} // Fin de CuentaOfrenda
+
+class VersiculoDia { // Versículo del día (bloque "versiculo_dia")
+  final String texto; // Texto
+  final String referencia; // Cita, ej: "Juan 3:16"
+
+  const VersiculoDia({required this.texto, required this.referencia}); // Constructor
+
+  factory VersiculoDia.desdeJson(Map<String, dynamic> json) => VersiculoDia( // Desde el JSON
+        texto: json['texto'] as String? ?? '', // Texto
+        referencia: json['referencia'] as String? ?? '', // Cita
+      ); // Fin
+} // Fin de VersiculoDia

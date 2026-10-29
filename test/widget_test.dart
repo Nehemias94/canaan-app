@@ -11,6 +11,8 @@ import 'package:canaan_app/servicios/registro.dart'; // Registro del teléfono
 import 'package:canaan_app/pantallas/video.dart'; // Pantalla del video (para cambiar el reproductor por uno de prueba)
 import 'package:canaan_app/servicios/geocerca.dart'; // Geocerca (distancia)
 import 'package:canaan_app/servicios/ubicacion.dart'; // Servicio de ubicación (para cambiarlo por uno de prueba)
+import 'package:canaan_app/servicios/compartir.dart'; // Compartir (se cambia por uno de mentira)
+import 'package:canaan_app/servicios/preferencias.dart'; // Letra grande
 import 'package:canaan_app/servicios/recarga.dart'; // "Timbre" para recargar Inicio al instante
 import 'package:canaan_app/servicios/radio.dart'; // Control de la radio (para cambiarlo por uno de prueba)
 import 'dart:async'; // StreamController (estados de la radio de mentira)
@@ -44,11 +46,12 @@ class RadioFalsa implements ControlRadio { // Radio de mentira: no suena, solo a
 } // Fin de RadioFalsa
 
 class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar internet
-  ApiFalsa({this.falla = false, this.radioAlAire = false, this.avisoNivel}); // Constructor; falla = true simula que no hay conexión; avisoNivel = hay aviso urgente de ese nivel
+  ApiFalsa({this.falla = false, this.radioAlAire = false, this.avisoNivel, this.conExtras = false}); // Constructor; falla = true simula que no hay conexión; avisoNivel = hay aviso urgente de ese nivel; conExtras = WhatsApp, ofrendas y versículo
 
   final bool falla; // ¿Simular error?
   final bool radioAlAire; // ¿La radio está al aire en el panel falso?
   final String? avisoNivel; // Nivel del aviso urgente del panel falso (null = sin aviso)
+  final bool conExtras; // ¿El panel falso tiene WhatsApp, ofrendas y versículo del día?
   bool enVivoEnPanel = true; // ¿Hay transmisión en vivo en el panel falso? (se puede cambiar a mitad de la prueba)
   bool anuncioAreaAhora = false; // ¿Hay un anuncio "Solo área" en su ventana ahora mismo?
 
@@ -115,6 +118,9 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
       'nombre': 'Ministerio Cristiano Canaán', // Nombre
       'ubicacion': {'latitud': 13.6929, 'longitud': -89.2182, 'radio_metros': 200}, // Templo en San Salvador, radio 200 m
       'en_vivo': {'activo': enVivoEnPanel, 'titulo': 'Culto dominical', 'youtube_id': 'envivo123'}, // Transmisión activa
+      if (conExtras) 'contacto': {'whatsapp': '50370000000'}, // WhatsApp
+      if (conExtras) 'ofrendas': {'mostrar': true, 'mensaje': 'Dios ama al dador alegre.', 'cuentas': [{'banco': 'Banco Agrícola', 'tipo': 'Ahorro', 'numero': '3000-123456', 'titular': 'MCC'}], 'qr_url': null}, // Ofrendas
+      if (conExtras) 'versiculo_dia': {'texto': 'Jehová es mi pastor; nada me faltará.', 'referencia': 'Salmos 23:1'}, // Versículo
       if (avisoNivel != null) 'aviso_urgente': {'activo': true, 'titulo': 'Culto cancelado', 'mensaje': 'Hoy no habrá culto por la lluvia.', 'nivel': avisoNivel}, // Aviso urgente
       if (radioAlAire) 'radio': {'disponible': true, 'titulo': 'Culto dominical', 'stream_url': 'https://radio.ejemplo/canaan', 'modo': 'siempre'}, // Radio 24/7
  // Transmisión activa
@@ -456,4 +462,42 @@ void main() { // Punto de arranque de las pruebas
     final botones = tester.getTopLeft(find.text('Oración')).dy; // Altura de los accesos rápidos
     expect(alerta, lessThan(botones)); // La alerta va ANTES (más arriba) que los botones
   }); // Fin de la prueba 24
+
+  testWidgets('Versículo del día: se muestra y se comparte', (WidgetTester tester) async { // Prueba 25
+    String? compartido; // Lo que se intentó compartir
+    Compartir.compartir = (texto) async => compartido = texto; // Compartir de mentira
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa(conExtras: true))); // Panel con versículo
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('VERSÍCULO DEL DÍA'), findsOneWidget); // Tarjeta
+    expect(find.text('Salmos 23:1'), findsOneWidget); // Cita
+    await tester.tap(find.text('Compartir')); // Toca Compartir
+    await tester.pump(); // Espera
+    expect(compartido, contains('Jehová es mi pastor')); // Texto del versículo
+    expect(compartido, contains('Ministerio Cristiano Canaán')); // Con la firma
+  }); // Fin de la prueba 25
+
+  testWidgets('Servicios: WhatsApp y Ofrendas (con copiar número)', (WidgetTester tester) async { // Prueba 26
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa(conExtras: true))); // Panel con WhatsApp y ofrendas
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Servicios'))); // Pestaña Servicios
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Escríbenos por WhatsApp'), findsOneWidget); // Botón de WhatsApp
+    expect(find.text('Letra grande'), findsOneWidget); // Preferencia de letra
+    await tester.tap(find.text('Ofrendas y diezmos')); // Abre ofrendas
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Banco Agrícola'), findsOneWidget); // Cuenta
+    expect(find.text('3000-123456'), findsOneWidget); // Número
+    expect(find.text('Copiar número de cuenta'), findsOneWidget); // Botón copiar
+  }); // Fin de la prueba 26
+
+  testWidgets('Letra grande: agranda los textos de la app', (WidgetTester tester) async { // Prueba 27
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    final antes = tester.getSize(find.text('ANUNCIOS')).height; // Alto del texto normal
+    Preferencias.letraGrande.value = true; // Activa letra grande
+    await tester.pumpAndSettle(); // Redibuja
+    final despues = tester.getSize(find.text('ANUNCIOS')).height; // Alto con letra grande
+    Preferencias.letraGrande.value = false; // La deja como estaba (para las demás pruebas)
+    expect(despues, greaterThan(antes)); // Más grande
+  }); // Fin de la prueba 27
 } // Fin de main
