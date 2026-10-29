@@ -105,13 +105,7 @@ class _CargaAnimadaState extends State<CargaAnimada> with SingleTickerProviderSt
               const SizedBox(height: 36), // Espacio
               Opacity( // Aviso "Conectando…" (solo si tarda)
                 opacity: widget.datosListos ? 0 : aviso, // Aparece desde los 3 s, solo si TODAVÍA está cargando
-                child: const Column( // Dos líneas
-                  children: [ // Elementos
-                    Text('Conectando…', style: TextStyle(color: Colors.white, fontSize: 17)), // Texto principal
-                    SizedBox(height: 4), // Espacio
-                    Text('La primera vez puede tardar hasta un minuto.', style: TextStyle(color: Colors.white60, fontSize: 14)), // Explicación
-                  ], // Fin de los elementos
-                ), // Fin de la columna
+                child: const Text('Conectando…', style: TextStyle(color: Colors.white, fontSize: 17)), // Texto corto (el panel ya no "duerme": cron-job.org lo visita cada minuto)
               ), // Fin del aviso
             ], // Fin de los elementos
           ), // Fin de la columna

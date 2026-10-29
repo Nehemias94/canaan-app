@@ -18,13 +18,7 @@ class Cargando extends StatelessWidget { // Vista "Conectando…" mientras llega
           children: [ // Elementos
             CircularProgressIndicator(color: claro ? doradoCanaan : azulCanaan), // Rueda girando
             const SizedBox(height: 16), // Espacio
-            Text('Conectando…', style: TextStyle(color: colorTexto, fontSize: 18)), // Mensaje
-            const SizedBox(height: 4), // Espacio pequeño
-            Text( // Explicación de la espera
-              'La primera vez puede tardar hasta un minuto.', // Render gratis "despierta" lento
-              textAlign: TextAlign.center, // Centrado
-              style: TextStyle(color: colorTexto.withValues(alpha: 0.7)), // Un poco transparente
-            ), // Fin del texto
+            Text('Conectando…', style: TextStyle(color: colorTexto, fontSize: 18)), // Mensaje corto (el panel ya no "duerme": cron-job.org lo visita cada minuto)
           ], // Fin de los elementos
         ), // Fin de la columna
       ), // Fin del margen
