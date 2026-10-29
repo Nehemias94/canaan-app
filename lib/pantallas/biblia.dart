@@ -54,7 +54,11 @@ class _PantallaBibliaState extends State<PantallaBiblia> { // Estado de la pesta
       ..setBackgroundColor(Colors.white) // Fondo blanco mientras carga
       ..setNavigationDelegate(NavigationDelegate( // Qué hacer al navegar
         onPageStarted: (_) { if (mounted) setState(() { _cargando = true; _sinInternet = false; }); }, // Empezó a cargar: muestra la barrita
-        onPageFinished: (url) => _alTerminar(url), // Terminó: guarda el capítulo y aplica la letra
+        onPageFinished: (url) => _alTerminar(url), // Terminó: guarda el capítulo, oculta el menú de Bible.com y aplica la letra
+        onUrlChange: (cambio) { // Cambió la dirección SIN recargar (ej: flechas ‹ › de capítulo: Bible.com cambia de capítulo sin recargar la página)
+          _recordar(cambio.url); // Recuerda el capítulo nuevo
+          _ocultarMenusDeBibleCom(); // Por si la página volvió a dibujar su menú
+        }, // Fin del cambio de dirección
         onWebResourceError: (error) { // Falló algo...
           if (error.isForMainFrame == true && mounted) setState(() { _sinInternet = true; _cargando = false; }); // ...si fue la página principal: mensaje "sin internet"
         }, // Fin del error
@@ -74,11 +78,33 @@ class _PantallaBibliaState extends State<PantallaBiblia> { // Estado de la pesta
 
   Future<void> _alTerminar(String url) async { // La página terminó de cargar
     if (mounted) setState(() => _cargando = false); // Quita la barrita
+    await _ocultarMenusDeBibleCom(); // Quita el menú duplicado de Bible.com (más sencillo para adultos mayores)
     await _aplicarTamano(); // En iPhone el tamaño se aplica por página
-    if (url.contains('/bible/')) { // Si es un capítulo (no una búsqueda)...
-      try { await _almacen.write(key: _claveUltima, value: url); } catch (_) {} // ...lo recuerda para la próxima vez
-    } // Fin del if
+    await _recordar(url); // Guarda el capítulo
   } // Fin de _alTerminar
+
+  Future<void> _recordar(String? url) async { // Guarda la dirección si es un capítulo (no una búsqueda)
+    if (url == null || !url.contains('/bible/')) return; // No es un capítulo: nada
+    try { await _almacen.write(key: _claveUltima, value: url); } catch (_) {} // Lo recuerda para la próxima vez
+  } // Fin de _recordar
+
+  // Estilo que se agrega a la página de Bible.com para ocultar lo que ya tenemos en la app (evita dos menús y dos botones de letra):
+  // encabezado "Bible App" (logo, buscar, idioma, cuenta), menú de abajo "Navegación rápida" (Inicio · Biblia · Hoy · Planes), pie de página
+  // y el botón "AA" (está justo después del botón de audio "Escuchar"). Se QUEDAN: selector de libro/capítulo, versión, audio y flechas ‹ ›.
+  // Si Bible.com cambia su página y algo deja de ocultarse, la Biblia sigue funcionando igual (solo se vería el menú de ellos).
+  static const _estiloOcultar = '''
+(function () {
+  if (document.getElementById('canaan-estilo')) return;
+  var s = document.createElement('style');
+  s.id = 'canaan-estilo';
+  s.textContent = 'header, footer, nav[aria-label="Navegación rápida"], a[aria-label^="Escuchar"] ~ div[data-headlessui-state] { display: none !important; }';
+  document.head.appendChild(s);
+})();
+'''; // Fin del estilo (código JavaScript que crea una etiqueta <style> una sola vez)
+
+  Future<void> _ocultarMenusDeBibleCom() async { // Agrega el estilo de arriba a la página
+    await _pagina?.runJavaScript(_estiloOcultar).catchError((_) {}); // Si falla, no pasa nada (se vería el menú de Bible.com)
+  } // Fin de _ocultarMenusDeBibleCom
 
   Future<void> _aplicarTamano() async { // Cambia el tamaño del texto de la página
     final pagina = _pagina; // Control actual
