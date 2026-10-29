@@ -7,3 +7,5 @@ const String versionApp = '0.1.0'; // Versión de la app (se envía al panel al 
 const Duration intervaloActualizacion = Duration(seconds: 90); // Cada cuánto Inicio vuelve a preguntar al panel (en vivo, radio, aviso, anuncios)
 
 const Duration tiempoMaximoEspera = Duration(seconds: 75); // Tiempo máximo esperando respuesta (Render gratis tarda ~50 s en "despertar")
+
+const Duration esperaConCopia = Duration(seconds: 12); // Si ya hay una copia guardada, se espera menos: pasado este tiempo, se muestra la copia (sin internet o señal muy débil)

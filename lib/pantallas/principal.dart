@@ -3,6 +3,7 @@ import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 
 import '../componentes/carga_animada.dart'; // presentacionEnCurso: ocultar el menú mientras se ve el logo animado
 import '../servicios/api.dart'; // Llamadas a la API (se pasa a cada pestaña)
+import '../servicios/conexion.dart'; // Franja "Sin conexión"
 import '../servicios/notificaciones.dart'; // Notificaciones (Firebase)
 import '../servicios/recarga.dart'; // Timbre para actualizar la pestaña Eventos
 import '../servicios/registro.dart'; // Registro del teléfono en el panel
@@ -66,7 +67,21 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
       ), // Fin de IndexedStack
       bottomNavigationBar: ValueListenableBuilder<bool>( // Escucha si se está viendo la presentación del logo
         valueListenable: presentacionEnCurso, // Aviso que cambia Inicio
-        builder: (context, enPresentacion, menu) => enPresentacion ? const SizedBox.shrink() : menu!, // Durante la presentación: sin menú (pantalla completa)
+        builder: (context, enPresentacion, menu) => enPresentacion ? const SizedBox.shrink() : Column( // Durante la presentación: sin menú (pantalla completa)
+          mainAxisSize: MainAxisSize.min, // Solo lo necesario
+          children: [ // Franja "sin conexión" (si aplica) y el menú
+            ValueListenableBuilder<bool>( // Escucha si lo que se ve es la copia guardada
+              valueListenable: sinConexion, // true = sin internet
+              builder: (context, sinRed, _) => !sinRed ? const SizedBox.shrink() : Container( // Con conexión: nada
+                width: double.infinity, // Todo el ancho
+                color: const Color(0xFF374151), // Gris oscuro (se nota en claro y en oscuro)
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // Relleno
+                child: const Text('📴 Sin conexión · mostrando lo último guardado', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 14)), // Aviso
+              ), // Fin de la franja
+            ), // Fin de la escucha
+            menu!, // Menú de abajo
+          ], // Fin de los elementos
+        ), // Fin de la columna
         child: NavigationBar( // Menú de abajo (estilo Material 3)
         selectedIndex: _pestana, // Opción resaltada
         onDestinationSelected: (i) { // Al tocar una opción...

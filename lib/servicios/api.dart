@@ -3,6 +3,7 @@ import 'dart:convert'; // Para convertir el texto JSON en datos de Dart (jsonDec
 import 'package:http/http.dart' as http; // Paquete para hacer peticiones a internet
 
 import '../config.dart'; // Dirección de la API y tiempo máximo de espera
+import 'conexion.dart'; // Copia local (funcionar sin internet)
 import '../modelos/actividad.dart'; // Molde de una actividad del horario
 import '../modelos/evento.dart'; // Molde de un evento especial
 import '../modelos/anuncio.dart'; // Molde de un anuncio
@@ -48,15 +49,30 @@ class Api { // Todas las llamadas a la API del panel se hacen desde aquí
     return jsonDecode(respuesta.body) as Map<String, dynamic>; // Convierte el texto en un mapa (clave → valor)
   } // Fin de _revisar
 
-  Future<Map<String, dynamic>> _leer(String ruta, [Map<String, String>? parametros, String? token]) async { // Ayuda interna: hace un GET y devuelve el JSON
+  Future<Map<String, dynamic>> _leer(String ruta, [Map<String, String>? parametros, String? token, bool guardarCopia = false]) async { // Ayuda interna: hace un GET y devuelve el JSON. guardarCopia = sirve sin internet (usa la última respuesta guardada)
     final direccion = Uri.parse('$apiBase/$ruta').replace(queryParameters: parametros); // Arma la dirección, ej: .../api/predicas?buscar=fe
-    final respuesta = await http // Hace la petición y espera la respuesta...
-        .get(direccion, headers: { // ...GET con estas cabeceras:
-          'Accept': 'application/json', // Pide JSON (también los errores)
-          if (token != null) 'Authorization': 'Bearer $token', // La llave del teléfono, solo si la ruta la necesita
-        }) // Fin de las cabeceras
-        .timeout(tiempoMaximoEspera); // Si tarda demasiado, se corta con error
-    return _revisar(respuesta); // Revisa y devuelve el JSON
+    final copia = guardarCopia ? await CopiaLocal.leer(ruta) : null; // Copia guardada (si la hay)
+    try { // Intenta pedirlo al panel
+      final respuesta = await http // Hace la petición y espera la respuesta...
+          .get(direccion, headers: { // ...GET con estas cabeceras:
+            'Accept': 'application/json', // Pide JSON (también los errores)
+            if (token != null) 'Authorization': 'Bearer $token', // La llave del teléfono, solo si la ruta la necesita
+          }) // Fin de las cabeceras
+          .timeout(copia != null ? esperaConCopia : tiempoMaximoEspera); // Si tarda demasiado, se corta (con copia guardada, no se espera tanto)
+      final json = _revisar(respuesta); // Revisa y convierte
+      if (guardarCopia) { // Ruta que sirve sin internet...
+        await CopiaLocal.guardar(ruta, json); // ...guarda la copia nueva
+        sinConexion.value = false; // ...y ya hay conexión
+      } // Fin del if
+      return json; // Datos del panel
+    } catch (error) { // Sin internet, muy lento o el servidor falló
+      final esDeRed = error is! ErrorApi || error.codigo >= 500; // ¿Problema de conexión o del servidor? (un 401/404/422 es una respuesta real: no se reemplaza)
+      if (copia != null && esDeRed) { // Hay copia: la usa
+        sinConexion.value = true; // Avisa (franja "Sin conexión")
+        return copia; // Lo último guardado
+      } // Fin del if
+      rethrow; // Sin copia: el error sigue (la pantalla muestra "Reintentar")
+    } // Fin del try
   } // Fin de _leer
 
   Future<String> registrarDispositivo({required String uuid, required String plataforma}) async { // Registra el teléfono y devuelve su token (POST /api/dispositivos/registrar)
@@ -137,7 +153,7 @@ class Api { // Todas las llamadas a la API del panel se hacen desde aquí
   } // Fin de verificarToken
 
   Future<Iglesia> obtenerIglesia() async { // Datos de la iglesia (GET /api/iglesia)
-    final json = await _leer('iglesia'); // Pide los datos
+    final json = await _leer('iglesia', null, null, true); // Pide los datos (con copia: sirve sin internet)
     return Iglesia.desdeJson(json['data'] as Map<String, dynamic>); // Vienen dentro de "data"
   } // Fin de obtenerIglesia
 
@@ -145,28 +161,28 @@ class Api { // Todas las llamadas a la API del panel se hacen desde aquí
     final json = await _leer('predicas', { // Pide la lista...
       'por_pagina': '30', // ...hasta 30 (el máximo de la API)
       if (buscar.trim().isNotEmpty) 'buscar': buscar.trim(), // ...y el texto a buscar, solo si escribió algo
-    }); // Fin de la petición
+    }, null, buscar.trim().isEmpty); // Fin de la petición (la lista completa se guarda para verla sin internet; las búsquedas no)
     return (json['data'] as List) // La lista viene dentro de "data"...
         .map((p) => Predica.desdeJson(p as Map<String, dynamic>)) // ...cada elemento se convierte en Predica...
         .toList(); // ...y se devuelve como lista
   } // Fin de obtenerPredicas
 
   Future<List<Anuncio>> obtenerAnuncios() async { // Anuncios visibles (GET /api/anuncios), los más recientes primero
-    final json = await _leer('anuncios'); // Pide la lista
+    final json = await _leer('anuncios', null, null, true); // Pide la lista (con copia: sirve sin internet)
     return (json['data'] as List) // La lista viene dentro de "data"...
         .map((a) => Anuncio.desdeJson(a as Map<String, dynamic>)) // ...cada elemento se convierte en Anuncio...
         .toList(); // ...y se devuelve como lista
   } // Fin de obtenerAnuncios
 
   Future<List<Actividad>> obtenerActividades() async { // Horario de cultos (GET /api/actividades), ya ordenado por día y hora
-    final json = await _leer('actividades'); // Pide la lista
+    final json = await _leer('actividades', null, null, true); // Pide la lista (con copia: sirve sin internet)
     return (json['data'] as List) // La lista viene dentro de "data"...
         .map((a) => Actividad.desdeJson(a as Map<String, dynamic>)) // ...cada elemento se convierte en Actividad...
         .toList(); // ...y se devuelve como lista
   } // Fin de obtenerActividades
 
   Future<List<Evento>> obtenerEventos() async { // Eventos especiales que aún no terminan (GET /api/eventos), del más cercano al más lejano
-    final json = await _leer('eventos'); // Pide la lista
+    final json = await _leer('eventos', null, null, true); // Pide la lista (con copia: sirve sin internet)
     return (json['data'] as List) // La lista viene dentro de "data"...
         .map((e) => Evento.desdeJson(e as Map<String, dynamic>)) // ...cada elemento se convierte en Evento...
         .toList(); // ...y se devuelve como lista

@@ -1,4 +1,8 @@
+import 'dart:convert'; // jsonEncode (respuestas de mentira)
 import 'package:flutter/material.dart'; // Componentes visuales (para buscar íconos y textos)
+import 'package:http/http.dart' as http; // Para simular el internet en la prueba de "sin conexión"
+import 'package:http/testing.dart'; // MockClient: internet de mentira
+import 'package:canaan_app/servicios/conexion.dart'; // Copia local y "sinConexion"
 import 'package:flutter_test/flutter_test.dart'; // Herramientas de pruebas automáticas de Flutter
 
 import 'package:canaan_app/main.dart'; // Nuestra app
@@ -765,4 +769,24 @@ void main() { // Punto de arranque de las pruebas
     expect(HSLColor.fromColor(enOscuro!).lightness, greaterThanOrEqualTo(0.68)); // En oscuro: mucho más claro
     expect(burbuja, 0.24); // Burbuja más visible
   }); // Fin de la prueba 42
+
+  test('Sin internet: usa la última copia guardada y lo avisa', () async { // Prueba 43 (la API real con un internet de mentira)
+    var hayInternet = true; // Se apaga a mitad de la prueba
+    final internet = MockClient((peticion) async { // Internet de mentira
+      if (!hayInternet) throw http.ClientException('sin internet'); // Apagado: falla como en el teléfono
+      return http.Response(jsonEncode({'data': [{'id': 1, 'titulo': 'Campamento', 'inicia_en': '2026-12-01T08:00:00-06:00'}]}), 200, headers: {'content-type': 'application/json; charset=utf-8'}); // El panel responde un evento
+    }); // Fin del internet
+    await http.runWithClient(() async { // Todas las peticiones usan el internet de mentira
+      final eventos = await const Api().obtenerEventos(); // Con internet
+      expect(eventos.single.titulo, 'Campamento'); // Llegó
+      expect(sinConexion.value, isFalse); // Con conexión
+      hayInternet = false; // Se va el internet
+      CopiaLocal.olvidarMemoria(); // Que lea la copia del almacén del teléfono (como al abrir la app otro día)
+      final otraVez = await const Api().obtenerEventos(); // Sin internet
+      expect(otraVez.single.titulo, 'Campamento'); // Muestra la copia guardada
+      expect(sinConexion.value, isTrue); // Y avisa "Sin conexión"
+      await expectLater(const Api().obtenerActividades(), throwsA(isA<http.ClientException>())); // Lo que nunca se guardó: error (la pantalla muestra "Reintentar")
+    }, () => internet); // Fin de runWithClient
+    sinConexion.value = false; // Lo deja como estaba (para las demás pruebas)
+  }); // Fin de la prueba 43
 } // Fin de main
