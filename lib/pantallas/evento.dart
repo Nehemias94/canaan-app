@@ -1,29 +1,16 @@
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 
+import '../componentes/campanita_evento.dart'; // Activar/quitar el recordatorio
 import '../componentes/imagen_y_boton.dart'; // Imagen (flyer) y botón con enlace
 import '../modelos/evento.dart'; // Molde de un evento
 import '../servicios/compartir.dart'; // Compartir
 import '../servicios/preferencias.dart'; // Eventos con recordatorio
-import '../servicios/recordatorios.dart'; // Recordatorio en el teléfono
 import '../tema.dart'; // Colores de Canaán
 
 class PantallaEvento extends StatelessWidget { // Detalle de un evento especial
   const PantallaEvento({super.key, required this.evento}); // Constructor
 
   final Evento evento; // Datos del evento
-
-  Future<void> _cambiarRecordatorio(BuildContext context, bool activo) async { // Activa o quita el recordatorio
-    final mensajero = ScaffoldMessenger.of(context); // Para avisar (se toma antes de esperar)
-    if (activo) { // Ya estaba: lo quita
-      await Recordatorios.desactivarEvento(evento.id); // Cancela
-      mensajero.showSnackBar(const SnackBar(content: Text('Recordatorio quitado.'))); // Aviso
-      return; // Listo
-    } // Fin del if
-    final texto = await Recordatorios.activarEvento(evento); // Programa (devuelve cuándo avisará, o null)
-    mensajero.showSnackBar(SnackBar(content: Text(texto == null // ¿Se pudo?
-        ? (Recordatorios.soportado ? 'No se pudo: falta el permiso de notificaciones o el evento ya está por empezar.' : 'Los recordatorios funcionan en la app del teléfono.') // No
-        : 'Listo: te avisaremos $texto.'))); // Sí: "mañana a las 7:00 pm"
-  } // Fin de _cambiarRecordatorio
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
@@ -53,7 +40,7 @@ class PantallaEvento extends StatelessWidget { // Detalle de un evento especial
                 style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48), foregroundColor: activo ? context.cc.dorado : context.cc.titulo), // Todo el ancho
                 icon: Icon(activo ? Icons.notifications_active : Icons.notifications_none), // Campana
                 label: Text(activo ? 'Recordatorio activado (toca para quitar)' : 'Recordarme', style: const TextStyle(fontSize: 16)), // Texto
-                onPressed: () => _cambiarRecordatorio(context, activo), // Activa o quita
+                onPressed: () => alternarRecordatorioEvento(context, evento), // Activa o quita (igual que la 🔔 de la tarjeta)
               ); // Fin del botón
             }, // Fin de builder
           ), // Fin de ValueListenableBuilder

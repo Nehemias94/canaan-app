@@ -3,6 +3,7 @@ import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 import '../modelos/evento.dart'; // Molde de un evento
 import '../pantallas/evento.dart'; // Pantalla con el detalle del evento
 import '../servicios/compartir.dart'; // Botón Compartir
+import 'campanita_evento.dart'; // Botón 🔔 (recordatorio)
 import '../tema.dart'; // Colores de Canaán
 import 'imagen_y_boton.dart'; // Imagen (flyer)
 import 'tarjeta.dart'; // Tarjeta con franja de color
@@ -35,6 +36,7 @@ class TarjetaEvento extends StatelessWidget { // Tarjeta de un evento especial (
               Icon(Icons.celebration_outlined, color: context.cc.morado, size: 24), // Ícono de celebración
               const SizedBox(width: 8), // Espacio
               Expanded(child: Text(evento.titulo, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cc.titulo))), // Nombre
+              CampanitaEvento(evento: evento), // 🔔 Recordatorio (avisos que eligió el panel)
               IconButton( // Botón compartir (sin abrir el evento)
                 tooltip: 'Compartir evento', // Texto de ayuda (y para lectores de pantalla)
                 visualDensity: VisualDensity.compact, // Compacto

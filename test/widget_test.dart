@@ -13,6 +13,7 @@ import 'package:canaan_app/servicios/registro.dart'; // Registro del teléfono
 import 'package:canaan_app/pantallas/video.dart'; // Pantalla del video (para cambiar el reproductor por uno de prueba)
 import 'package:canaan_app/servicios/geocerca.dart'; // Geocerca (distancia)
 import 'package:canaan_app/servicios/ubicacion.dart'; // Servicio de ubicación (para cambiarlo por uno de prueba)
+import 'package:canaan_app/servicios/recordatorios.dart'; // Cálculo de los avisos de eventos
 import 'package:canaan_app/servicios/compartir.dart'; // Compartir (se cambia por uno de mentira)
 import 'package:canaan_app/servicios/preferencias.dart'; // Letra grande
 import 'package:canaan_app/servicios/recarga.dart'; // "Timbre" para recargar Inicio al instante
@@ -694,4 +695,32 @@ void main() { // Punto de arranque de las pruebas
     expect(compartido, contains('• Culto general · 10:00 am – 12:00 pm 🔴')); // Culto con su marca de en vivo
     expect(compartido, contains('Ministerio Cristiano Canaán')); // Firma
   }); // Fin de la prueba 37
+
+  test('Eventos: avisos según lo elegido en el panel', () { // Prueba 38 (sin pantalla: solo el cálculo)
+    final ahora = DateTime(2026, 11, 1, 12, 0); // "Ahora" fijo: 1 de noviembre, mediodía
+    final evento = Evento(id: 7, titulo: 'Cantata', iniciaEn: DateTime(2026, 11, 10, 18, 0), diasAntes: 2, minutosAntes: 30); // 10 nov 6:00 pm; 2 días antes y 30 min antes
+    final avisos = Recordatorios.avisosDeEvento(evento, ahora); // Cálculo
+    expect(avisos.length, 2); // Dos avisos
+    expect(avisos[0].cuando, DateTime(2026, 11, 8, 9, 0)); // 8 nov a las 9:00 am
+    expect(avisos[0].titulo, '📅 En 2 días: Cantata'); // Título
+    expect(avisos[1].cuando, DateTime(2026, 11, 10, 17, 30)); // 5:30 pm del mismo día
+    expect(avisos[1].titulo, '⏰ En 30 minutos: Cantata'); // Título
+    final manana = Evento(id: 8, titulo: 'Ayuno', iniciaEn: DateTime(2026, 11, 2, 6, 0), diasAntes: 1, minutosAntes: 60); // Mañana a las 6:00 am
+    expect(Recordatorios.avisosDeEvento(manana, ahora).map((a) => a.titulo), ['⏰ En 1 hora: Ayuno']); // El de "1 día antes" (hoy 9:00 am) ya pasó: solo queda el de 1 hora
+    final nada = Evento(id: 9, titulo: 'Sin aviso', iniciaEn: DateTime(2026, 11, 20, 8, 0), diasAntes: 0, minutosAntes: 0); // El panel no quiere avisos
+    expect(Recordatorios.avisosDeEvento(nada, ahora), isEmpty); // Ninguno
+  }); // Fin de la prueba 38
+
+  testWidgets('Eventos: la tarjeta tiene la campanita 🔔', (WidgetTester tester) async { // Prueba 39
+    final inicio = DateTime.now().add(const Duration(days: 30)); // Dentro de 30 días
+    final api = ApiFalsa()..eventos = [{'id': 4, 'titulo': 'Cantata de Navidad', 'inicia_en': inicio.toIso8601String(), 'en_curso': false, 'recordatorio': {'dias_antes': 2, 'minutos_antes': 30}}]; // Evento
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Eventos'))); // Pestaña Eventos
+    await tester.pumpAndSettle(); // Espera
+    expect(find.byTooltip('Recordarme este evento'), findsOneWidget); // Campanita en la tarjeta
+    await tester.tap(find.byTooltip('Recordarme este evento')); // La toca (en las pruebas no hay teléfono)
+    await tester.pump(); // Espera el aviso
+    expect(find.text('Los recordatorios funcionan en la app del teléfono.'), findsOneWidget); // Explica por qué no se activó
+  }); // Fin de la prueba 39
 } // Fin de main

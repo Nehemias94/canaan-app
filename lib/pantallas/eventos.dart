@@ -8,6 +8,7 @@ import '../config.dart'; // intervaloActualizacion (90 s)
 import '../modelos/evento.dart'; // Molde de un evento
 import '../servicios/api.dart'; // Llamadas a la API
 import '../servicios/recarga.dart'; // Timbre "recargarEventos" (al tocar la pestaña)
+import '../servicios/recordatorios.dart'; // Reprogramar las 🔔 si el panel cambió algo
 
 class PantallaEventos extends StatefulWidget { // Pestaña "Eventos" (menú de abajo): eventos especiales del panel
   const PantallaEventos({super.key, required this.api}); // Constructor
@@ -49,6 +50,7 @@ class _PantallaEventosState extends State<PantallaEventos> with WidgetsBindingOb
     try { // Intenta
       final eventos = await widget.api.obtenerEventos(); // Petición
       if (mounted) setState(() { _eventos = eventos; _fallo = false; }); // Redibuja con lo nuevo
+      await Recordatorios.sincronizarEventos(eventos); // Reprograma las 🔔 (fecha u opciones cambiadas; olvida los borrados)
     } catch (_) { // Sin internet, servidor dormido…
       if (mounted && _eventos == null) setState(() => _fallo = true); // Solo muestra el error si no había nada en pantalla
     } // Fin del try
