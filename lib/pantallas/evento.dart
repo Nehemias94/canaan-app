@@ -26,7 +26,7 @@ class PantallaEvento extends StatelessWidget { // Detalle de un evento especial
           const SizedBox(height: 10), // Espacio
           _Dato(icono: Icons.event, texto: evento.enCurso ? 'Ahora · ${evento.cuandoTexto()}' : evento.cuandoTexto()), // Cuándo
           if (evento.lugar != null && evento.lugar!.isNotEmpty) _Dato(icono: Icons.place_outlined, texto: evento.lugar!), // Dónde
-          if (evento.seTransmite) _Dato(icono: Icons.live_tv, texto: 'Se transmite en vivo en la app', color: Colors.red.shade700), // En vivo
+          if (evento.seTransmite) _Dato(icono: Icons.live_tv, texto: 'Se transmite en vivo en la app', color: context.vivo(Colors.red.shade700)), // En vivo
           if (evento.descripcion != null && evento.descripcion!.isNotEmpty) // Si tiene detalle...
             Padding(padding: const EdgeInsets.only(top: 14), child: Text(evento.descripcion!, style: const TextStyle(fontSize: 17, height: 1.4))), // ...texto
           const SizedBox(height: 20), // Espacio

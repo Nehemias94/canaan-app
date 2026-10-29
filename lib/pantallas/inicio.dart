@@ -266,7 +266,7 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
               if (iglesia.versiculo != null) _TarjetaVersiculo(versiculo: iglesia.versiculo!), // Versículo del día (se puede compartir)
               if (iglesia.enVivo.activo) // Si hay transmisión en vivo...
                 TarjetaCanaan( // ...tarjeta con franja ROJA
-                  franja: Colors.red.shade700, // Rojo
+                  franja: context.vivo(Colors.red.shade700), // Rojo
                   alTocar: hayVideo ? () => _abrirEnVivo(context) : null, // Al tocar, abre el video
                   child: Column( // Uno debajo del otro
                     crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
@@ -451,8 +451,8 @@ class _AccesosRapidos extends StatelessWidget { // Tarjeta con botones grandes d
                 children: [ // Elementos
                   Container( // Burbuja de color detrás del ícono
                     padding: const EdgeInsets.all(10), // Tamaño de la burbuja
-                    decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle), // Círculo del color, muy suave
-                    child: Icon(icono, color: color, size: 28), // Ícono grande
+                    decoration: BoxDecoration(color: context.vivo(color).withValues(alpha: context.alfaBurbuja), shape: BoxShape.circle), // Círculo del color, suave (más visible en modo oscuro)
+                    child: Icon(icono, color: context.vivo(color), size: 28), // Ícono grande (más claro en modo oscuro)
                   ), // Fin de la burbuja
                   const SizedBox(height: 6), // Espacio
                   Text(texto, textAlign: TextAlign.center, maxLines: 2, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.cc.titulo, height: 1.15)), // Texto (hasta 2 renglones: "Cómo llegar")
@@ -542,17 +542,17 @@ class _ProximoCultoState extends State<_ProximoCulto> { // Estado: un reloj redi
     final regresiva = _cuentaRegresiva(actividad); // Cuenta regresiva (o null)
     final detalle = [actividad.horario, actividad.lugar].where((t) => t != null && t.isNotEmpty).join(' · '); // "7:00 pm – 8:30 pm · Templo principal"
     return TarjetaCanaan( // Tarjeta con franja verde
-      franja: _verde, // Verde
+      franja: context.vivo(_verde), // Verde
       alTocar: widget.alTocar, // Abre Horario
       child: Row( // Ícono, textos y flechita
         children: [ // Elementos
-          const Icon(Icons.event_available, color: _verde, size: 30), // Calendario con palomita
+          Icon(Icons.event_available, color: context.vivo(_verde), size: 30), // Calendario con palomita
           const SizedBox(width: 12), // Espacio
           Expanded( // Textos
             child: Column( // Uno debajo del otro
               crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
               children: [ // Elementos
-                Text(enCurso ? 'AHORA EN LA IGLESIA' : 'PRÓXIMO CULTO', style: const TextStyle(color: _verde, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)), // Encabezado pequeño
+                Text(enCurso ? 'AHORA EN LA IGLESIA' : 'PRÓXIMO CULTO', style: TextStyle(color: context.vivo(_verde), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)), // Encabezado pequeño
                 const SizedBox(height: 2), // Espacio
                 Text('$cuando · ${actividad.nombre}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cc.titulo)), // "Hoy · Culto de oración"
                 if (detalle.isNotEmpty) Text(detalle, style: TextStyle(fontSize: 15, color: context.cc.suave)), // Hora y lugar
@@ -561,9 +561,9 @@ class _ProximoCultoState extends State<_ProximoCulto> { // Estado: un reloj redi
                     padding: const EdgeInsets.only(top: 6), // Separación
                     child: Row( // Ícono rojo y texto
                       children: [ // Elementos
-                        Icon(Icons.live_tv, color: Colors.red.shade700, size: 18), // Televisor rojo
+                        Icon(Icons.live_tv, color: context.vivo(Colors.red.shade700), size: 18), // Televisor rojo
                         const SizedBox(width: 6), // Espacio
-                        Expanded(child: Text(regresiva, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.red.shade700))), // "En vivo en la app · faltan 2 h"
+                        Expanded(child: Text(regresiva, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: context.vivo(Colors.red.shade700)))), // "En vivo en la app · faltan 2 h"
                       ], // Fin de los elementos
                     ), // Fin de la fila
                   ), // Fin del margen

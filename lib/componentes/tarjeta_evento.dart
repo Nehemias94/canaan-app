@@ -19,7 +19,7 @@ class TarjetaEvento extends StatelessWidget { // Tarjeta de un evento especial (
   Widget build(BuildContext context) { // Describe cómo se ve
     final fecha = Text( // Cuándo
       evento.enCurso ? '● AHORA' : evento.cuandoTexto().toUpperCase(), // "● AHORA" o "SÁBADO, 20 DE NOVIEMBRE · 8:00 AM"
-      style: TextStyle(color: evento.enCurso ? Colors.green.shade700 : context.cc.morado, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.8), // Pequeño y en color
+      style: TextStyle(color: evento.enCurso ? context.vivo(Colors.green.shade700) : context.cc.morado, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.8), // Pequeño y en color
     ); // Fin de la fecha
     return TarjetaCanaan( // Tarjeta con franja morada
       franja: moradoEvento, // Morado
@@ -56,7 +56,7 @@ class TarjetaEvento extends StatelessWidget { // Tarjeta de un evento especial (
           if (evento.lugar != null && evento.lugar!.isNotEmpty) // Si tiene lugar...
             Padding(padding: const EdgeInsets.only(top: 4), child: Text('📍 ${evento.lugar}', style: TextStyle(fontSize: 15, color: context.cc.suave))), // ...con pin
           if (evento.seTransmite) // Si se transmite...
-            Padding(padding: const EdgeInsets.only(top: 4), child: Text('🔴 Se transmite en vivo en la app', style: TextStyle(fontSize: 14, color: Colors.red.shade700, fontWeight: FontWeight.w600))), // ...aviso rojo
+            Padding(padding: const EdgeInsets.only(top: 4), child: Text('🔴 Se transmite en vivo en la app', style: TextStyle(fontSize: 14, color: context.vivo(Colors.red.shade700), fontWeight: FontWeight.w600))), // ...aviso rojo
         ], // Fin de los elementos
       ), // Fin de la columna
     ); // Fin de la tarjeta

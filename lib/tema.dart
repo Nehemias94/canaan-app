@@ -50,6 +50,16 @@ class ColoresCanaan extends ThemeExtension<ColoresCanaan> { // Colores que CAMBI
 
 extension ColoresDelTema on BuildContext { // Atajo: context.cc.titulo, context.cc.suave…
   ColoresCanaan get cc => Theme.of(this).extension<ColoresCanaan>() ?? ColoresCanaan.claro; // Colores del modo actual
+
+  bool get modoOscuro => Theme.of(this).brightness == Brightness.dark; // ¿Está en modo oscuro?
+
+  Color vivo(Color color) { // Ícono o texto de color: igual en modo claro; en modo oscuro, una versión más CLARA y viva del mismo color (los colores oscuros se "apagan" sobre el fondo marino)
+    if (!modoOscuro) return color; // Modo claro: el mismo
+    final hsl = HSLColor.fromColor(color); // Color en tono, saturación y luz
+    return hsl.withLightness(hsl.lightness < 0.68 ? 0.68 : hsl.lightness).withSaturation(hsl.saturation < 0.75 ? 0.75 : hsl.saturation).toColor(); // Más luz (mín. 68 %) y más saturación (mín. 75 %)
+  } // Fin de vivo
+
+  double get alfaBurbuja => modoOscuro ? 0.24 : 0.12; // Burbuja detrás de los íconos: más visible en modo oscuro
 } // Fin de la extensión
 
 ThemeData temaCanaan({bool oscuro = false}) { // Tema (colores y estilos) de toda la app; oscuro = true para el modo oscuro

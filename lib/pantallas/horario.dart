@@ -121,7 +121,7 @@ class _FilaActividad extends StatelessWidget { // Una actividad dentro del horar
       child: ListTile( // Fila con ícono, título y detalles
         leading: Icon( // Ícono a la izquierda
           actividad.seTransmite ? Icons.live_tv : Icons.event, // Televisor si se transmite; calendario si no
-          color: actividad.seTransmite ? Colors.red : azulCanaan, // Rojo o azul
+          color: actividad.seTransmite ? context.vivo(Colors.red) : context.cc.azul, // Rojo o azul
         ), // Fin del ícono
         title: Text(actividad.nombre, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cc.titulo)), // Nombre en negrita marino, ej: "Culto general"
         subtitle: Text( // Detalles

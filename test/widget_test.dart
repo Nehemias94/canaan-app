@@ -754,4 +754,14 @@ void main() { // Punto de arranque de las pruebas
     expect(Evento(id: 1, titulo: 'A', iniciaEn: DateTime(2026, 11, 20, 8), terminaEn: DateTime(2026, 11, 22, 16)).cuandoTexto(), '20 al 22 de noviembre'); // Mismo mes
     expect(Evento(id: 2, titulo: 'B', iniciaEn: DateTime(2026, 11, 30, 8), terminaEn: DateTime(2026, 12, 2, 16)).cuandoTexto(), '30 de noviembre al 2 de diciembre'); // Distinto mes
   }); // Fin de la prueba 41
+
+  testWidgets('Modo oscuro: los colores de íconos se aclaran (y en claro no cambian)', (WidgetTester tester) async { // Prueba 42
+    const verde = Color(0xFF15803D); // Verde del Horario
+    Color? enClaro; Color? enOscuro; double? burbuja; // Resultados
+    await tester.pumpWidget(MaterialApp(theme: temaCanaan(), home: Builder(builder: (c) { enClaro = c.vivo(verde); return const SizedBox(); }))); // Tema claro
+    await tester.pumpWidget(MaterialApp(theme: temaCanaan(oscuro: true), home: Builder(builder: (c) { enOscuro = c.vivo(verde); burbuja = c.alfaBurbuja; return const SizedBox(); }))); // Tema oscuro
+    expect(enClaro, verde); // En claro: el mismo
+    expect(HSLColor.fromColor(enOscuro!).lightness, greaterThanOrEqualTo(0.68)); // En oscuro: mucho más claro
+    expect(burbuja, 0.24); // Burbuja más visible
+  }); // Fin de la prueba 42
 } // Fin de main

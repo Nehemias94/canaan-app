@@ -165,7 +165,7 @@ class _PantallaVideoState extends State<PantallaVideo> { // Estado de la pantall
           padding: const EdgeInsets.symmetric(vertical: 6), // Arriba y abajo
           child: Column( // Ícono arriba, texto abajo
             children: [ // Elementos
-              CircleAvatar(radius: 24, backgroundColor: color.withValues(alpha: 0.12), child: Icon(icono, color: color, size: 26)), // Burbuja de color
+              CircleAvatar(radius: 24, backgroundColor: context.vivo(color).withValues(alpha: context.alfaBurbuja), child: Icon(icono, color: context.vivo(color), size: 26)), // Burbuja de color
               const SizedBox(height: 6), // Espacio
               Text(texto, textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: context.cc.titulo)), // Texto
             ], // Fin de los elementos
