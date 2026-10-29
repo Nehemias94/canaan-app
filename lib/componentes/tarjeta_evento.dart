@@ -17,6 +17,10 @@ class TarjetaEvento extends StatelessWidget { // Tarjeta de un evento especial (
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
+    final fecha = Text( // Cuándo
+      evento.enCurso ? '● AHORA' : evento.cuandoTexto().toUpperCase(), // "● AHORA" o "SÁBADO, 20 DE NOVIEMBRE · 8:00 AM"
+      style: TextStyle(color: evento.enCurso ? Colors.green.shade700 : context.cc.morado, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.8), // Pequeño y en color
+    ); // Fin de la fecha
     return TarjetaCanaan( // Tarjeta con franja morada
       franja: moradoEvento, // Morado
       margen: const EdgeInsets.only(top: 10), // Separación
@@ -26,15 +30,12 @@ class TarjetaEvento extends StatelessWidget { // Tarjeta de un evento especial (
         children: [ // Elementos
           if (evento.imagenUrl != null) // Si tiene imagen...
             Padding(padding: const EdgeInsets.only(bottom: 10), child: ImagenRed(url: evento.imagenUrl!, altoMaximo: 220)), // ...arriba, más baja que en el detalle
-          Text( // Cuándo
-            evento.enCurso ? '● AHORA' : evento.cuandoTexto().toUpperCase(), // "● AHORA" o "SÁBADO, 20 DE NOVIEMBRE · 8:00 AM"
-            style: TextStyle(color: evento.enCurso ? Colors.green.shade700 : context.cc.morado, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.8), // Pequeño y en color
-          ), // Fin del texto
+          if (evento.imagenUrl == null) fecha, // Sin flyer: la fecha arriba del nombre
           Row( // Ícono, nombre y botones
             children: [ // Elementos
               Expanded( // El nombre ocupa el resto
                 child: evento.imagenUrl != null // ¿Tiene flyer?
-                    ? Semantics(label: evento.titulo, child: const SizedBox(height: 8)) // Sí: el nombre ya está en la imagen (no se repite); los lectores de pantalla sí lo leen
+                    ? Semantics(label: evento.titulo, child: fecha) // Sí: el nombre ya está en la imagen (no se repite): la fecha va en este renglón, junto a 🔔 y 📤; los lectores de pantalla sí leen el nombre
                     : Row( // No: ícono y nombre
                         children: [ // Elementos
                           Icon(Icons.celebration_outlined, color: context.cc.morado, size: 24), // Ícono de celebración
