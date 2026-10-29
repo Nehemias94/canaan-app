@@ -4,6 +4,7 @@ import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 import 'package:flutter/services.dart'; // SystemUiOverlayStyle (colores de la barra de arriba del teléfono)
 
 import '../componentes/estados.dart'; // Vistas compartidas: Cargando, ErrorConexion
+import '../componentes/carga_animada.dart'; // Pantalla de carga con el logo animado
 import '../componentes/tarjeta.dart'; // Tarjeta con franja de color (diseño común)
 import '../config.dart'; // intervaloActualizacion
 import '../modelos/anuncio.dart'; // Molde de un anuncio
@@ -32,6 +33,8 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
   List<Anuncio> _anuncios = []; // Últimos anuncios recibidos
   bool _fallo = false; // true si la PRIMERA carga falló (luego, si falla, se conservan los datos anteriores)
   Timer? _reloj; // Reloj que vuelve a preguntar al panel cada 90 s
+  Timer? _esperaAnimacion; // Espera para que la animación del logo se vea completa al abrir la app
+  bool _animacionVista = false; // true cuando ya pasó el tiempo mínimo de la animación del logo
   late final Geocerca _geocerca = Geocerca(); // Revisa si el teléfono está en la iglesia ("late": se crea la primera vez que se usa)
   bool _revisandoGeocerca = false; // true mientras revisa (para no encimar dos revisiones)
 
@@ -41,6 +44,9 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
     WidgetsBinding.instance.addObserver(this); // Empieza a escuchar si la app se minimiza o vuelve
     _cargar(); // Primera carga
     _reloj = Timer.periodic(intervaloActualizacion, (_) => _cargar()); // Luego, cada 90 s, en silencio
+    _esperaAnimacion = Timer(const Duration(milliseconds: 2600), () { // Al abrir la app, el logo animado se ve al menos 2.6 s (hasta que se forma "Canaán")...
+      if (mounted) setState(() => _animacionVista = true); // ...aunque el panel responda antes
+    }); // Fin de la espera
     recargarInicio.addListener(_cargar); // Y al instante cuando el panel cambia el aviso urgente (aviso silencioso de Firebase)
   } // Fin de initState
 
@@ -48,6 +54,7 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
   void dispose() { // Al cerrar la pantalla
     recargarInicio.removeListener(_cargar); // Deja de escuchar el "timbre"
     _reloj?.cancel(); // Detiene el reloj
+    _esperaAnimacion?.cancel(); // Y la espera de la animación
     WidgetsBinding.instance.removeObserver(this); // Deja de escuchar
     super.dispose(); // Lo de Flutter por defecto
   } // Fin de dispose
@@ -124,7 +131,7 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
   Widget build(BuildContext context) { // Describe cómo se ve
     return AnnotatedRegion<SystemUiOverlayStyle>( // Estilo de la barra de arriba del teléfono (hora, batería) mientras se ve Inicio
       value: barraSuperiorClara, // Íconos en blanco: arriba siempre hay marino
-      child: _fallo || _iglesia == null // ¿Falló la primera carga o todavía no hay datos?
+      child: _fallo || _iglesia == null || !_animacionVista // ¿Falló la primera carga, todavía no hay datos o la animación del logo no ha terminado?
           ? Container( // Pantalla completa en degradado mientras carga (o si falló)
               decoration: const BoxDecoration( // Fondo
                 gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [marinoCanaan, azulCanaan]), // Marino → azul
@@ -132,7 +139,7 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
               child: SafeArea( // Evita la cámara y la barra del teléfono
                 child: _fallo // ¿Falló?
                     ? ErrorConexion(alReintentar: _reintentar, claro: true) // Sí: mensaje y Reintentar
-                    : const Cargando(claro: true), // No: "Conectando…"
+                    : const CargaAnimada(), // No: logo animado (arca + "Canaán" letra por letra)
               ), // Fin de SafeArea
             ) // Fin de la pantalla de carga
           : RefreshIndicator( // Hay datos: permite "jalar hacia abajo" para actualizar

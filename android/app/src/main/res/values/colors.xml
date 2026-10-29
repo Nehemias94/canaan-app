@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#00223E</color>
+    <!-- Marino de Canaán: fondo del arranque de la app (antes de la animación del logo) -->
+    <color name="marino_canaan">#00223E</color>
 </resources>

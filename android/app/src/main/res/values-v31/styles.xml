@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12 o más nuevo: el sistema muestra su propia pantalla de arranque (ícono de la app al centro).
+         Fondo marino de Canaán para que empalme con la animación del logo de la app (antes salía gris/blanco). -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:windowSplashScreenBackground">@color/marino_canaan</item>
+    </style>
+    <!-- Fondo detrás de la app mientras Flutter termina de arrancar: también marino (sin parpadeo blanco) -->
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@color/marino_canaan</item>
+    </style>
+</resources>
