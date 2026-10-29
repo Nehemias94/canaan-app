@@ -6,6 +6,7 @@ import '../componentes/estados.dart'; // Vistas compartidas: Cargando, ErrorCone
 import '../modelos/actividad.dart'; // Molde de una actividad
 import '../config.dart'; // intervaloActualizacion (90 s)
 import '../servicios/api.dart'; // Llamadas a la API
+import '../servicios/compartir.dart'; // Compartir un culto o el horario completo
 import '../servicios/preferencias.dart'; // Lista de cultos con recordatorio
 import '../servicios/recordatorios.dart'; // Recordatorio 30 min antes
 import '../tema.dart'; // Colores de Canaán
@@ -60,7 +61,17 @@ class _PantallaHorarioState extends State<PantallaHorario> with WidgetsBindingOb
   Widget build(BuildContext context) { // Describe cómo se ve
     final actividades = _actividades; // Atajo
     return Scaffold( // Estructura de la pantalla
-      appBar: AppBar(title: const Text('Horario de cultos')), // Barra de título (con flecha para volver)
+      appBar: AppBar( // Barra de título (con flecha para volver)
+        title: const Text('Horario de cultos'), // Título
+        actions: [ // Botones a la derecha
+          if (actividades != null && actividades.isNotEmpty) // Si ya hay horario...
+            IconButton( // ...botón para compartirlo completo
+              tooltip: 'Compartir horario completo', // Texto de ayuda (y para lectores de pantalla)
+              icon: const Icon(Icons.share), // Ícono compartir
+              onPressed: () => Compartir.texto(Actividad.horarioCompleto(actividades)), // Toda la semana, por día
+            ), // Fin del botón
+        ], // Fin de los botones
+      ), // Fin de la barra
       body: actividades == null // ¿Todavía no hay datos?
           ? (_fallo ? ErrorConexion(alReintentar: _cargar) : const Cargando()) // Error o esperando
           : RefreshIndicator( // "Jalar hacia abajo" para actualizar
@@ -126,6 +137,12 @@ class _FilaActividad extends StatelessWidget { // Una actividad dentro del horar
                 visualDensity: VisualDensity.compact, // Compacta
               ), // Fin de la etiqueta
             if (Recordatorios.soportado) _Campanita(actividad: actividad), // Recordatorio 30 min antes (solo en teléfonos)
+            IconButton( // Compartir este culto
+              tooltip: 'Compartir culto', // Texto de ayuda (y para lectores de pantalla)
+              visualDensity: VisualDensity.compact, // Compacto (junto a la campanita)
+              icon: Icon(Icons.share, color: context.cc.azul), // Ícono compartir
+              onPressed: () => Compartir.texto(actividad.textoParaCompartir()), // Nombre, día, hora, lugar
+            ), // Fin del botón
           ], // Fin de los elementos
         ), // Fin de la fila
       ), // Fin de la fila

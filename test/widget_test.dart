@@ -674,4 +674,24 @@ void main() { // Punto de arranque de las pruebas
     expect(texto, contains('Ministerio Cristiano Canaán')); // Y la firma
     expect(find.text('Evento especial'), findsNothing); // No abrió el detalle (solo compartió)
   }); // Fin de la prueba 36
+
+  testWidgets('Horario: compartir un culto y el horario completo', (WidgetTester tester) async { // Prueba 37
+    String? compartido; // Lo que se intentó compartir
+    Compartir.compartir = (texto) async => compartido = texto; // Compartir de mentira
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.text('Horario')); // Acceso rápido Horario
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.byTooltip('Compartir culto')); // Comparte el culto
+    await tester.pump(); // Espera
+    expect(compartido, contains('⛪ Culto general')); // Nombre
+    expect(compartido, contains('📅 Cada domingo · 10:00 am – 12:00 pm')); // Día y hora
+    expect(compartido, contains('¡Te esperamos!')); // Invitación
+    await tester.tap(find.byTooltip('Compartir horario completo')); // Comparte toda la semana
+    await tester.pump(); // Espera
+    expect(compartido, contains('📅 Horario de cultos')); // Título
+    expect(compartido, contains('DOMINGO')); // Día
+    expect(compartido, contains('• Culto general · 10:00 am – 12:00 pm 🔴')); // Culto con su marca de en vivo
+    expect(compartido, contains('Ministerio Cristiano Canaán')); // Firma
+  }); // Fin de la prueba 37
 } // Fin de main

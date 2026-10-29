@@ -39,4 +39,23 @@ class Actividad { // Molde con los datos de un culto o actividad
       proxima: DateTime.tryParse(json['proxima'] as String? ?? '')?.toLocal(), // Próxima fecha (ISO del panel → hora del teléfono)
     ); // Fin del objeto
   } // Fin de desdeJson
+
+  String textoParaCompartir() => [ // Un culto: lo que se comparte, un dato por renglón
+        '⛪ $nombre', // Nombre
+        '📅 Cada ${dia.toLowerCase()} · $horario', // "Cada domingo · 10:00 am – 12:00 pm"
+        if (lugar != null && lugar!.isNotEmpty) '📍 $lugar', // Lugar
+        if (seTransmite) '🔴 Se transmite en vivo en la app Canaán', // En vivo
+        '¡Te esperamos!', // Invitación
+      ].join('\n'); // Fin de textoParaCompartir
+
+  static String horarioCompleto(List<Actividad> actividades) { // Toda la semana, agrupada por día (las actividades ya vienen ordenadas)
+    final renglones = <String>['📅 Horario de cultos']; // Título
+    int? diaAnterior; // Día del renglón anterior
+    for (final a in actividades) { // Cada actividad
+      if (a.diaSemana != diaAnterior) { renglones..add('')..add(a.dia.toUpperCase()); diaAnterior = a.diaSemana; } // Encabezado del día (con un renglón en blanco antes)
+      renglones.add('• ${a.nombre} · ${a.horario}${(a.lugar ?? '').isNotEmpty ? ' · ${a.lugar}' : ''}${a.seTransmite ? ' 🔴' : ''}'); // "• Culto general · 10:00 am – 12:00 pm · Templo 🔴"
+    } // Fin del for
+    if (actividades.any((a) => a.seTransmite)) renglones..add('')..add('🔴 = se transmite en vivo en la app Canaán'); // Explica el punto rojo
+    return renglones.join('\n'); // Todo junto
+  } // Fin de horarioCompleto
 } // Fin de Actividad
