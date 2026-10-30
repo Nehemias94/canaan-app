@@ -1,6 +1,7 @@
 import 'dart:convert'; // jsonEncode / jsonDecode (guardar la lista de anuncios ya mostrados)
 import 'dart:math'; // sin, cos, sqrt, atan2, pi (fórmula de distancia)
 
+import 'package:flutter/foundation.dart'; // visibleForTesting
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Caja fuerte del teléfono (recordar qué anuncios ya se mostraron)
 
 import '../modelos/anuncio.dart'; // Molde de un anuncio
@@ -70,11 +71,27 @@ class Geocerca { // Revisa si el teléfono está en la iglesia
     return anuncios.where((a) => a.enVentana(ahora) && !vistos.contains(a.id)).toList(); // De área, en su ventana y no mostrados
   } // Fin de pendientes
 
-  Future<void> marcarMostrados(List<Anuncio> anuncios) async { // Anota estos anuncios como mostrados (así no se repiten)
-    final vistos = await mostrados(); // Lista actual
-    vistos.addAll(anuncios.map((a) => a.id)); // Agrega los nuevos
-    await _almacen.write(key: _clave, value: jsonEncode(vistos.toList())); // La guarda
-  } // Fin de marcarMostrados
+
+  static final Set<int> _apartados = {}; // Anuncios que una revisión de ESTA app está mostrando ahora mismo (se apartan al instante, antes de cualquier espera)
+
+  @visibleForTesting // Solo para las pruebas
+  static void reiniciarApartados() => _apartados.clear(); // Cada prueba empieza sin apartados
+
+  Future<List<Anuncio>> reclamar(List<Anuncio> anuncios) async { // Justo ANTES de mostrar: se queda solo con los que NADIE ha mostrado y los marca
+    final propios = anuncios.where((a) => !_apartados.contains(a.id)).toList(); // Los que otra revisión de esta misma app no tiene apartados
+    if (propios.isEmpty) return []; // Otro ya los está mostrando
+    _apartados.addAll(propios.map((a) => a.id)); // Los aparta AL INSTANTE (sin esperar nada): una segunda revisión ya no los toma
+    try { // Revisa la lista guardada (la comparten la app abierta y el aviso de fondo)
+      final vistos = await mostrados(); // Lista FRESCA (pudo cambiar mientras se esperaba la ubicación o al panel)
+      final libres = propios.where((a) => !vistos.contains(a.id)).toList(); // Los que todavía no se mostraron
+      if (libres.isEmpty) return []; // El aviso de fondo (o la app) ya los mostró: nada
+      vistos.addAll(libres.map((a) => a.id)); // Los marca
+      await _almacen.write(key: _clave, value: jsonEncode(vistos.toList())); // Guarda enseguida (entre leer y guardar pasan milisegundos)
+      return libres; // Estos son los que se pueden mostrar
+    } finally { // Pase lo que pase...
+      _apartados.removeAll(propios.map((a) => a.id)); // ...los suelta (ya quedaron en la lista guardada)
+    } // Fin del try
+  } // Fin de reclamar
 
   Future<bool> estaDentro(ZonaAnuncio zona) async { // ¿El teléfono está dentro de este círculo? (false si no se sabe: sin permiso o sin señal)
     final aqui = await _ubicacion.posicionActual(); // Dónde está (puede pedir permiso la primera vez)
@@ -109,8 +126,8 @@ class Geocerca { // Revisa si el teléfono está en la iglesia
     } // Fin del for
     await _almacen.write(key: _claveDentro, value: jsonEncode(dentro)); // Guarda las esperas
     await _almacen.write(key: _claveEstuvo, value: jsonEncode({for (final id in estuvo) id: true})); // Guarda las visitas
-    if (mostrar.isNotEmpty) await marcarMostrados(mostrar); // Los marca: no se repiten (tampoco como notificación)
-    return mostrar; // Los que hay que mostrar
+    if (mostrar.isEmpty) return []; // Nada que mostrar
+    return reclamar(mostrar); // Los marca justo antes de mostrar (relee la lista: si el aviso de fondo ya lo mostró mientras se esperaba la ubicación, no se repite)
   } // Fin de revisar
 
   static double distanciaMetros(double lat1, double lon1, double lat2, double lon2) { // Distancia entre dos puntos de la Tierra (fórmula de "haversine")

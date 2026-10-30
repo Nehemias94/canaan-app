@@ -214,7 +214,7 @@ Future<void> geocercaEntro(GeofenceCallbackParams params) async { // Datos del a
         await geocerca.guardarCopia(anuncios); // Actualiza la copia
       } catch (_) {} // Sin internet o panel dormido: se queda con la copia (si había)
     } // Fin del if
-    final nuevos = anunciosParaAvisar( // ¿Cuáles tocan con este círculo y este evento?
+    final candidatos = anunciosParaAvisar( // ¿Cuáles tocan con este círculo y este evento?
       circulos: params.geofences.map((g) => g.id).toList(), // Círculos que avisó el teléfono
       evento: params.event, // Entró / se quedó / salió
       pendientes: await geocerca.pendientes(anuncios, DateTime.now()), // De área, en su ventana y no mostrados
@@ -222,8 +222,9 @@ Future<void> geocercaEntro(GeofenceCallbackParams params) async { // Datos del a
       latitud: params.location?.latitude, // Dónde estaba (Android)
       longitud: params.location?.longitude, // (idem)
     ); // Fin
-    if (nuevos.isEmpty) return; // Nada que avisar
-    await geocerca.marcarMostrados(nuevos); // Los marca ANTES de avisar: cada anuncio se muestra una sola vez en total (al abrir la app ya no sale la ventana)
+    if (candidatos.isEmpty) return; // Nada que avisar
+    final nuevos = await geocerca.reclamar(candidatos); // Los marca ANTES de avisar, releyendo la lista: si mientras se esperaba al panel la app abierta ya mostró la ventana, no se repite (cada anuncio sale UNA sola vez en total)
+    if (nuevos.isEmpty) return; // Ya se mostraron por otro lado
     await GeocercaFondo.olvidarAnuncios(nuevos.map((a) => a.id)); // Ya no hace falta vigilarlos
 
     final notificaciones = FlutterLocalNotificationsPlugin(); // Notificaciones locales

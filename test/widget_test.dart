@@ -218,6 +218,7 @@ void pantallaAlta(WidgetTester tester) { // Agranda la pantalla de prueba (para 
 void main() { // Punto de arranque de las pruebas
   setUp(() { // Antes de cada prueba:
     FlutterSecureStorage.setMockInitialValues({}); // Caja fuerte vacía y en memoria
+    Geocerca.reiniciarApartados(); // Ningún anuncio de área apartado de una prueba anterior
     Carruseles.pasoAutomatico = null; // Los carruseles NO pasan solos (así las tarjetas están donde la prueba las espera); la prueba 54 lo enciende
     PantallaVideo.reproductorDePrueba = const SizedBox(height: 200, child: Text('[video de prueba]')); // Reproductor de mentira (YouTube no carga en las pruebas)
   }); // Fin de setUp
@@ -1113,4 +1114,14 @@ void main() { // Punto de arranque de las pruebas
     await tester.pumpAndSettle(); // Espera
     expect(api.vistas, ['anuncios/1', 'eventos/8']); // Avisó el evento
   }); // Fin de la prueba 56
+  test('Geocerca: si la app abierta y el aviso de fondo llegan a la vez, el anuncio sale UNA sola vez', () async { // Prueba 57
+    final anuncios = (await (ApiFalsa()..anuncioAreaAhora = true).obtenerAnuncios()).where((a) => a.id == 9).toList(); // El anuncio de área 9 (en su ventana)
+    final appAbierta = Geocerca(); // La app abierta
+    final avisoDeFondo = Geocerca(); // El aviso con la app cerrada (otra "copia", misma caja fuerte)
+    final resultados = await Future.wait([appAbierta.reclamar(anuncios), avisoDeFondo.reclamar(anuncios)]); // Los dos reclaman el mismo anuncio al mismo tiempo
+    final cuantos = resultados.where((r) => r.isNotEmpty).length; // ¿Cuántos pudieron mostrarlo?
+    expect(cuantos, 1); // Solo uno
+    expect(await appAbierta.reclamar(anuncios), isEmpty); // Más tarde, tampoco se repite
+    expect(await appAbierta.mostrados(), {9}); // Quedó marcado
+  }); // Fin de la prueba 57
 } // Fin de main
