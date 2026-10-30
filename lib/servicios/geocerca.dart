@@ -76,6 +76,12 @@ class Geocerca { // Revisa si el teléfono está en la iglesia
     await _almacen.write(key: _clave, value: jsonEncode(vistos.toList())); // La guarda
   } // Fin de marcarMostrados
 
+  Future<bool> estaDentro(ZonaAnuncio zona) async { // ¿El teléfono está dentro de este círculo? (false si no se sabe: sin permiso o sin señal)
+    final aqui = await _ubicacion.posicionActual(); // Dónde está (puede pedir permiso la primera vez)
+    if (aqui == null) return false; // No se sabe
+    return distanciaMetros(aqui.latitud, aqui.longitud, zona.latitud, zona.longitud) <= zona.radioMetros; // Dentro del radio
+  } // Fin de estaDentro
+
   Future<List<Anuncio>> revisar(Iglesia iglesia, List<Anuncio> anuncios, DateTime ahora) async { // Devuelve los anuncios de área NUEVOS que hay que mostrar ahora (se llama con la app abierta, cada 90 s y al volver)
     final candidatos = (await pendientes(anuncios, ahora)).where((a) => zonaDe(a, iglesia) != null).toList(); // De área, en su ventana, no mostrados y con un área conocida
     if (candidatos.isEmpty) return []; // Nada pendiente: NI SIQUIERA pide la ubicación

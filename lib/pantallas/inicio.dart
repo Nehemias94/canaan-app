@@ -50,6 +50,7 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
   bool _animacionVista = false; // true cuando ya pasó el tiempo mínimo de la animación del logo
   late final Geocerca _geocerca = Geocerca(); // Revisa si el teléfono está en la iglesia ("late": se crea la primera vez que se usa)
   bool _revisandoGeocerca = false; // true mientras revisa (para no encimar dos revisiones)
+  bool _avisoEnArea = false; // Aviso urgente "solo en un área": true si el teléfono está dentro
 
   @override // Reemplaza initState
   void initState() { // Se ejecuta una sola vez, al crear la pantalla
@@ -96,12 +97,20 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
         _fallo = false; // Sin error
       }); // Fin de setState
       unawaited(WidgetVersiculo.actualizar(datos.versiculo)); // Pasa el versículo de hoy al widget de la pantalla de inicio (solo Android)
+      await _revisarAvisoArea(datos.avisoUrgente); // Aviso urgente con área: ¿está dentro? (solo pide la ubicación si el aviso tiene área)
       await _revisarGeocerca(datos, lista); // Revisa si está en la iglesia (solo pide la ubicación si hay anuncios de área en su ventana)
       unawaited(GeocercaFondo.actualizar(datos, lista)); // Si la persona activó el aviso con la app cerrada: registra los círculos de la iglesia y de cada anuncio de área (si cambiaron)
     } catch (_) { // Falló (sin internet, servidor dormido)
       if (mounted && _iglesia == null) setState(() => _fallo = true); // Solo muestra el error si no había nada en pantalla
     } // Fin del try
   } // Fin de _cargar
+
+  Future<void> _revisarAvisoArea(AvisoUrgente aviso) async { // Aviso urgente "solo en un área"
+    if (!aviso.activo || aviso.area == null) return; // Para todos (o no hay): nada que revisar, NO pide la ubicación
+    bool dentro = false; // Por defecto, no se muestra
+    try { dentro = await _geocerca.estaDentro(aviso.area!); } catch (_) {} // Ubicación del teléfono (nunca sale de él)
+    if (mounted && dentro != _avisoEnArea) setState(() => _avisoEnArea = dentro); // Redibuja si cambió
+  } // Fin de _revisarAvisoArea
 
   Future<void> _revisarGeocerca(Iglesia iglesia, List<Anuncio> anuncios) async { // Geocerca: anuncios "Solo área"
     if (_revisandoGeocerca) return; // Ya hay una revisión en curso
@@ -177,7 +186,7 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
               children: [ // Capas
                 RefreshIndicator( // Permite "jalar hacia abajo" para actualizar
                   onRefresh: _cargar, // Qué hacer al jalar
-                  child: _DatosIglesia(iglesia: _iglesia!, anuncios: _anuncios, actividades: _actividades, eventos: _eventos, api: widget.api, registro: widget.registro, alIrAPestana: widget.alIrAPestana), // Los datos
+                  child: _DatosIglesia(iglesia: _iglesia!, avisoEnArea: _avisoEnArea, anuncios: _anuncios, actividades: _actividades, eventos: _eventos, api: widget.api, registro: widget.registro, alIrAPestana: widget.alIrAPestana), // Los datos
                 ), // Fin de RefreshIndicator
                 Positioned( // Franja marino arriba (al bajar, las tarjetas blancas pasan por DEBAJO y la hora y la batería se siguen viendo)
                   top: 0, left: 0, right: 0, // Arriba, todo el ancho
@@ -192,7 +201,7 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
 } // Fin de _PantallaInicioState
 
 class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando llegaron los datos
-  const _DatosIglesia({required this.iglesia, required this.anuncios, required this.actividades, this.eventos = const [], required this.api, required this.registro, this.alIrAPestana}); // Constructor
+  const _DatosIglesia({required this.iglesia, this.avisoEnArea = false, required this.anuncios, required this.actividades, this.eventos = const [], required this.api, required this.registro, this.alIrAPestana}); // Constructor
 
   final List<Actividad> actividades; // Horario (para "Próximo culto")
   final List<Evento> eventos; // Eventos especiales (se muestran los 3 más cercanos)
@@ -200,6 +209,7 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
   final void Function(int pestana)? alIrAPestana; // Cambiar de pestaña (accesos rápidos)
 
   final Iglesia iglesia; // Datos de la iglesia
+  final bool avisoEnArea; // El aviso urgente tiene área y el teléfono está dentro
   final List<Anuncio> anuncios; // Anuncios vigentes (solo "Todos")
   final Api api; // Se pasa a la pantalla del video
   final RegistroDispositivo registro; // Se pasa a la pantalla del video
@@ -256,7 +266,7 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
           child: Column( // Uno debajo del otro
             crossAxisAlignment: CrossAxisAlignment.stretch, // Todo el ancho
             children: [ // Elementos
-              if (aviso.activo) _AlertaAviso(aviso: aviso), // Aviso urgente: PRIMERO y con aspecto de alerta (fondo de color, borde e ícono)
+              if (aviso.activo && (aviso.area == null || avisoEnArea)) _AlertaAviso(aviso: aviso), // Aviso urgente: PRIMERO y con aspecto de alerta (fondo de color, borde e ícono)
               _AccesosRapidos( // Botones grandes con lo que NO está en el menú de abajo (Horario, Radio, Oración, YouTube, Cómo llegar)
                 alHorario: () => _abrirHorario(context), // Abre el horario de cultos
                 alRadio: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaRadio(api: api))), // Abre la radio

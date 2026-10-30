@@ -1,5 +1,7 @@
 // Datos de la iglesia tal como llegan de GET /api/iglesia (ver API.md del panel)
 
+import 'anuncio.dart'; // ZonaAnuncio (área opcional del aviso urgente)
+
 class Iglesia { // Molde con los datos que usa la app
   final String nombre; // Nombre de la iglesia
   final String? logoUrl; // Enlace del logo (null si no se ha subido; el "?" significa que puede venir vacío)
@@ -81,8 +83,9 @@ class AvisoUrgente { // Aviso urgente que el panel puede mostrar en la app
   final String? titulo; // Título del aviso
   final String? mensaje; // Texto del aviso
   final String? nivel; // urgente | importante | informativo
+  final ZonaAnuncio? area; // null = para todos; si no, solo se muestra dentro de este círculo
 
-  const AvisoUrgente({required this.activo, this.titulo, this.mensaje, this.nivel}); // Constructor
+  const AvisoUrgente({required this.activo, this.titulo, this.mensaje, this.nivel, this.area}); // Constructor
 
   factory AvisoUrgente.desdeJson(Map<String, dynamic> json) { // Convierte el JSON en AvisoUrgente
     return AvisoUrgente( // Crea el objeto
@@ -90,6 +93,7 @@ class AvisoUrgente { // Aviso urgente que el panel puede mostrar en la app
       titulo: json['titulo'] as String?, // Título
       mensaje: json['mensaje'] as String?, // Mensaje
       nivel: json['nivel'] as String?, // Nivel
+      area: ZonaAnuncio.desdeJson(json['area'] as Map<String, dynamic>?), // Área (null = para todos)
     ); // Fin del objeto
   } // Fin de desdeJson
 } // Fin de AvisoUrgente

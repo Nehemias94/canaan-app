@@ -56,11 +56,12 @@ class RadioFalsa implements ControlRadio { // Radio de mentira: no suena, solo a
 } // Fin de RadioFalsa
 
 class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar internet
-  ApiFalsa({this.falla = false, this.radioAlAire = false, this.avisoNivel, this.conExtras = false}); // Constructor; falla = true simula que no hay conexión; avisoNivel = hay aviso urgente de ese nivel; conExtras = WhatsApp, ofrendas y versículo
+  ApiFalsa({this.falla = false, this.radioAlAire = false, this.avisoNivel, this.conExtras = false, this.avisoArea}); // Constructor; falla = true simula que no hay conexión; avisoNivel = hay aviso urgente de ese nivel; conExtras = WhatsApp, ofrendas y versículo
 
   final bool falla; // ¿Simular error?
   final bool radioAlAire; // ¿La radio está al aire en el panel falso?
   final String? avisoNivel; // Nivel del aviso urgente del panel falso (null = sin aviso)
+  final Map<String, dynamic>? avisoArea; // Área del aviso urgente (null = para todos)
   final bool conExtras; // ¿El panel falso tiene WhatsApp, ofrendas y versículo del día?
   bool enVivoEnPanel = true; // ¿Hay transmisión en vivo en el panel falso? (se puede cambiar a mitad de la prueba)
   bool anuncioAreaAhora = false; // ¿Hay un anuncio "Solo área" en su ventana ahora mismo?
@@ -137,7 +138,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
       if (conExtras) 'contacto': {'whatsapp': '50370000000'}, // WhatsApp
       if (conExtras) 'ofrendas': {'mostrar': true, 'mensaje': 'Dios ama al dador alegre.', 'cuentas': [{'banco': 'Banco Agrícola', 'tipo': 'Ahorro', 'numero': '3000-123456', 'titular': 'MCC'}], 'qr_url': null}, // Ofrendas
       if (conExtras) 'versiculo_dia': {'texto': 'Jehová es mi pastor; nada me faltará.', 'referencia': 'Salmos 23:1'}, // Versículo
-      if (avisoNivel != null) 'aviso_urgente': {'activo': true, 'titulo': 'Culto cancelado', 'mensaje': 'Hoy no habrá culto por la lluvia.', 'nivel': avisoNivel}, // Aviso urgente
+      if (avisoNivel != null) 'aviso_urgente': {'activo': true, 'titulo': 'Culto cancelado', 'mensaje': 'Hoy no habrá culto por la lluvia.', 'nivel': avisoNivel, 'area': avisoArea}, // Aviso urgente
       if (cuentaRegresiva != null) 'cuenta_regresiva': cuentaRegresiva, // Configuración de la cuenta regresiva
       if (conRepeticion) 'repeticion': {'titulo': 'Culto dominical', 'youtube_id': 'repeti123', 'termino': DateTime.now().toIso8601String()}, // Repetición del culto
       if (radioAlAire) 'radio': {'disponible': true, 'titulo': 'Culto dominical', 'stream_url': 'https://radio.ejemplo/canaan', 'modo': 'siempre'}, // Radio 24/7
@@ -967,4 +968,22 @@ void main() { // Punto de arranque de las pruebas
     expect(elegir(['anuncio-4'], GeofenceEvent.enter), [4]); // Su propia área
     expect(elegir(['anuncio-99'], GeofenceEvent.enter), isEmpty); // Anuncio que ya no existe
   }); // Fin de la prueba 50
+
+  testWidgets('Aviso urgente "solo en un área": se ve dentro y no fuera', (WidgetTester tester) async { // Prueba 51
+    final area = {'latitud': 13.6929, 'longitud': -89.2182, 'radio_metros': 200, 'propia': true}; // Área del aviso
+    final gps = UbicacionFalsa(const Coordenadas(13.7100, -89.2182)); // Lejos (~1.9 km)
+    ServicioUbicacion.crear = () => gps; // Ubicación de mentira
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa(avisoNivel: 'importante', avisoArea: area))); // Panel con aviso de área
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Culto cancelado'), findsNothing); // Lejos: no se ve
+    expect(gps.consultas, greaterThan(0)); // Sí revisó la ubicación
+  }); // Fin de la prueba 51
+
+  testWidgets('Aviso urgente "solo en un área": dentro del área sí se ve', (WidgetTester tester) async { // Prueba 52
+    final gps = UbicacionFalsa(const Coordenadas(13.6930, -89.2183)); // Dentro
+    ServicioUbicacion.crear = () => gps; // Ubicación de mentira
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa(avisoNivel: 'importante', avisoArea: {'latitud': 13.6929, 'longitud': -89.2182, 'radio_metros': 200, 'propia': true}))); // Aviso de área
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Culto cancelado'), findsOneWidget); // Dentro: se ve
+  }); // Fin de la prueba 52
 } // Fin de main
