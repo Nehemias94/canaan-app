@@ -5,7 +5,7 @@ import 'package:flutter/services.dart'; // SystemUiOverlayStyle (colores de la b
 import 'package:url_launcher/url_launcher.dart'; // Abrir YouTube y Google Maps fuera de la app
 
 import '../componentes/estados.dart'; // Vistas compartidas: Cargando, ErrorConexion
-import '../componentes/carrusel_novedades.dart'; // Carrusel "NOVEDADES" (anuncios y eventos)
+import '../componentes/carruseles.dart'; // Carruseles de ANUNCIOS y PRÓXIMOS EVENTOS
 import '../componentes/carga_animada.dart'; // Pantalla de carga con el logo animado
 import '../componentes/tarjeta.dart'; // Tarjeta con franja de color (diseño común)
 import '../config.dart'; // intervaloActualizacion
@@ -266,19 +266,7 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
             crossAxisAlignment: CrossAxisAlignment.stretch, // Todo el ancho
             children: [ // Elementos
               if (aviso.activo && (aviso.area == null || avisoEnArea)) _AlertaAviso(aviso: aviso), // Aviso urgente: PRIMERO y con aspecto de alerta (fondo de color, borde e ícono)
-              _AccesosRapidos( // Botones grandes con lo que NO está en el menú de abajo (Horario, Radio, Oración, YouTube, Cómo llegar)
-                alHorario: () => _abrirHorario(context), // Abre el horario de cultos
-                alRadio: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaRadio(api: api))), // Abre la radio
-                alOracion: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaPeticion(api: api, registro: registro))), // Abre el formulario de petición
-                alYoutube: iglesia.youtubeCanal == null ? null : () => _abrirAfuera(context, iglesia.youtubeCanal!), // Canal de YouTube (si el panel lo tiene)
-                alComoLlegar: !iglesia.tieneUbicacion ? null : () => _abrirAfuera( // Google Maps con la ubicación del templo (si el panel la tiene)
-                  context, // Para el mensaje de error
-                  'https://www.google.com/maps/search/?api=1&query=${iglesia.latitud},${iglesia.longitud}', // Enlace universal de Google Maps (abre la app de Maps si está)
-                ), // Fin de cómo llegar
-              ), // Fin de los accesos rápidos
-              _ProximoCulto(actividades: actividades, enVivoActivo: iglesia.enVivo.activo, mostrarCuenta: iglesia.cuentaRegresivaMostrar, horasCuenta: iglesia.cuentaRegresivaHoras, alTocar: () => _abrirHorario(context)), // Tarjeta "Próximo culto" con cuenta regresiva si se transmite (al tocar, abre Horario)
-              if (iglesia.versiculo != null) _TarjetaVersiculo(versiculo: iglesia.versiculo!), // Versículo del día (se puede compartir)
-              if (iglesia.enVivo.activo) // Si hay transmisión en vivo...
+              if (iglesia.enVivo.activo) // Si hay transmisión en vivo... (va ARRIBA, justo después de la alerta: se ve de inmediato)
                 TarjetaCanaan( // ...tarjeta con franja ROJA
                   franja: context.vivo(Colors.red.shade700), // Rojo
                   alTocar: hayVideo ? () => _abrirEnVivo(context) : null, // Al tocar, abre el video
@@ -309,6 +297,18 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
                     ], // Fin de los elementos
                   ), // Fin de la columna
                 ), // Fin de la tarjeta en vivo
+              _AccesosRapidos( // Botones grandes con lo que NO está en el menú de abajo (Horario, Radio, Oración, YouTube, Cómo llegar)
+                alHorario: () => _abrirHorario(context), // Abre el horario de cultos
+                alRadio: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaRadio(api: api))), // Abre la radio
+                alOracion: () => Navigator.push(context, MaterialPageRoute(builder: (context) => PantallaPeticion(api: api, registro: registro))), // Abre el formulario de petición
+                alYoutube: iglesia.youtubeCanal == null ? null : () => _abrirAfuera(context, iglesia.youtubeCanal!), // Canal de YouTube (si el panel lo tiene)
+                alComoLlegar: !iglesia.tieneUbicacion ? null : () => _abrirAfuera( // Google Maps con la ubicación del templo (si el panel la tiene)
+                  context, // Para el mensaje de error
+                  'https://www.google.com/maps/search/?api=1&query=${iglesia.latitud},${iglesia.longitud}', // Enlace universal de Google Maps (abre la app de Maps si está)
+                ), // Fin de cómo llegar
+              ), // Fin de los accesos rápidos
+              _ProximoCulto(actividades: actividades, enVivoActivo: iglesia.enVivo.activo, mostrarCuenta: iglesia.cuentaRegresivaMostrar, horasCuenta: iglesia.cuentaRegresivaHoras, alTocar: () => _abrirHorario(context)), // Tarjeta "Próximo culto" con cuenta regresiva si se transmite (al tocar, abre Horario)
+              if (iglesia.versiculo != null) _TarjetaVersiculo(versiculo: iglesia.versiculo!), // Versículo del día (se puede compartir)
               if (!iglesia.enVivo.activo && iglesia.repeticion != null && iglesia.repeticion!.youtubeId.isNotEmpty) // Si no hay en vivo pero hubo transmisión hace poco...
                 _TarjetaRepeticion(repeticion: iglesia.repeticion!, alTocar: () => _abrirRepeticion(context, iglesia.repeticion!)), // ..."¿Te lo perdiste?"
               if (iglesia.radioDisponible) // Si la radio está al aire...
@@ -329,7 +329,8 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
                   padding: EdgeInsets.only(top: 24), // Separación
                   child: Text('✓ Conectado con el panel', textAlign: TextAlign.center, style: TextStyle(color: context.cc.suave)), // Gris
                 ), // Fin del texto
-              CarruselNovedades(anuncios: anuncios, eventos: eventos), // NOVEDADES: anuncios y eventos en tarjetas pequeñas que se deslizan de lado (al tocar, se abren completos)
+              CarruselAnuncios(anuncios: anuncios), // ANUNCIOS: tarjetas pequeñas que se deslizan de lado (al tocar, se abren completos)
+              CarruselEventos(eventos: eventos, alVerTodos: alIrAPestana == null ? null : () => alIrAPestana!(3)), // PRÓXIMOS EVENTOS: su propia fila ("Ver todos" abre la pestaña Eventos)
             ], // Fin de los elementos
           ), // Fin de la columna
         ), // Fin del contenido

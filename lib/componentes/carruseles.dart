@@ -2,22 +2,21 @@ import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 
 import '../modelos/anuncio.dart'; // Molde de un anuncio
 import '../modelos/evento.dart'; // Molde de un evento
-import '../pantallas/anuncio.dart'; // Detalle del anuncio
+import '../pantallas/anuncio.dart'; // Detalle del anuncio y lista de anuncios
 import '../pantallas/evento.dart'; // Detalle del evento
-import '../pantallas/novedades.dart'; // "Ver todo"
 import '../tema.dart'; // Colores de Canaán
 import 'tarjeta_anuncio.dart'; // fechasDeAnuncio()
 import 'tarjeta_evento.dart'; // moradoEvento
 
-// "NOVEDADES" de Inicio: anuncios y eventos juntos en UNA fila de tarjetas pequeñas que se deslizan de lado.
-// Cada tarjeta muestra el flyer (o un bloque de color), si es anuncio o evento, la fecha y el título.
-// Al tocarla se abre completa. Así Inicio queda corto y ordenado.
+// Carruseles de Inicio: ANUNCIOS y PRÓXIMOS EVENTOS, cada uno en SU fila de tarjetas pequeñas que se deslizan de lado.
+// Cada tarjeta muestra el flyer (o un bloque de color), la fecha y el título. Al tocarla se abre completa.
+// Así Inicio queda corto y ordenado.
 
 class _Novedad { // Una tarjeta del carrusel (sirve igual para anuncio o evento)
-  const _Novedad({required this.titulo, required this.etiqueta, required this.fecha, required this.color, required this.icono, this.imagenUrl, required this.abrir}); // Constructor
+  const _Novedad({required this.titulo, required this.tipo, required this.fecha, required this.color, required this.icono, this.imagenUrl, required this.abrir}); // Constructor
 
   final String titulo; // Título
-  final String etiqueta; // "ANUNCIO" o "EVENTO"
+  final String tipo; // "Anuncio" o "Evento" (para lectores de pantalla)
   final String fecha; // Cuándo
   final Color color; // Azul (anuncio) o morado (evento)
   final IconData icono; // Megáfono o celebración
@@ -25,19 +24,63 @@ class _Novedad { // Una tarjeta del carrusel (sirve igual para anuncio o evento)
   final Widget Function() abrir; // Pantalla que se abre al tocarla
 } // Fin de _Novedad
 
-class CarruselNovedades extends StatefulWidget { // Sección "NOVEDADES" con el carrusel
-  const CarruselNovedades({super.key, required this.anuncios, required this.eventos}); // Constructor
+class CarruselAnuncios extends StatelessWidget { // Sección "ANUNCIOS" de Inicio
+  const CarruselAnuncios({super.key, required this.anuncios}); // Constructor
 
   final List<Anuncio> anuncios; // Anuncios vigentes ("Todos")
-  final List<Evento> eventos; // Próximos eventos
 
-  static const int maxEventos = 5; // Eventos que caben en el carrusel (los demás, en "Ver todo" o en la pestaña Eventos)
+  @override // Reemplaza build
+  Widget build(BuildContext context) { // Describe cómo se ve
+    return _Carrusel( // Fila deslizable
+      titulo: 'ANUNCIOS', // Encabezado
+      colorTitulo: context.cc.dorado, // Dorado oscuro
+      textoVerTodo: 'Ver todo', // Enlace
+      alVerTodo: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PantallaListaAnuncios(anuncios: anuncios))), // Lista con los anuncios completos
+      novedades: [ // Una tarjeta por anuncio
+        for (final a in anuncios) // Cada anuncio
+          _Novedad(titulo: a.titulo, tipo: 'Anuncio', fecha: fechasDeAnuncio(a), color: azulCanaan, icono: Icons.campaign_outlined, imagenUrl: a.imagenUrl, abrir: () => PantallaAnuncio(anuncio: a)), // Azul con megáfono
+      ], // Fin de las tarjetas
+    ); // Fin del carrusel
+  } // Fin de build
+} // Fin de CarruselAnuncios
+
+class CarruselEventos extends StatelessWidget { // Sección "PRÓXIMOS EVENTOS" de Inicio
+  const CarruselEventos({super.key, required this.eventos, this.alVerTodos}); // Constructor
+
+  final List<Evento> eventos; // Próximos eventos
+  final VoidCallback? alVerTodos; // Abre la pestaña Eventos (lo da Inicio)
+
+  static const int maximo = 5; // Eventos que caben en el carrusel (los demás, en la pestaña Eventos)
+
+  @override // Reemplaza build
+  Widget build(BuildContext context) { // Describe cómo se ve
+    return _Carrusel( // Fila deslizable
+      titulo: 'PRÓXIMOS EVENTOS', // Encabezado
+      colorTitulo: context.cc.morado, // Morado de los eventos
+      textoVerTodo: 'Ver todos', // Enlace
+      alVerTodo: alVerTodos, // Pestaña Eventos
+      novedades: [ // Una tarjeta por evento
+        for (final e in eventos.take(maximo)) // Los más cercanos
+          _Novedad(titulo: e.titulo, tipo: 'Evento', fecha: e.enCurso ? '● AHORA' : e.cuandoTexto(), color: moradoEvento, icono: Icons.celebration_outlined, imagenUrl: e.imagenUrl, abrir: () => PantallaEvento(evento: e)), // Morado con celebración
+      ], // Fin de las tarjetas
+    ); // Fin del carrusel
+  } // Fin de build
+} // Fin de CarruselEventos
+
+class _Carrusel extends StatefulWidget { // Encabezado + fila de tarjetas que se deslizan + puntitos (lo comparten anuncios y eventos)
+  const _Carrusel({required this.titulo, required this.colorTitulo, required this.novedades, required this.textoVerTodo, this.alVerTodo}); // Constructor
+
+  final String titulo; // "ANUNCIOS" o "PRÓXIMOS EVENTOS"
+  final Color colorTitulo; // Color del encabezado y del puntito actual
+  final List<_Novedad> novedades; // Tarjetas
+  final String textoVerTodo; // "Ver todo" / "Ver todos"
+  final VoidCallback? alVerTodo; // Qué hacer al tocar el enlace (null = no se muestra)
 
   @override // Reemplaza createState
-  State<CarruselNovedades> createState() => _CarruselNovedadesState(); // Crea el estado
-} // Fin de CarruselNovedades
+  State<_Carrusel> createState() => _CarruselState(); // Crea el estado
+} // Fin de _Carrusel
 
-class _CarruselNovedadesState extends State<CarruselNovedades> { // Estado: qué tarjeta se está viendo (para los puntitos)
+class _CarruselState extends State<_Carrusel> { // Estado: qué tarjeta se está viendo (para los puntitos)
   final _control = PageController(viewportFraction: 0.86); // Cada tarjeta ocupa el 86 %: se asoma la siguiente (así se nota que se desliza)
   int _actual = 0; // Tarjeta que se ve ahora
 
@@ -47,30 +90,20 @@ class _CarruselNovedadesState extends State<CarruselNovedades> { // Estado: qué
     super.dispose(); // Limpieza normal
   } // Fin de dispose
 
-  List<_Novedad> _novedades() => [ // Arma la lista: primero los anuncios, después los eventos
-        for (final a in widget.anuncios) // Cada anuncio
-          _Novedad(titulo: a.titulo, etiqueta: 'ANUNCIO', fecha: fechasDeAnuncio(a), color: azulCanaan, icono: Icons.campaign_outlined, imagenUrl: a.imagenUrl, abrir: () => PantallaAnuncio(anuncio: a)), // Azul con megáfono
-        for (final e in widget.eventos.take(CarruselNovedades.maxEventos)) // Los eventos más cercanos
-          _Novedad(titulo: e.titulo, etiqueta: 'EVENTO', fecha: e.enCurso ? '● AHORA' : e.cuandoTexto(), color: moradoEvento, icono: Icons.celebration_outlined, imagenUrl: e.imagenUrl, abrir: () => PantallaEvento(evento: e)), // Morado con celebración
-      ]; // Fin de la lista
-
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
-    final novedades = _novedades(); // Tarjetas
-    if (novedades.isEmpty) return const SizedBox.shrink(); // Sin anuncios ni eventos: no se muestra nada
+    final novedades = widget.novedades; // Tarjetas
+    if (novedades.isEmpty) return const SizedBox.shrink(); // Sin tarjetas: no se muestra la sección
     final escala = MediaQuery.textScalerOf(context).scale(1); // Tamaño de letra del teléfono (y "letra grande"): el texto necesita más alto
     return Column( // Encabezado, carrusel y puntitos
       crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
       children: [ // Elementos
-        Padding( // Encabezado con "Ver todo"
+        Padding( // Encabezado
           padding: const EdgeInsets.only(top: 18, left: 4), // Separación
           child: Row( // Título y enlace
             children: [ // Elementos
-              Expanded(child: Text('NOVEDADES', style: TextStyle(color: context.cc.dorado, fontWeight: FontWeight.bold, letterSpacing: 1.5))), // Dorado oscuro
-              TextButton( // Abre la lista completa
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PantallaNovedades(anuncios: widget.anuncios, eventos: widget.eventos))), // Con tarjetas completas
-                child: const Text('Ver todo'), // Texto
-              ), // Fin del botón
+              Expanded(child: Text(widget.titulo, style: TextStyle(color: widget.colorTitulo, fontWeight: FontWeight.bold, letterSpacing: 1.5))), // Título en color
+              if (widget.alVerTodo != null) TextButton(onPressed: widget.alVerTodo, child: Text(widget.textoVerTodo)), // "Ver todo"
             ], // Fin de los elementos
           ), // Fin de la fila
         ), // Fin del encabezado
@@ -78,19 +111,19 @@ class _CarruselNovedadesState extends State<CarruselNovedades> { // Estado: qué
           builder: (context, medidas) { // Con las medidas
             final ancho = medidas.maxWidth * 0.86; // Ancho de cada tarjeta
             final altoImagen = ancho * 9 / 16; // Flyer en proporción 16:9 (como los que crea el panel)
-            final alto = altoImagen + 92 * escala; // Imagen + etiqueta, fecha y título (2 renglones)
+            final alto = altoImagen + 92 * escala; // Imagen + fecha y título (2 renglones)
             return SizedBox( // Alto fijo del carrusel
               height: alto, // Alto calculado
               child: PageView.builder( // Tarjetas que se deslizan
-                  controller: _control, // Control (86 % por tarjeta)
-                  padEnds: false, // La primera empieza a la izquierda (no centrada)
-                  itemCount: novedades.length, // Cuántas
-                  onPageChanged: (i) => setState(() => _actual = i), // Actualiza los puntitos
-                  itemBuilder: (context, i) => Padding( // Separación entre tarjetas
-                    padding: const EdgeInsets.only(right: 12), // Espacio a la derecha
-                    child: _TarjetaNovedad(novedad: novedades[i], altoImagen: altoImagen), // La tarjeta
-                  ), // Fin de la separación
-                ), // Fin del PageView
+                controller: _control, // Control (86 % por tarjeta)
+                padEnds: false, // La primera empieza a la izquierda (no centrada)
+                itemCount: novedades.length, // Cuántas
+                onPageChanged: (i) => setState(() => _actual = i), // Actualiza los puntitos
+                itemBuilder: (context, i) => Padding( // Separación entre tarjetas
+                  padding: const EdgeInsets.only(right: 12), // Espacio a la derecha
+                  child: _TarjetaNovedad(novedad: novedades[i], altoImagen: altoImagen), // La tarjeta
+                ), // Fin de la separación
+              ), // Fin del PageView
             ); // Fin del alto fijo
           }, // Fin del builder
         ), // Fin del LayoutBuilder
@@ -108,7 +141,7 @@ class _CarruselNovedadesState extends State<CarruselNovedades> { // Estado: qué
                       width: i == _actual ? 18 : 7, // El actual es una rayita más larga
                       height: 7, // Alto
                       decoration: BoxDecoration( // Forma y color
-                        color: i == _actual ? context.cc.dorado : context.cc.tenue, // Dorado el actual, gris los demás
+                        color: i == _actual ? widget.colorTitulo : context.cc.tenue, // El actual del color de la sección, los demás en gris
                         borderRadius: BorderRadius.circular(4), // Redondeado
                       ), // Fin de la decoración
                     ), // Fin del puntito
@@ -119,7 +152,7 @@ class _CarruselNovedadesState extends State<CarruselNovedades> { // Estado: qué
       ], // Fin de los elementos
     ); // Fin de la columna
   } // Fin de build
-} // Fin de _CarruselNovedadesState
+} // Fin de _CarruselState
 
 class _TarjetaNovedad extends StatelessWidget { // Tarjeta pequeña del carrusel
   const _TarjetaNovedad({required this.novedad, required this.altoImagen}); // Constructor
@@ -137,7 +170,7 @@ class _TarjetaNovedad extends StatelessWidget { // Tarjeta pequeña del carrusel
     ); // Fin del bloque
     return Semantics( // Para lectores de pantalla: una sola frase
       button: true, // Se puede tocar
-      label: '${novedad.etiqueta == 'ANUNCIO' ? 'Anuncio' : 'Evento'}: ${novedad.titulo}. ${novedad.fecha}', // Lo que leen
+      label: '${novedad.tipo}: ${novedad.titulo}. ${novedad.fecha}', // Lo que leen
       excludeSemantics: true, // No lee cada texto por separado
       child: Card( // Tarjeta blanca (o azul noche en oscuro) con borde
         margin: EdgeInsets.zero, // Sin margen (lo pone el carrusel)
@@ -159,12 +192,12 @@ class _TarjetaNovedad extends StatelessWidget { // Tarjeta pequeña del carrusel
                 child: Column( // Uno debajo del otro
                   crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
                   children: [ // Elementos
-                    Text( // Etiqueta y fecha: "ANUNCIO · 31 oct 2026"
-                      novedad.fecha.isEmpty ? novedad.etiqueta : '${novedad.etiqueta} · ${novedad.fecha}', // Texto
+                    Text( // Fecha: "31 OCT 2026" o "20 AL 22 DE NOVIEMBRE" (la sección ya dice si es anuncio o evento)
+                      novedad.fecha.isEmpty ? novedad.tipo.toUpperCase() : novedad.fecha.toUpperCase(), // Texto
                       maxLines: 1, // Un renglón
                       overflow: TextOverflow.ellipsis, // "…" si no cabe
                       style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.6), // Pequeño y en color
-                    ), // Fin de la etiqueta
+                    ), // Fin de la fecha
                     const SizedBox(height: 4), // Espacio
                     Text( // Título
                       novedad.titulo, // Texto

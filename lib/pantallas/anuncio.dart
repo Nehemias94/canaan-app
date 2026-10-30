@@ -19,3 +19,20 @@ class PantallaAnuncio extends StatelessWidget { // Detalle de un anuncio (se abr
     ); // Fin del Scaffold
   } // Fin de build
 } // Fin de PantallaAnuncio
+
+class PantallaListaAnuncios extends StatelessWidget { // "Ver todo" de ANUNCIOS en Inicio: todos los anuncios con su tarjeta completa
+  const PantallaListaAnuncios({super.key, required this.anuncios}); // Constructor
+
+  final List<Anuncio> anuncios; // Anuncios vigentes
+
+  @override // Reemplaza build
+  Widget build(BuildContext context) { // Describe cómo se ve
+    return Scaffold( // Estructura
+      appBar: AppBar(title: const Text('Anuncios')), // Barra con flecha para volver
+      body: ListView( // Desplazable
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 24), // Márgenes
+        children: [for (final anuncio in anuncios) TarjetaAnuncio(anuncio: anuncio)], // Cada anuncio completo
+      ), // Fin de la lista
+    ); // Fin del Scaffold
+  } // Fin de build
+} // Fin de PantallaListaAnuncios
