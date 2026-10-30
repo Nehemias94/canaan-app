@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 import 'package:url_launcher/url_launcher.dart'; // Abrir WhatsApp
 
+import '../config.dart'; // versionApp (número de versión)
 import '../firebase_config.dart'; // ¿Hay notificaciones? (para mostrar sus interruptores)
 import '../modelos/iglesia.dart'; // Datos de la iglesia (WhatsApp, ofrendas)
 import '../servicios/notificaciones.dart'; // Aplicar los temas al cambiar los interruptores
@@ -263,10 +264,11 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
           ListTile( // Opción: Acerca de la app
             leading: Icon(Icons.info_outline, color: context.cc.azul), // Ícono de información
             title: const Text('Acerca de la app'), // Texto
+            subtitle: const Text('Versión $versionApp'), // Versión instalada (para saber si ya se actualizó)
             onTap: () => showAboutDialog( // Ventana estándar "Acerca de" de Flutter
               context: context, // Dónde mostrarla
               applicationName: 'Canaán', // Nombre de la app
-              applicationVersion: 'Versión 0.1 (prueba)', // Versión
+              applicationVersion: 'Versión $versionApp (prueba)', // Versión (de config.dart)
               applicationIcon: Image.asset('assets/imagenes/canaan-icono.png', height: 48), // Ícono oficial dorado de Canaán
               children: const [Text('App del Ministerio Cristiano Canaán de las Asambleas de Dios.')], // Texto extra
             ), // Fin de la ventana
