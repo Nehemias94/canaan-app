@@ -179,12 +179,13 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
                     padding: const EdgeInsets.only(top: 8), // Separación
                     child: SegmentedButton<String>( // Tres botones unidos; uno elegido
                       segments: const [ // Opciones
-                        ButtonSegment(value: 'sistema', label: Text('Automático')), // Como el teléfono
-                        ButtonSegment(value: 'claro', label: Text('Claro')), // Siempre claro
-                        ButtonSegment(value: 'oscuro', label: Text('Oscuro')), // Siempre oscuro
+                        ButtonSegment(value: 'sistema', label: FittedBox(fit: BoxFit.scaleDown, child: Text('Automático', maxLines: 1))), // Como el teléfono
+                        ButtonSegment(value: 'claro', label: FittedBox(fit: BoxFit.scaleDown, child: Text('Claro', maxLines: 1))), // Siempre claro
+                        ButtonSegment(value: 'oscuro', label: FittedBox(fit: BoxFit.scaleDown, child: Text('Oscuro', maxLines: 1))), // Siempre oscuro
                       ], // Fin de las opciones
                       selected: {apariencia}, // La elegida
                       showSelectedIcon: false, // Sin palomita (no cabe en teléfonos pequeños)
+                      style: const ButtonStyle(padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 6))), // Menos margen a los lados: "Automático" cabe en un renglón (antes salía "Automátic / o"); si aun así no cabe, FittedBox lo achica
                       onSelectionChanged: (elegidas) => Preferencias.cambiarApariencia(elegidas.first), // Guarda y la app cambia al instante
                     ), // Fin del selector
                   ), // Fin del margen

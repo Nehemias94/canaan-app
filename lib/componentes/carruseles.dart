@@ -50,6 +50,11 @@ class CarruselAnuncios extends StatelessWidget { // Sección "ANUNCIOS" de Inici
   } // Fin de build
 } // Fin de CarruselAnuncios
 
+String _sinDiaSemana(String texto) { // "Domingo, 6 de diciembre · 9:00 am" → "6 de diciembre · 9:00 am" (para que quepa en la tarjeta; el detalle la muestra completa)
+  final coma = texto.indexOf(', '); // Coma después del día de la semana
+  return coma > 0 && coma <= 10 ? texto.substring(coma + 2) : texto; // Solo si al inicio hay un día ("Miércoles" = 9 letras); "20 al 22 de noviembre" no cambia
+} // Fin de _sinDiaSemana
+
 class CarruselEventos extends StatelessWidget { // Sección "PRÓXIMOS EVENTOS" de Inicio
   const CarruselEventos({super.key, required this.eventos, this.alVerTodos}); // Constructor
 
@@ -68,7 +73,7 @@ class CarruselEventos extends StatelessWidget { // Sección "PRÓXIMOS EVENTOS" 
       retraso: const Duration(seconds: 3), // Empieza 3 s después que ANUNCIOS: los dos carruseles se alternan (no se mueve todo a la vez)
       novedades: [ // Una tarjeta por evento
         for (final e in eventos.take(maximo)) // Los más cercanos
-          _Novedad(titulo: e.titulo, tipo: 'Evento', linea: e.enCurso ? '● AHORA' : e.cuandoTexto(), color: moradoEvento, icono: Icons.celebration_outlined, imagenUrl: e.imagenUrl, abrir: () => PantallaEvento(evento: e)), // Morado con celebración; la línea es la fecha del evento
+          _Novedad(titulo: e.titulo, tipo: 'Evento', linea: e.enCurso ? '● AHORA' : _sinDiaSemana(e.cuandoTexto()), color: moradoEvento, icono: Icons.celebration_outlined, imagenUrl: e.imagenUrl, abrir: () => PantallaEvento(evento: e)), // Morado con celebración; la línea es la fecha del evento
       ], // Fin de las tarjetas
     ); // Fin del carrusel
   } // Fin de build

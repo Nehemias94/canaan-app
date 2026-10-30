@@ -107,7 +107,10 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
                 child: const Text('📴 Sin conexión · mostrando lo último guardado', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 14)), // Aviso
               ), // Fin de la franja
             ), // Fin de la escucha
-            menu!, // Menú de abajo
+            MediaQuery.withClampedTextScaling( // Con "letra grande" las etiquetas del menú NO crecen (si no, "Eventos" y "Servicios" se juntaban y llegaban a la orilla; probado en el Pixel con 110 % y seguía justo)
+              maxScaleFactor: 1.0, // Tamaño normal (los íconos ayudan a reconocer cada opción)
+              child: menu!, // Menú de abajo
+            ), // Fin del límite
           ], // Fin de los elementos
         ), // Fin de la columna
         child: NavigationBar( // Menú de abajo (estilo Material 3)

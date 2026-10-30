@@ -1007,6 +1007,8 @@ void main() { // Punto de arranque de las pruebas
     expect(tester.getTopLeft(find.text('● EN VIVO')).dy, lessThan(tester.getTopLeft(find.text('Horario')).dy)); // EN VIVO va arriba de los accesos rápidos
     expect(find.text('Este sábado de 6 am a 12 md.'), findsNothing); // En Inicio el anuncio va resumido
     expect(find.text('Ver todos'), findsOneWidget); // Enlace de eventos (a la pestaña Eventos)
+    expect(find.textContaining(RegExp(r'^(LUNES|MARTES|MIÉRCOLES|JUEVES|VIERNES|SÁBADO|DOMINGO), ')), findsNothing); // En el carrusel la fecha va SIN el día de la semana (cabe en un renglón)
+    expect(find.textContaining('TEMPLO CENTRAL'), findsNothing); // (y sin el lugar)
     await tester.tap(find.text('Ver todo')); // Abre la lista de anuncios
     await tester.pumpAndSettle(); // Espera
     expect(find.text('Este sábado de 6 am a 12 md.'), findsOneWidget); // Anuncio completo

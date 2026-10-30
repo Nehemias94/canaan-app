@@ -575,6 +575,11 @@ class _AlertaAviso extends StatelessWidget { // Aviso urgente con aspecto de ALE
       'importante' => (const Color(0xFFB45309), const Color(0xFFFFF4DB), Icons.priority_high_rounded, 'IMPORTANTE'), // Ámbar
       _ => (azulCanaan, const Color(0xFFE8F1FA), Icons.info_rounded, 'AVISO'), // Informativo: azul
     }; // Fin del estilo
+    final oscuro = Theme.of(context).brightness == Brightness.dark; // ¿Modo oscuro?
+    final borde = oscuro ? context.vivo(fuerte) : fuerte; // En oscuro, el color más vivo (se distingue sobre el fondo oscuro)
+    final fondoCaja = oscuro ? Color.alphaBlend(fuerte.withValues(alpha: 0.28), context.cc.tarjeta) : fondo; // En oscuro: fondo oscuro teñido del color (antes era claro y encandilaba)
+    final colorTitulo = oscuro ? context.cc.titulo : const Color(0xFF1F2937); // Título: claro en oscuro, casi negro en claro
+    final colorMensaje = oscuro ? context.cc.texto : const Color(0xFF374151); // Mensaje: igual
     return Semantics( // Para lectores de pantalla: se anuncia como alerta
       liveRegion: true, // Lo lee en voz alta al aparecer
       label: '$etiqueta: ${aviso.titulo ?? ''}. ${aviso.mensaje ?? ''}', // Texto completo
@@ -583,9 +588,9 @@ class _AlertaAviso extends StatelessWidget { // Aviso urgente con aspecto de ALE
         margin: const EdgeInsets.only(top: 14), // Separación del encabezado
         padding: const EdgeInsets.all(16), // Margen interno
         decoration: BoxDecoration( // Aspecto
-          color: fondo, // Fondo de color suave
+          color: fondoCaja, // Fondo de color suave (oscuro teñido en modo oscuro)
           borderRadius: BorderRadius.circular(16), // Esquinas redondeadas
-          border: Border.all(color: fuerte, width: 2), // Borde del color fuerte
+          border: Border.all(color: borde, width: 2), // Borde del color fuerte
           boxShadow: [BoxShadow(color: fuerte.withValues(alpha: 0.18), blurRadius: 12, offset: const Offset(0, 4))], // Sombra del mismo color (resalta)
         ), // Fin del aspecto
         child: Row( // Ícono a la izquierda y textos a la derecha
@@ -601,12 +606,12 @@ class _AlertaAviso extends StatelessWidget { // Aviso urgente con aspecto de ALE
               child: Column( // Uno debajo del otro
                 crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
                 children: [ // Elementos
-                  Text(etiqueta, style: TextStyle(color: fuerte, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1.3)), // "AVISO URGENTE"
+                  Text(etiqueta, style: TextStyle(color: borde, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1.3)), // "AVISO URGENTE"
                   const SizedBox(height: 2), // Espacio
-                  Text(aviso.titulo ?? 'Aviso', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1F2937), height: 1.2)), // Título grande
+                  Text(aviso.titulo ?? 'Aviso', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colorTitulo, height: 1.2)), // Título grande
                   if ((aviso.mensaje ?? '').isNotEmpty) ...[ // Si tiene mensaje...
                     const SizedBox(height: 6), // Espacio
-                    Text(aviso.mensaje!, style: const TextStyle(fontSize: 16, color: Color(0xFF374151), height: 1.35)), // ...el mensaje
+                    Text(aviso.mensaje!, style: TextStyle(fontSize: 16, color: colorMensaje, height: 1.35)), // ...el mensaje
                   ], // Fin del mensaje
                 ], // Fin de los elementos
               ), // Fin de la columna
