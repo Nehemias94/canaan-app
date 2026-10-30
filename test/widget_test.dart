@@ -24,6 +24,7 @@ import 'package:canaan_app/servicios/recordatorios.dart'; // Cálculo de los avi
 import 'package:canaan_app/servicios/compartir.dart'; // Compartir (se cambia por uno de mentira)
 import 'package:canaan_app/servicios/preferencias.dart'; // Letra grande
 import 'package:canaan_app/servicios/recarga.dart'; // "Timbre" para recargar Inicio al instante
+import 'package:canaan_app/componentes/carruseles.dart'; // Ajustes de los carruseles (paso automático)
 import 'package:canaan_app/servicios/radio.dart'; // Control de la radio (para cambiarlo por uno de prueba)
 import 'dart:async'; // StreamController (estados de la radio de mentira)
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Caja fuerte (en pruebas, una de mentira en memoria)
@@ -209,6 +210,7 @@ void pantallaAlta(WidgetTester tester) { // Agranda la pantalla de prueba (para 
 void main() { // Punto de arranque de las pruebas
   setUp(() { // Antes de cada prueba:
     FlutterSecureStorage.setMockInitialValues({}); // Caja fuerte vacía y en memoria
+    Carruseles.pasoAutomatico = null; // Los carruseles NO pasan solos (así las tarjetas están donde la prueba las espera); la prueba 54 lo enciende
     PantallaVideo.reproductorDePrueba = const SizedBox(height: 200, child: Text('[video de prueba]')); // Reproductor de mentira (YouTube no carga en las pruebas)
   }); // Fin de setUp
 
@@ -398,7 +400,7 @@ void main() { // Punto de arranque de las pruebas
     await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Abre la app
     await tester.pumpAndSettle(); // Espera
     expect(find.text('ANUNCIOS'), findsOneWidget); // Encabezado de la sección
-    expect(find.text('31 OCT 2026'), findsOneWidget); // Fecha en la tarjeta pequeña
+    expect(find.text('TOCA PARA VER MÁS'), findsOneWidget); // Línea corta en la tarjeta pequeña (sin la fecha de envío)
     expect(find.text('Este sábado de 6 am a 12 md.'), findsNothing); // El mensaje NO va en Inicio (Inicio queda corto)
     expect(find.text('Bienvenido al templo'), findsNothing); // El de área NO
     expect(find.text('Anuncio vencido'), findsNothing); // El vencido NO
@@ -1015,4 +1017,38 @@ void main() { // Punto de arranque de las pruebas
     expect(find.text('Eventos especiales'), findsOneWidget); // Título de la pestaña
     expect(find.text('📍 Templo central'), findsOneWidget); // Evento completo
   }); // Fin de la prueba 53
+  testWidgets('Carrusel: pasa solo, se detiene al tocarlo y con ⏸', (WidgetTester tester) async { // Prueba 54
+    pantallaAlta(tester); // Pantalla alta
+    Carruseles.pasoAutomatico = const Duration(seconds: 6); // Enciende el paso automático (solo en esta prueba)
+    addTearDown(() => Carruseles.pasoAutomatico = null); // Al terminar, lo apaga otra vez
+    final inicio = DateTime.now().add(const Duration(days: 10)); // Dentro de 10 días
+    final api = ApiFalsa()..eventos = [ // Tres eventos (un solo carrusel con varias tarjetas)
+      for (var n = 1; n <= 3; n++) {'id': n, 'titulo': 'Evento $n', 'inicia_en': inicio.add(Duration(days: n)).toIso8601String(), 'se_transmite': false, 'en_curso': false},
+    ]; // Fin de los eventos
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    final carrusel = find.byType(PageView).last; // Carrusel de eventos (el de abajo)
+    final control = tester.widget<PageView>(carrusel).controller!; // Su control (dice qué tarjeta se ve)
+    expect(control.page!.round(), 0); // Empieza en la primera
+    await tester.pump(const Duration(seconds: 6)); // Pasan 6 s
+    await tester.pumpAndSettle(); // Termina el movimiento
+    expect(control.page!.round(), 1); // Pasó sola a la segunda
+    await tester.tap(find.byTooltip('Detener el paso de las tarjetas').last); // Toca ⏸ del carrusel de eventos
+    await tester.pump(); // Redibuja
+    await tester.pump(const Duration(seconds: 13)); // Pasan 13 s (dos pasos)
+    await tester.pumpAndSettle(); // Espera
+    expect(control.page!.round(), 1); // Detenido: sigue en la segunda
+    expect(find.byTooltip('Pasar las tarjetas solas'), findsOneWidget); // Ahora el botón es ▶
+    await tester.tap(find.byTooltip('Pasar las tarjetas solas')); // Reanuda
+    await tester.pump(); // Redibuja
+    await tester.pump(const Duration(seconds: 6)); // Siguiente paso
+    await tester.pumpAndSettle(); // Espera
+    expect(control.page!.round(), 2); // Volvió a pasar sola
+    final centro = tester.getCenter(carrusel); // Centro del carrusel
+    final gesto = await tester.startGesture(centro); // La persona pone el dedo
+    await gesto.cancel(); // Y lo retira sin completar un toque (así no abre el evento)
+    await tester.pump(const Duration(seconds: 7)); // Pasan 7 s (menos de 15 desde el toque)
+    await tester.pumpAndSettle(); // Espera
+    expect(control.page!.round(), 2); // Pausa corta por el toque: no se movió
+  }); // Fin de la prueba 54
 } // Fin de main
