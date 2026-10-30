@@ -2,13 +2,15 @@ import 'package:flutter/foundation.dart'; // kIsWeb (en el navegador no hay perm
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 import 'package:permission_handler/permission_handler.dart'; // Permiso de notificaciones
 
-import '../servicios/api.dart'; // Datos de la iglesia (para activar el aviso al llegar)
+import '../modelos/iglesia.dart'; // Pasos de la bienvenida (configurados en el panel)
+import '../servicios/api.dart'; // Datos de la iglesia (textos de la bienvenida y aviso al llegar)
 import '../servicios/geocerca_fondo.dart'; // Aviso al llegar a la iglesia
 import '../servicios/preferencias.dart'; // Recordar que ya la vio y el "Ahora no"
 import '../tema.dart'; // Colores de Canaán
 
 // Bienvenida: SOLO la primera vez que se abre la app. Explica qué hay y pide los permisos con su explicación delante
 // (notificaciones y, si se quiere, ubicación para el aviso al llegar a la iglesia). "Saltar" siempre visible.
+// Qué pasos se muestran y sus textos se configuran en el panel (Configuración → Bienvenida de la app); sin internet, los de fábrica.
 
 class PantallaBienvenida extends StatefulWidget { // Pantalla de 3 pasos que se desliza
   const PantallaBienvenida({super.key, required this.api}); // Constructor
@@ -24,8 +26,34 @@ class _PantallaBienvenidaState extends State<PantallaBienvenida> { // Estado: en
   int _paso = 0; // Paso actual
   bool _ocupado = false; // Rueda mientras se piden permisos
 
-  bool get _conUbicacion => GeocercaFondo.soportada; // El paso 3 solo en teléfonos (no en el navegador)
-  int get _total => _conUbicacion ? 3 : 2; // Cuántos pasos
+  List<PasoBienvenida>? _pasos; // Pasos encendidos (null = todavía cargando la configuración del panel)
+  Iglesia? _iglesia; // Datos de la iglesia (para el aviso al llegar)
+
+  int get _total => _pasos?.length ?? 0; // Cuántos pasos
+
+  static const esperaConfiguracion = Duration(seconds: 8); // Máximo para esperar al panel (dormido tarda ~50 s: mejor usar los textos de fábrica)
+
+  @override // Reemplaza initState
+  void initState() { // Al abrir
+    super.initState(); // Lo normal
+    _cargar(); // Pide la configuración al panel
+  } // Fin de initState
+
+  Future<void> _cargar() async { // Configuración de la bienvenida
+    List<PasoBienvenida> pasos = PasoBienvenida.deFabrica; // Por defecto, los de fábrica
+    try { // Pregunta al panel
+      final iglesia = await widget.api.obtenerIglesia().timeout(esperaConfiguracion); // Datos de la iglesia
+      _iglesia = iglesia; // Los guarda (paso 3)
+      if (iglesia.bienvenida.isNotEmpty) pasos = iglesia.bienvenida; // Lo configurado en el panel
+    } catch (_) {} // Sin internet o panel dormido: los de fábrica
+    final visibles = pasos.where((p) => p.mostrar && (p.clave != 'ubicacion' || GeocercaFondo.soportada)).toList(); // Solo los encendidos (el de ubicación, solo en teléfonos)
+    if (!mounted) return; // Pantalla cerrada
+    if (visibles.isEmpty) { // Todos apagados en el panel...
+      Preferencias.terminarBienvenida(); // ...no hay bienvenida: directo a la app
+      return; // Fin
+    } // Fin del if
+    setState(() => _pasos = visibles); // Muestra los pasos
+  } // Fin de _cargar
 
   @override // Reemplaza dispose
   void dispose() { // Al cerrar
@@ -59,7 +87,7 @@ class _PantallaBienvenidaState extends State<PantallaBienvenida> { // Estado: en
     setState(() => _ocupado = true); // Rueda
     String? error; // Motivo si no se pudo
     try { // Pide la ubicación de la iglesia y activa
-      error = await GeocercaFondo.activar(await widget.api.obtenerIglesia()); // Permisos + círculo de la iglesia
+      error = await GeocercaFondo.activar(_iglesia ?? await widget.api.obtenerIglesia()); // Permisos + círculo de la iglesia (usa los datos ya cargados)
     } catch (_) { // Sin internet
       error = 'No pudimos conectar con la iglesia. Puedes activarlo después en Servicios.'; // Mensaje
     } // Fin del try
@@ -71,31 +99,28 @@ class _PantallaBienvenidaState extends State<PantallaBienvenida> { // Estado: en
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
-    final pasos = <Widget>[ // Los pasos
-      _Paso( // 1) Bienvenida
-        icono: Image.asset('assets/imagenes/canaan-icono.png', height: 110), // Ícono dorado de Canaán
-        titulo: 'Bienvenido a Canaán', // Título
-        texto: 'Aquí tienes las prédicas, la Biblia, los eventos, el horario de cultos y la transmisión en vivo de la iglesia, siempre a la mano.', // Explicación
-        botones: [FilledButton(onPressed: _siguiente, style: _estiloPrincipal, child: const Text('Comenzar'))], // Botón
-      ), // Fin del paso 1
-      _Paso( // 2) Notificaciones
-        icono: const Icon(Icons.notifications_active, size: 96, color: doradoCanaan), // Campana
-        titulo: 'Te avisamos lo importante', // Título
-        texto: 'Te enviaremos un aviso cuando estemos en vivo, los anuncios de la iglesia y los avisos urgentes (como un culto cancelado). Puedes elegir cuáles en Servicios.', // Explicación
-        botones: [ // Botones
-          FilledButton(onPressed: _ocupado ? null : _permitirNotificaciones, style: _estiloPrincipal, child: const Text('Permitir notificaciones')), // Sí
-          TextButton(onPressed: _ocupado ? null : _ahoraNoNotificaciones, style: _estiloSecundario, child: const Text('Ahora no')), // No
-        ], // Fin de los botones
-      ), // Fin del paso 2
-      if (_conUbicacion) _Paso( // 3) Aviso al llegar (solo en teléfonos)
-        icono: const Icon(Icons.place, size: 96, color: doradoCanaan), // Pin
-        titulo: '¿Un saludo al llegar a la iglesia?', // Título
-        texto: 'Cuando llegues al templo te mostraremos los avisos del día, aunque la app esté cerrada. Tu ubicación NUNCA sale de tu teléfono. Android te pedirá permitir la ubicación "todo el tiempo".', // Explicación (requisito de Google: decir para qué se usa)
-        botones: [ // Botones
-          FilledButton(onPressed: _ocupado ? null : _activarAvisoAlLlegar, style: _estiloPrincipal, child: const Text('Sí, activar')), // Sí
-          TextButton(onPressed: _ocupado ? null : _siguiente, style: _estiloSecundario, child: const Text('Ahora no')), // No
-        ], // Fin de los botones
-      ), // Fin del paso 3
+    final pasos = [ // Un paso por cada uno encendido en el panel
+      for (final p in _pasos ?? const <PasoBienvenida>[]) // Cada paso
+        _Paso( // Paso
+          icono: switch (p.clave) { // Ícono según el paso
+            'notificaciones' => const Icon(Icons.notifications_active, size: 96, color: doradoCanaan), // Campana
+            'ubicacion' => const Icon(Icons.place, size: 96, color: doradoCanaan), // Pin
+            _ => Image.asset('assets/imagenes/canaan-icono.png', height: 110), // Ícono dorado de Canaán
+          }, // Fin del ícono
+          titulo: p.titulo, // Título (del panel)
+          texto: p.texto, // Explicación (del panel)
+          botones: switch (p.clave) { // Botones según el paso
+            'notificaciones' => [ // Notificaciones
+              FilledButton(onPressed: _ocupado ? null : _permitirNotificaciones, style: _estiloPrincipal, child: const Text('Permitir notificaciones')), // Sí
+              TextButton(onPressed: _ocupado ? null : _ahoraNoNotificaciones, style: _estiloSecundario, child: const Text('Ahora no')), // No
+            ], // Fin
+            'ubicacion' => [ // Saludo al llegar
+              FilledButton(onPressed: _ocupado ? null : _activarAvisoAlLlegar, style: _estiloPrincipal, child: const Text('Sí, activar')), // Sí
+              TextButton(onPressed: _ocupado ? null : _siguiente, style: _estiloSecundario, child: const Text('Ahora no')), // No
+            ], // Fin
+            _ => [FilledButton(onPressed: _siguiente, style: _estiloPrincipal, child: const Text('Comenzar'))], // Bienvenida
+          }, // Fin de los botones
+        ), // Fin del paso
     ]; // Fin de los pasos
     return Scaffold( // Estructura
       body: Container( // Fondo
@@ -107,7 +132,7 @@ class _PantallaBienvenidaState extends State<PantallaBienvenida> { // Estado: en
                 alignment: Alignment.centerRight, // A la derecha
                 child: TextButton(onPressed: _ocupado ? null : Preferencias.terminarBienvenida, style: TextButton.styleFrom(foregroundColor: Colors.white70), child: const Text('Saltar', style: TextStyle(fontSize: 16))), // Termina sin pedir nada
               ), // Fin de "Saltar"
-              Expanded( // Los pasos
+              if (_pasos == null) const Expanded(child: Center(child: CircularProgressIndicator(color: doradoCanaan))) else Expanded( // Mientras carga la configuración: rueda; luego, los pasos
                 child: PageView( // Se desliza
                   controller: _control, // Control
                   onPageChanged: (i) => setState(() => _paso = i), // Recuerda el paso

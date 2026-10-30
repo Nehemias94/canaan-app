@@ -18,6 +18,7 @@ class Iglesia { // Molde con los datos que usa la app
   final Repeticion? repeticion; // Última transmisión terminada hace poco ("¿Te lo perdiste?"); null si no hay
   final bool cuentaRegresivaMostrar; // Configuración: ¿mostrar la cuenta regresiva del próximo culto transmitido?
   final int cuentaRegresivaHoras; // Configuración: desde cuántas horas antes
+  final List<PasoBienvenida> bienvenida; // Bienvenida de la app (configurada en el panel; vacía si el panel es viejo)
 
   bool get tieneUbicacion => latitud != null && longitud != null; // ¿Se configuró la ubicación en el panel?
 
@@ -39,6 +40,7 @@ class Iglesia { // Molde con los datos que usa la app
     this.repeticion, // Opcional
     this.cuentaRegresivaMostrar = true, // Por defecto, sí
     this.cuentaRegresivaHoras = 2, // Por defecto, 2 horas antes
+    this.bienvenida = const [], // Por defecto, sin configuración (se usan los textos de fábrica)
   }); // Fin del constructor
 
   factory Iglesia.desdeJson(Map<String, dynamic> json) { // Convierte el JSON de la API en un objeto Iglesia
@@ -58,6 +60,7 @@ class Iglesia { // Molde con los datos que usa la app
       repeticion: json['repeticion'] == null ? null : Repeticion.desdeJson(json['repeticion'] as Map<String, dynamic>), // ...la repetición del culto (si hubo transmisión en las últimas 12 h)
       cuentaRegresivaMostrar: (json['cuenta_regresiva'] as Map<String, dynamic>?)?['mostrar'] != false, // ...si se muestra la cuenta regresiva (si no viene: sí)
       cuentaRegresivaHoras: ((json['cuenta_regresiva'] as Map<String, dynamic>?)?['horas'] as num?)?.toInt() ?? 2, // ...y desde cuántas horas antes
+      bienvenida: ((json['bienvenida'] as List?) ?? const []).map((p) => PasoBienvenida.desdeJson(p as Map<String, dynamic>)).toList(), // ...y la bienvenida (3 pasos)
     ); // Fin del objeto
   } // Fin de desdeJson
 } // Fin de Iglesia
@@ -175,3 +178,25 @@ class Repeticion { // Repetición del último culto transmitido (bloque "repetic
         termino: DateTime.tryParse(json['termino'] as String? ?? '')?.toLocal(), // Fecha ISO del panel → hora del teléfono
       ); // Fin
 } // Fin de Repeticion
+
+class PasoBienvenida { // Un paso de la bienvenida (bloque "bienvenida" de /api/iglesia; se configura en el panel → Configuración)
+  const PasoBienvenida({required this.clave, required this.mostrar, required this.titulo, required this.texto}); // Constructor
+
+  final String clave; // inicio / notificaciones / ubicacion
+  final bool mostrar; // ¿Se muestra? (apagado en el panel = se salta)
+  final String titulo; // Título
+  final String texto; // Explicación
+
+  factory PasoBienvenida.desdeJson(Map<String, dynamic> json) => PasoBienvenida( // Desde el JSON
+        clave: json['clave'] as String? ?? '', // Clave
+        mostrar: json['mostrar'] != false, // Si no viene: sí
+        titulo: json['titulo'] as String? ?? '', // Título
+        texto: json['texto'] as String? ?? '', // Texto
+      ); // Fin
+
+  static const deFabrica = [ // Textos de fábrica (si no hay internet al abrir por primera vez; iguales a los del panel)
+    PasoBienvenida(clave: 'inicio', mostrar: true, titulo: 'Bienvenido a Canaán', texto: 'Aquí tienes las prédicas, la Biblia, los eventos, el horario de cultos y la transmisión en vivo de la iglesia, siempre a la mano.'),
+    PasoBienvenida(clave: 'notificaciones', mostrar: true, titulo: 'Te avisamos lo importante', texto: 'Te enviaremos un aviso cuando estemos en vivo, los anuncios de la iglesia y los avisos urgentes (como un culto cancelado). Puedes elegir cuáles en Servicios.'),
+    PasoBienvenida(clave: 'ubicacion', mostrar: true, titulo: '¿Un saludo al llegar a la iglesia?', texto: 'Cuando llegues al templo te mostraremos los avisos del día, aunque la app esté cerrada. Tu ubicación NUNCA sale de tu teléfono. Android te pedirá permitir la ubicación «todo el tiempo».'),
+  ]; // Fin de los textos de fábrica
+} // Fin de PasoBienvenida

@@ -65,6 +65,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
   final String? avisoNivel; // Nivel del aviso urgente del panel falso (null = sin aviso)
   final Map<String, dynamic>? avisoArea; // Área del aviso urgente (null = para todos)
   final bool conExtras; // ¿El panel falso tiene WhatsApp, ofrendas y versículo del día?
+  List<Map<String, dynamic>>? bienvenida; // Bienvenida configurada (null = el panel no la manda)
   bool enVivoEnPanel = true; // ¿Hay transmisión en vivo en el panel falso? (se puede cambiar a mitad de la prueba)
   bool anuncioAreaAhora = false; // ¿Hay un anuncio "Solo área" en su ventana ahora mismo?
   bool conRepeticion = false; // ¿Hubo transmisión hace poco? (tarjeta "¿Te lo perdiste?")
@@ -147,6 +148,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
       'en_vivo': {'activo': enVivoEnPanel, 'titulo': 'Culto dominical', 'youtube_id': 'envivo123'}, // Transmisión activa
       if (conExtras) 'contacto': {'whatsapp': '50370000000'}, // WhatsApp
       if (conExtras) 'ofrendas': {'mostrar': true, 'mensaje': 'Dios ama al dador alegre.', 'cuentas': [{'banco': 'Banco Agrícola', 'tipo': 'Ahorro', 'numero': '3000-123456', 'titular': 'MCC'}], 'qr_url': null}, // Ofrendas
+      if (bienvenida != null) 'bienvenida': bienvenida, // Bienvenida configurada en el panel
       if (conExtras) 'versiculo_dia': {'texto': 'Jehová es mi pastor; nada me faltará.', 'referencia': 'Salmos 23:1'}, // Versículo
       if (avisoNivel != null) 'aviso_urgente': {'activo': true, 'titulo': 'Culto cancelado', 'mensaje': 'Hoy no habrá culto por la lluvia.', 'nivel': avisoNivel, 'area': avisoArea}, // Aviso urgente
       if (cuentaRegresiva != null) 'cuenta_regresiva': cuentaRegresiva, // Configuración de la cuenta regresiva
@@ -1156,4 +1158,30 @@ void main() { // Punto de arranque de las pruebas
     expect(Preferencias.bienvenidaVista.value, isTrue); // Ya no vuelve a salir
     expect(find.byType(NavigationBar), findsOneWidget); // Entró a la app
   }); // Fin de la prueba 59
+  testWidgets('Bienvenida: usa los textos del panel y salta las pantallas apagadas', (WidgetTester tester) async { // Prueba 60
+    pantallaAlta(tester); // Pantalla alta
+    Preferencias.bienvenidaVista.value = false; // Primera vez
+    final api = ApiFalsa()..bienvenida = [ // Configuración del panel
+      {'clave': 'inicio', 'mostrar': true, 'titulo': '¡Hola, familia Canaán!', 'texto': 'Texto del panel.'}, // Título cambiado
+      {'clave': 'notificaciones', 'mostrar': false, 'titulo': 'X', 'texto': 'X'}, // Apagada
+      {'clave': 'ubicacion', 'mostrar': true, 'titulo': 'Y', 'texto': 'Y'}, // (en la PC no aplica)
+    ]; // Fin
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('¡Hola, familia Canaán!'), findsOneWidget); // Título del panel
+    expect(find.text('Texto del panel.'), findsOneWidget); // Texto del panel
+    await tester.tap(find.text('Comenzar')); // Siguiente
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Te avisamos lo importante'), findsNothing); // La de notificaciones se saltó
+    expect(find.byType(NavigationBar), findsOneWidget); // Entró a la app
+  }); // Fin de la prueba 60
+
+  testWidgets('Bienvenida: si el panel apaga todas, entra directo', (WidgetTester tester) async { // Prueba 61
+    Preferencias.bienvenidaVista.value = false; // Primera vez
+    final api = ApiFalsa()..bienvenida = [for (final c in ['inicio', 'notificaciones', 'ubicacion']) {'clave': c, 'mostrar': false, 'titulo': '', 'texto': ''}]; // Las 3 apagadas
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    expect(find.byType(NavigationBar), findsOneWidget); // Directo a la app
+    expect(Preferencias.bienvenidaVista.value, isTrue); // Y no vuelve a intentarlo
+  }); // Fin de la prueba 61
 } // Fin de main
