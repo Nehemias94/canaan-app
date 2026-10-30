@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.2.17+19 # Versión visible + número interno: SUBIRLOS en cada APK nueva (así se nota en el teléfono)
+version: 0.2.18+20 # Versión visible + número interno: SUBIRLOS en cada APK nueva (así se nota en el teléfono)
 
 environment:
   sdk: ^3.13.7

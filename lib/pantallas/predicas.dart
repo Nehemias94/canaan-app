@@ -117,7 +117,7 @@ class _PantallaPredicasState extends State<PantallaPredicas> with WidgetsBinding
                             mensaje: _buscar.isEmpty ? 'Aún no hay prédicas publicadas.' : 'No encontramos prédicas con “$_buscar”.', // Mensaje según si buscó
                           ) // Fin de Vacio
                         : ListView.builder( // No: lista (builder = solo dibuja las que se ven, más rápido)
-                            padding: const EdgeInsets.all(12), // Margen
+                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 16), // Margen
                             itemCount: _predicas!.length, // Cuántas hay
                             itemBuilder: (context, i) => _TarjetaPredica(key: ValueKey('predica-${_predicas![i].id}'), predica: _predicas![i], api: widget.api, registro: widget.registro), // Dibuja la tarjeta número i
                           ), // Fin de la lista
@@ -181,8 +181,72 @@ class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la
         .join(' · '); // ...y las une con un punto medio
   } // Fin de _subtitulo
 
+  Widget _botonCompartir(BuildContext context) => IconButton( // Botón compartir (título, predicador y enlace de YouTube)
+        tooltip: 'Compartir prédica', // Texto de ayuda
+        visualDensity: VisualDensity.compact, // Compacto
+        icon: Icon(Icons.share, color: context.cc.azul), // Ícono
+        onPressed: () => Compartir.texto([ // Texto a compartir
+          '🎥 ${predica.titulo}', // Título
+          if (_subtitulo().isNotEmpty) _subtitulo(), // Predicador · fecha
+          if (predica.youtubeId != null) 'https://www.youtube.com/watch?v=${predica.youtubeId}', // Enlace del video
+        ].join('\n')), // Fin del texto
+      ); // Fin del botón
+
+  String? _textoSerie() => predica.serieNombre == null ? null : '📚 ${predica.serieNombre}${predica.serieParte != null ? ' · Parte ${predica.serieParte}${predica.serieTotal > 1 ? ' de ${predica.serieTotal}' : ''}' : ''}'; // "📚 La familia · Parte 2 de 4" (o nada)
+
   @override // Reemplaza build
-  Widget build(BuildContext context) { // Describe cómo se ve
+  Widget build(BuildContext context) => predica.destacada ? _tarjetaGrande(context) : _filaCompacta(context); // La destacada, grande; las demás, en fila compacta (caben 4–5 por pantalla)
+
+  Widget _filaCompacta(BuildContext context) { // Fila: miniatura pequeña con ▶ a la izquierda y los datos a la derecha (como en YouTube)
+    final serie = _textoSerie(); // Serie (o nada)
+    return Card( // Tarjeta
+      margin: const EdgeInsets.only(bottom: 8), // Separación entre filas
+      clipBehavior: Clip.antiAlias, // Efecto del toque con esquinas redondeadas
+      child: InkWell( // Se puede tocar
+        onTap: () => _abrir(context), // Abre el video (o la descripción)
+        child: Padding( // Margen interno
+          padding: const EdgeInsets.fromLTRB(8, 8, 0, 8), // A la derecha lo pone el botón compartir
+          child: Row( // Miniatura | datos | compartir
+            crossAxisAlignment: CrossAxisAlignment.start, // Arriba
+            children: [ // Elementos
+              ClipRRect( // Esquinas redondeadas
+                borderRadius: BorderRadius.circular(10), // Radio
+                child: SizedBox( // Tamaño fijo de la miniatura
+                  width: 136, height: 77, // 16:9
+                  child: Stack( // Imagen y ▶ encima
+                    fit: StackFit.expand, // Llena el espacio
+                    children: [ // Capas
+                      predica.miniaturaUrl == null // ¿Tiene miniatura?
+                          ? Container(color: context.cc.azul.withValues(alpha: context.alfaBurbuja), child: Icon(Icons.video_library_outlined, color: context.cc.azul)) // No: recuadro de color
+                          : ImagenGuardada(predica.miniaturaUrl!, fit: BoxFit.cover, alError: (_) => Container(color: Colors.black12)), // Sí: guardada en el teléfono
+                      if (predica.youtubeId != null) // Si tiene video...
+                        const Center(child: CircleAvatar(radius: 16, backgroundColor: Colors.black54, child: Icon(Icons.play_arrow, color: Colors.white, size: 22))), // ...botón ▶ al centro
+                    ], // Fin de las capas
+                  ), // Fin del Stack
+                ), // Fin del tamaño
+              ), // Fin de la miniatura
+              const SizedBox(width: 12), // Espacio
+              Expanded( // Datos
+                child: Column( // Uno debajo del otro
+                  crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
+                  children: [ // Elementos
+                    if (serie != null) Text(serie, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: context.cc.azul, fontWeight: FontWeight.w600, fontSize: 12)), // Serie
+                    Text(predica.titulo, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: context.cc.titulo, height: 1.2)), // Título (máx. 2 renglones)
+                    const SizedBox(height: 3), // Espacio
+                    Text(_subtitulo(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: context.cc.suave, fontSize: 13)), // Predicador · fecha
+                    if (predica.reproducciones > 0) Text('${predica.reproducciones} ${predica.reproducciones == 1 ? 'vista' : 'vistas'}', style: TextStyle(color: context.cc.suave, fontSize: 12)), // Vistas
+                  ], // Fin de los elementos
+                ), // Fin de la columna
+              ), // Fin de los datos
+              _botonCompartir(context), // Compartir
+            ], // Fin de los elementos
+          ), // Fin de la fila
+        ), // Fin del margen
+      ), // Fin de InkWell
+    ); // Fin de la tarjeta
+  } // Fin de _filaCompacta
+
+  Widget _tarjetaGrande(BuildContext context) { // La DESTACADA: tarjeta grande con miniatura 16:9 y borde dorado (como antes)
     return Card( // Tarjeta con sombra suave
       clipBehavior: Clip.antiAlias, // Recorta la imagen con las esquinas redondeadas de la tarjeta
       shape: predica.destacada // ¿Es la destacada?
@@ -207,24 +271,15 @@ class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la
               child: Column( // Textos uno debajo del otro
                 crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
                 children: [ // Elementos
-                  if (predica.serieNombre != null) // Si es parte de una serie...
-                    Padding(padding: const EdgeInsets.only(bottom: 2), child: Text('📚 ${predica.serieNombre}${predica.serieParte != null ? ' · Parte ${predica.serieParte}${predica.serieTotal > 1 ? ' de ${predica.serieTotal}' : ''}' : ''}', style: TextStyle(color: context.cc.azul, fontWeight: FontWeight.w600, fontSize: 13))), // "📚 La familia · Parte 2 de 4"
+                  if (_textoSerie() != null) // Si es parte de una serie...
+                    Padding(padding: const EdgeInsets.only(bottom: 2), child: Text(_textoSerie()!, style: TextStyle(color: context.cc.azul, fontWeight: FontWeight.w600, fontSize: 13))), // "📚 La familia · Parte 2 de 4"
                   if (predica.destacada) // Si es la destacada...
                     const Text('★ DESTACADA', style: TextStyle(color: Color(0xFFB07A00), fontWeight: FontWeight.bold, fontSize: 12)), // ...etiqueta dorada oscura (legible sobre blanco)
                   Row( // Título y botón compartir
                     crossAxisAlignment: CrossAxisAlignment.start, // Arriba
                     children: [ // Elementos
                       Expanded(child: Text(predica.titulo, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cc.titulo))), // Título en negrita marino (igual que los anuncios de Inicio)
-                      IconButton( // Compartir
-                        tooltip: 'Compartir prédica', // Texto de ayuda
-                        visualDensity: VisualDensity.compact, // Compacto
-                        icon: Icon(Icons.share, color: context.cc.azul), // Ícono
-                        onPressed: () => Compartir.texto([ // Título, predicador y enlace de YouTube
-                          '🎥 ${predica.titulo}', // Título
-                          if (_subtitulo().isNotEmpty) _subtitulo(), // Predicador · fecha
-                          if (predica.youtubeId != null) 'https://www.youtube.com/watch?v=${predica.youtubeId}', // Enlace del video
-                        ].join('\n')), // Fin del texto
-                      ), // Fin del botón
+                      _botonCompartir(context), // Compartir
                     ], // Fin de los elementos
                   ), // Fin de la fila
                   const SizedBox(height: 2), // Espacio
@@ -238,5 +293,5 @@ class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la
         ), // Fin de la columna
       ), // Fin de InkWell
     ); // Fin de la tarjeta
-  } // Fin de build
+  } // Fin de _tarjetaGrande
 } // Fin de _TarjetaPredica

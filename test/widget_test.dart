@@ -1184,4 +1184,14 @@ void main() { // Punto de arranque de las pruebas
     expect(find.byType(NavigationBar), findsOneWidget); // Directo a la app
     expect(Preferencias.bienvenidaVista.value, isTrue); // Y no vuelve a intentarlo
   }); // Fin de la prueba 61
+  testWidgets('Prédicas: la destacada grande y las demás en fila compacta', (WidgetTester tester) async { // Prueba 62
+    pantallaAlta(tester); // Pantalla alta
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa()..conSerie = true)); // Panel con serie (3 prédicas: 2 de serie, sin destacada)
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Prédicas'))); // Pestaña Prédicas
+    await tester.pumpAndSettle(); // Espera
+    final fila = tester.getSize(find.ancestor(of: find.text('Diseño de Dios'), matching: find.byType(Card)).first); // Tamaño de una prédica normal
+    expect(fila.height, lessThan(140)); // Compacta (antes ~330 con la miniatura grande)
+    expect(find.text('📚 La familia · Parte 1 de 2'), findsWidgets); // La serie se sigue viendo
+  }); // Fin de la prueba 62
 } // Fin de main
