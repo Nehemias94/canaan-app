@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Diseño del widget "Versículo del día" (pantalla de inicio del teléfono). Los textos los pone VersiculoWidget.kt -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_raiz"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_fondo"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Título pequeño en dorado -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="📖 VERSÍCULO DEL DÍA"
+        android:textColor="#FFB100"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.1" />
+
+    <!-- Texto del versículo (blanco, en cursiva; si es largo, se corta con "…") -->
+    <TextView
+        android:id="@+id/widget_texto"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="6dp"
+        android:ellipsize="end"
+        android:maxLines="6"
+        android:textColor="#FFFFFF"
+        android:textSize="15sp"
+        android:textStyle="italic"
+        android:lineSpacingMultiplier="1.15" />
+
+    <!-- Cita (ej: "Juan 3:16"), en dorado y negrita, a la derecha -->
+    <TextView
+        android:id="@+id/widget_referencia"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="end"
+        android:textColor="#FFB100"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+</LinearLayout>

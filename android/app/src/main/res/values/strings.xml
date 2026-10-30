@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Textos de Android (los de la app están en Dart) -->
+<resources>
+    <!-- Lo que Android muestra al elegir el widget -->
+    <string name="widget_versiculo_descripcion">Versículo del día de Canaán</string>
+</resources>

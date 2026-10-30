@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fondo del widget: degradado marino → azul de Canaán con esquinas redondeadas (igual que el encabezado de la app) -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient android:angle="315" android:startColor="#00223E" android:endColor="#004B82" />
+    <corners android:radius="22dp" />
+</shape>

@@ -46,6 +46,13 @@
             </intent-filter>
         </service>
         <!-- Botones de audífonos / pantalla de bloqueo (reproducir, detener) -->
+        <!-- Widget "Versículo del día" en la pantalla de inicio (VersiculoWidget.kt; diseño en res/layout/widget_versiculo.xml) -->
+        <receiver android:name=".VersiculoWidget" android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_versiculo_info" />
+        </receiver>
         <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver"
             android:exported="true" tools:ignore="Instantiatable">
             <intent-filter>

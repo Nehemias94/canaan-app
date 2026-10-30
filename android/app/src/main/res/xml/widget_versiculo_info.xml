@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Datos del widget para Android: tamaño (4 × 2 cuadros), se puede agrandar, y su diseño. La app lo actualiza al abrir Inicio (sin actualización por tiempo) -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_versiculo_descripcion"
+    android:initialLayout="@layout/widget_versiculo"
+    android:previewLayout="@layout/widget_versiculo"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />
