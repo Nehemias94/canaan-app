@@ -6,27 +6,19 @@ import '../tema.dart'; // Colores y fechas de Canaán
 import 'imagen_y_boton.dart'; // Imagen (flyer) y botón con enlace
 import 'tarjeta.dart'; // Tarjeta con franja de color
 
-// Tarjeta COMPLETA de un anuncio (título, texto, flyer, botón y fechas).
+// Tarjeta COMPLETA de un anuncio (título, texto, flyer y botón). Sin fechas: la del envío confundía con la del flyer (30 oct 2026).
 // Se usa en el detalle del anuncio y en "Ver todo" (en Inicio va el carrusel de tarjetas pequeñas).
 
-String fechasDeAnuncio(Anuncio anuncio) { // "5 oct 2026" o "5 oct 2026 – 12 oct 2026" (según el rango del panel)
-  final inicio = fechaCorta(anuncio.fechaInicio); // Primer día
-  final fin = fechaCorta(anuncio.fechaFin); // Último día
-  if (inicio.isEmpty) return fin; // Sin inicio: solo el fin (o nada)
-  if (fin.isEmpty || fin == inicio) return inicio; // Un solo día
-  return '$inicio – $fin'; // Rango
-} // Fin de fechasDeAnuncio
+String textoParaCompartirAnuncio(Anuncio anuncio) => // Lo que se comparte: título, mensaje y enlace del botón (si tiene)
+    '📢 ${anuncio.titulo}\n\n${anuncio.mensaje}${anuncio.botonUrl != null ? '\n\n${anuncio.botonTexto}: ${anuncio.botonUrl}' : ''}';
 
 class TarjetaAnuncio extends StatelessWidget { // Tarjeta de un anuncio (franja AZUL)
   const TarjetaAnuncio({super.key, required this.anuncio}); // Constructor
 
   final Anuncio anuncio; // Datos del anuncio
 
-  String _fechas() => fechasDeAnuncio(anuncio); // Texto de las fechas (función compartida con el carrusel)
-
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
-    final fechas = _fechas(); // Texto de las fechas
     return TarjetaCanaan( // Tarjeta con franja azul
       franja: azulCanaan, // Azul
       margen: const EdgeInsets.only(top: 10), // Separación
@@ -43,7 +35,7 @@ class TarjetaAnuncio extends StatelessWidget { // Tarjeta de un anuncio (franja 
                 tooltip: 'Compartir anuncio', // Texto de ayuda
                 visualDensity: VisualDensity.compact, // Compacto
                 icon: Icon(Icons.share, color: context.cc.azul), // Ícono compartir
-                onPressed: () => Compartir.conImagen('📢 ${anuncio.titulo}\n\n${anuncio.mensaje}${anuncio.botonUrl != null ? '\n\n${anuncio.botonTexto}: ${anuncio.botonUrl}' : ''}', anuncio.imagenUrl), // Comparte el flyer (si tiene) con título, mensaje y enlace
+                onPressed: () => Compartir.conImagen(textoParaCompartirAnuncio(anuncio), anuncio.imagenUrl), // Comparte el flyer (si tiene) con título, mensaje y enlace
               ), // Fin del botón
             ], // Fin de los elementos
           ), // Fin de la fila
@@ -53,11 +45,6 @@ class TarjetaAnuncio extends StatelessWidget { // Tarjeta de un anuncio (franja 
             Padding(padding: const EdgeInsets.only(top: 10), child: ImagenRed(url: anuncio.imagenUrl!)), // ...grande, debajo del texto (al tocarla se ve en pantalla completa)
           if (anuncio.botonTexto != null && anuncio.botonUrl != null) // Si tiene botón...
             Padding(padding: const EdgeInsets.only(top: 10), child: BotonEnlace(texto: anuncio.botonTexto!, url: anuncio.botonUrl!)), // ...abre el enlace (formulario, mapa…)
-          if (fechas.isNotEmpty) // Si hay fechas...
-            Padding( // ...las muestra en gris
-              padding: const EdgeInsets.only(top: 8), // Separación
-              child: Text(fechas, style: TextStyle(color: context.cc.suave, fontSize: 13)), // Gris pequeño
-            ), // Fin de las fechas
         ], // Fin de los elementos
       ), // Fin de la columna
     ); // Fin de la tarjeta

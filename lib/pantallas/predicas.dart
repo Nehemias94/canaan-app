@@ -229,7 +229,7 @@ class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la
                   const SizedBox(height: 2), // Espacio
                   Text(_subtitulo(), style: TextStyle(color: context.cc.suave)), // Predicador · fecha
                   if (predica.reproducciones > 0) // Si alguien la ha visto...
-                    Text('${predica.reproducciones} vistas', style: TextStyle(color: context.cc.suave, fontSize: 12)), // ...cuántas veces
+                    Text('${predica.reproducciones} ${predica.reproducciones == 1 ? 'vista' : 'vistas'}', style: TextStyle(color: context.cc.suave, fontSize: 12)), // ...cuántas veces ("1 vista" / "5 vistas")
                 ], // Fin de los elementos
               ), // Fin de la columna
             ), // Fin del margen

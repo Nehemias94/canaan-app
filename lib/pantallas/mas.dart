@@ -258,7 +258,7 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
               return ListTile( // Registrado bien
                 leading: const Icon(Icons.verified, color: Colors.green), // Ícono verde
                 title: const Text('Teléfono conectado con la iglesia'), // Texto
-                subtitle: Text('Número ${widget.registro.numero ?? '-'} · ${RegistroDispositivo.plataformaActual()}'), // Número en el panel y plataforma (útil en pruebas)
+                subtitle: Text('Recibes los avisos de la iglesia · ${_nombrePlataforma(RegistroDispositivo.plataformaActual())} · Nº ${widget.registro.numero ?? '-'}'), // Explicación sencilla; el número queda al final (sirve para soporte y pruebas)
               ); // Fin de la fila
             }, // Fin de builder
           ), // Fin de FutureBuilder
@@ -279,4 +279,10 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
       ), // Fin de la lista
     ); // Fin del Scaffold
   } // Fin de build
+
+  String _nombrePlataforma(String p) => switch (p) { // Nombre bonito de la plataforma
+        'android' => 'Android', // Teléfono Android
+        'ios' => 'iPhone', // iPhone
+        _ => 'Navegador', // Versión web
+      }; // Fin del nombre
 } // Fin de _PantallaMasState

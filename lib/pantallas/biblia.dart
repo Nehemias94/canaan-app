@@ -89,9 +89,12 @@ class _PantallaBibliaState extends State<PantallaBiblia> { // Estado de la pesta
   } // Fin de _recordar
 
   // Estilo que se agrega a la página de Bible.com para ocultar lo que ya tenemos en la app (evita dos menús y dos botones de letra):
-  // encabezado "Bible App" (logo, buscar, idioma, cuenta), menú de abajo "Navegación rápida" (Inicio · Biblia · Hoy · Planes), pie de página
-  // y el botón "AA" (está justo después del botón de audio "Escuchar"). Se QUEDAN: selector de libro/capítulo, versión, audio y flechas ‹ ›.
-  // Si Bible.com cambia su página y algo deja de ocultarse, la Biblia sigue funcionando igual (solo se vería el menú de ellos).
+  // encabezado "Bible App" (logo, buscar, idioma, cuenta), menú de abajo "Navegación rápida" (Inicio · Biblia · Hoy · Planes), pie de página,
+  // la barra de publicidad de abajo "La Biblia App · Descargar" (la pone el servicio Branch dentro de un iframe "branch-banner…")
+  // y el botón "AA" (se busca por su TEXTO: su nombre interno cambió el 30 oct 2026 y la regla vieja dejó de funcionar).
+  // Como la barra y el "AA" aparecen unos segundos DESPUÉS de cargar, un vigilante (MutationObserver) los oculta en cuanto aparecen.
+  // Se QUEDAN: selector de libro/capítulo, versión, audio y flechas ‹ ›.
+  // Si Bible.com cambia su página y algo deja de ocultarse, la Biblia sigue funcionando igual (solo se vería eso de ellos).
   // Además fuerza el MODO CLARO: Bible.com guarda el tema en localStorage "theme" (por defecto "system" = sigue al teléfono);
   // se pone "light" y se cambia la clase del documento, para que no salga negra cuando el teléfono está en modo oscuro.
   static const _estiloOcultar = '''
@@ -101,13 +104,32 @@ class _PantallaBibliaState extends State<PantallaBiblia> { // Estado de la pesta
     var h = document.documentElement;
     h.classList.remove('dark'); h.classList.add('light'); h.style.colorScheme = 'light';
   } catch (e) {}
-  if (document.getElementById('canaan-estilo')) return;
-  var s = document.createElement('style');
-  s.id = 'canaan-estilo';
-  s.textContent = 'header, footer, nav[aria-label="Navegación rápida"], a[aria-label^="Escuchar"] ~ div[data-headlessui-state] { display: none !important; }';
-  document.head.appendChild(s);
+  if (!document.getElementById('canaan-estilo')) {
+    var s = document.createElement('style');
+    s.id = 'canaan-estilo';
+    s.textContent = 'header, footer, nav[aria-label="Navegación rápida"], iframe[id^="branch-banner"], #branch-banner, .branch-journeys-top { display: none !important; }'
+      + ' html.branch-banner-is-active, html.branch-banner-is-active body { margin-top: 0 !important; margin-bottom: 0 !important; }';
+    document.head.appendChild(s);
+  }
+  function ocultarAA() {
+    var botones = document.querySelectorAll('button, a, [role="button"]');
+    for (var i = 0; i < botones.length; i++) {
+      var t = (botones[i].innerText || '').split(' ').join('').trim();
+      if (t === 'AA' || t === 'Aa') botones[i].style.setProperty('display', 'none', 'important');
+    }
+  }
+  ocultarAA();
+  if (!window.canaanVigilante) {
+    var pendiente = false;
+    window.canaanVigilante = new MutationObserver(function () {
+      if (pendiente) return;
+      pendiente = true;
+      setTimeout(function () { pendiente = false; ocultarAA(); }, 300);
+    });
+    window.canaanVigilante.observe(document.body, { childList: true, subtree: true });
+  }
 })();
-'''; // Fin del estilo (código JavaScript que crea una etiqueta <style> una sola vez)
+'''; // Fin del estilo (código JavaScript: crea la etiqueta <style> una sola vez, oculta el "AA" y deja un vigilante)
 
   Future<void> _ocultarMenusDeBibleCom() async { // Agrega el estilo de arriba a la página
     await _pagina?.runJavaScript(_estiloOcultar).catchError((_) {}); // Si falla, no pasa nada (se vería el menú de Bible.com)

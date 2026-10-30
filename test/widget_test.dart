@@ -269,7 +269,7 @@ void main() { // Punto de arranque de las pruebas
     await tester.tap(find.text('Servicios')); // Va a la pestaña Más
     await tester.pumpAndSettle(); // Espera
     expect(find.text('Teléfono conectado con la iglesia'), findsOneWidget); // Registrado
-    expect(find.textContaining('Número 7'), findsOneWidget); // Con el número del panel falso
+    expect(find.textContaining('Nº 7'), findsOneWidget); // Con el número del panel falso (al final, para soporte)
     expect(api.registros, 1); // Se registró una sola vez (Inicio y Más comparten el mismo proceso)
   }); // Fin de la prueba 4
 
@@ -416,7 +416,8 @@ void main() { // Punto de arranque de las pruebas
     await tester.tap(find.text('Ayuno congregacional')); // Toca la tarjeta
     await tester.pumpAndSettle(); // Espera
     expect(find.text('Este sábado de 6 am a 12 md.'), findsOneWidget); // El detalle muestra el mensaje completo
-    expect(find.text('31 oct 2026'), findsOneWidget); // Y su fecha
+    expect(find.text('31 oct 2026'), findsNothing); // SIN la fecha de envío (confundía con la del flyer)
+    expect(find.text('Compartir'), findsOneWidget); // Botón grande Compartir
   }); // Fin de la prueba 12
 
   testWidgets('Inicio se actualiza solo: aparece el en vivo sin tocar nada', (WidgetTester tester) async { // Prueba 13
