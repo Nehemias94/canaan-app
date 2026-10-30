@@ -109,6 +109,14 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
   @override // Reemplaza el método real
   Future<void> salirEnVivo(String token) async => salidas++; // Cuenta la salida
 
+  final List<String> vistas = []; // Vistas avisadas al panel, ej: "anuncios/1"
+
+  @override // Reemplaza el método real
+  Future<bool> registrarVista({required String token, required String tipo, required int id}) async { // Vista falsa
+    vistas.add('$tipo/$id'); // La anota
+    return true; // "Contó"
+  } // Fin de registrarVista
+
   int peticiones = 0; // Peticiones de oración recibidas
   String? ultimoNombre; // Nombre de la última petición (para revisar qué se envió)
 
@@ -1087,4 +1095,22 @@ void main() { // Punto de arranque de las pruebas
     await tester.pumpAndSettle(); // Espera
     expect(find.text('ANUNCIOS'), findsOneWidget); // Regresó a Inicio
   }); // Fin de la prueba 55
+  testWidgets('Vistas: al abrir un anuncio o un evento se avisa al panel (una vez)', (WidgetTester tester) async { // Prueba 56
+    pantallaAlta(tester); // Pantalla alta
+    final inicio = DateTime.now().add(const Duration(days: 10)); // Dentro de 10 días
+    final api = ApiFalsa()..eventos = [ // Un evento
+      {'id': 8, 'titulo': 'Aniversario', 'inicia_en': inicio.toIso8601String(), 'se_transmite': false, 'en_curso': false},
+    ]; // Fin de los eventos
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    expect(api.vistas, isEmpty); // Solo ver Inicio no cuenta
+    await tester.tap(find.text('Ayuno congregacional')); // Abre el anuncio (id 1)
+    await tester.pumpAndSettle(); // Espera
+    expect(api.vistas, ['anuncios/1']); // Avisó una vez
+    await tester.pageBack(); // Vuelve
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.text('Aniversario')); // Abre el evento (id 8)
+    await tester.pumpAndSettle(); // Espera
+    expect(api.vistas, ['anuncios/1', 'eventos/8']); // Avisó el evento
+  }); // Fin de la prueba 56
 } // Fin de main

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 
+import '../componentes/contar_vista.dart'; // Avisa al panel que se abrió (vistas anónimas)
 import '../componentes/campanita_evento.dart'; // Activar/quitar el recordatorio
 import '../componentes/imagen_y_boton.dart'; // Imagen (flyer) y botón con enlace
 import '../modelos/evento.dart'; // Molde de un evento
@@ -18,7 +19,7 @@ class PantallaEvento extends StatelessWidget { // Detalle de un evento especial
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
     final hayBoton = evento.botonTexto != null && evento.botonUrl != null; // ¿Tiene botón?
-    return Scaffold( // Estructura
+    return ContarVista(tipo: 'eventos', id: evento.id, child: Scaffold( // Al abrirlo, avisa al panel (vistas anónimas); estructura
       appBar: AppBar(title: const Text('Evento especial')), // Barra con flecha para volver
       body: ListView( // Desplazable
         padding: const EdgeInsets.all(16), // Márgenes
@@ -58,7 +59,7 @@ class PantallaEvento extends StatelessWidget { // Detalle de un evento especial
           ), // Fin del botón
         ], // Fin de los elementos
       ), // Fin de la lista
-    ); // Fin del Scaffold
+    )); // Fin del Scaffold y de ContarVista
   } // Fin de build
 } // Fin de PantallaEvento
 

@@ -158,6 +158,11 @@ class Api { // Todas las llamadas a la API del panel se hacen desde aquí
     return json['contada'] == true; // true = se sumó; false = ese teléfono ya la vio en las últimas 6 horas (no es error)
   } // Fin de registrarReproduccion
 
+  Future<bool> registrarVista({required String token, required String tipo, required int id}) async { // "Abrí este anuncio / evento" (POST /api/{anuncios|eventos}/{id}/vista); anónimo
+    final json = await _enviarConToken('$tipo/$id/vista', token); // Avisa al panel
+    return json['contada'] == true; // true = se sumó; false = ese teléfono ya lo había abierto (no es error)
+  } // Fin de registrarVista
+
   Future<SenalEnVivo> senalEnVivo(String token) async { // "Sigo viendo" el en vivo (POST /api/en-vivo/senal), cada 30 s
     final json = await _enviarConToken('en-vivo/senal', token); // Envía la señal
     return SenalEnVivo( // Devuelve lo que respondió el panel
