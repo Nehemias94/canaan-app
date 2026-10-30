@@ -5,10 +5,9 @@ import 'package:flutter/services.dart'; // SystemUiOverlayStyle (colores de la b
 import 'package:url_launcher/url_launcher.dart'; // Abrir YouTube y Google Maps fuera de la app
 
 import '../componentes/estados.dart'; // Vistas compartidas: Cargando, ErrorConexion
+import '../componentes/carrusel_novedades.dart'; // Carrusel "NOVEDADES" (anuncios y eventos)
 import '../componentes/carga_animada.dart'; // Pantalla de carga con el logo animado
-import '../componentes/imagen_y_boton.dart'; // Imagen (flyer) y botón con enlace de los anuncios
 import '../componentes/tarjeta.dart'; // Tarjeta con franja de color (diseño común)
-import '../componentes/tarjeta_evento.dart'; // Tarjeta de evento especial
 import '../config.dart'; // intervaloActualizacion
 import '../modelos/actividad.dart'; // Molde de una actividad (próximo culto)
 import '../modelos/anuncio.dart'; // Molde de un anuncio
@@ -330,23 +329,7 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
                   padding: EdgeInsets.only(top: 24), // Separación
                   child: Text('✓ Conectado con el panel', textAlign: TextAlign.center, style: TextStyle(color: context.cc.suave)), // Gris
                 ), // Fin del texto
-              if (anuncios.isNotEmpty) // Si hay anuncios...
-                Padding( // ...encabezado de la sección
-                  padding: EdgeInsets.only(top: 24, bottom: 0, left: 4), // Separación
-                  child: Text('ANUNCIOS', style: TextStyle(color: context.cc.dorado, fontWeight: FontWeight.bold, letterSpacing: 1.5)), // Dorado oscuro (se lee sobre el fondo claro)
-                ), // Fin del encabezado
-              for (final anuncio in anuncios) _TarjetaAnuncio(anuncio: anuncio), // Una tarjeta por anuncio
-              if (eventos.isNotEmpty) // Si hay eventos especiales...
-                Padding( // ...encabezado con enlace a la lista completa (en Horario)
-                  padding: const EdgeInsets.only(top: 24, left: 4), // Separación
-                  child: Row( // Título y "Ver todos"
-                    children: [ // Elementos
-                      Expanded(child: Text('PRÓXIMOS EVENTOS', style: TextStyle(color: context.cc.morado, fontWeight: FontWeight.bold, letterSpacing: 1.5))), // Morado
-                      if (eventos.length > 3) TextButton(onPressed: () => alIrAPestana?.call(3), child: const Text('Ver todos')), // Abre la pestaña Eventos (ahí están todos)
-                    ], // Fin de los elementos
-                  ), // Fin de la fila
-                ), // Fin del encabezado
-              for (final evento in eventos.take(3)) TarjetaEvento(evento: evento), // Los 3 más cercanos
+              CarruselNovedades(anuncios: anuncios, eventos: eventos), // NOVEDADES: anuncios y eventos en tarjetas pequeñas que se deslizan de lado (al tocar, se abren completos)
             ], // Fin de los elementos
           ), // Fin de la columna
         ), // Fin del contenido
@@ -391,58 +374,6 @@ class _Encabezado extends StatelessWidget { // Franja marino de arriba: logo, sa
   } // Fin de build
 } // Fin de _Encabezado
 
-class _TarjetaAnuncio extends StatelessWidget { // Tarjeta de un anuncio (franja AZUL)
-  const _TarjetaAnuncio({required this.anuncio}); // Constructor
-
-  final Anuncio anuncio; // Datos del anuncio
-
-  String _fechas() { // "5 oct 2026" o "5 oct 2026 – 12 oct 2026" (según el rango del panel)
-    final inicio = fechaCorta(anuncio.fechaInicio); // Primer día
-    final fin = fechaCorta(anuncio.fechaFin); // Último día
-    if (inicio.isEmpty) return fin; // Sin inicio: solo el fin (o nada)
-    if (fin.isEmpty || fin == inicio) return inicio; // Un solo día
-    return '$inicio – $fin'; // Rango
-  } // Fin de _fechas
-
-  @override // Reemplaza build
-  Widget build(BuildContext context) { // Describe cómo se ve
-    final fechas = _fechas(); // Texto de las fechas
-    return TarjetaCanaan( // Tarjeta con franja azul
-      franja: azulCanaan, // Azul
-      margen: const EdgeInsets.only(top: 10), // Separación
-      child: Column( // Elementos uno debajo del otro
-        crossAxisAlignment: CrossAxisAlignment.start, // A la izquierda
-        children: [ // Elementos
-          Row( // Ícono y título en fila
-            crossAxisAlignment: CrossAxisAlignment.start, // Arriba
-            children: [ // Elementos
-              Icon(Icons.campaign_outlined, color: context.cc.azul, size: 26), // Megáfono azul
-              const SizedBox(width: 10), // Espacio
-              Expanded(child: Text(anuncio.titulo, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cc.titulo))), // Título (ocupa el resto)
-              IconButton( // Botón compartir
-                tooltip: 'Compartir anuncio', // Texto de ayuda
-                visualDensity: VisualDensity.compact, // Compacto
-                icon: Icon(Icons.share, color: context.cc.azul), // Ícono compartir
-                onPressed: () => Compartir.conImagen('📢 ${anuncio.titulo}\n\n${anuncio.mensaje}${anuncio.botonUrl != null ? '\n\n${anuncio.botonTexto}: ${anuncio.botonUrl}' : ''}', anuncio.imagenUrl), // Comparte el flyer (si tiene) con título, mensaje y enlace
-              ), // Fin del botón
-            ], // Fin de los elementos
-          ), // Fin de la fila
-          const SizedBox(height: 6), // Espacio
-          Text(anuncio.mensaje, style: TextStyle(fontSize: 16, color: context.cc.texto, height: 1.35)), // Texto del anuncio
-          if (anuncio.imagenUrl != null) // Si tiene imagen (flyer)...
-            Padding(padding: const EdgeInsets.only(top: 10), child: ImagenRed(url: anuncio.imagenUrl!)), // ...grande, debajo del texto (al tocarla se ve en pantalla completa)
-          if (anuncio.botonTexto != null && anuncio.botonUrl != null) // Si tiene botón...
-            Padding(padding: const EdgeInsets.only(top: 10), child: BotonEnlace(texto: anuncio.botonTexto!, url: anuncio.botonUrl!)), // ...abre el enlace (formulario, mapa…)
-          if (fechas.isNotEmpty) // Si hay fechas...
-            Padding( // ...las muestra en gris
-              padding: const EdgeInsets.only(top: 8), // Separación
-              child: Text(fechas, style: TextStyle(color: context.cc.suave, fontSize: 13)), // Gris pequeño
-            ), // Fin de las fechas
-        ], // Fin de los elementos
-      ), // Fin de la columna
-    ); // Fin de la tarjeta
-  } // Fin de build
-} // Fin de _TarjetaAnuncio
 
 class _AccesosRapidos extends StatelessWidget { // Tarjeta con botones grandes debajo del saludo (pensado para adultos mayores)
   const _AccesosRapidos({required this.alHorario, required this.alRadio, required this.alOracion, this.alYoutube, this.alComoLlegar}); // Constructor

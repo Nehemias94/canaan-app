@@ -394,14 +394,18 @@ void main() { // Punto de arranque de las pruebas
     expect(api.salidas, 0); // No hace falta avisar "salir" (la transmisión ya terminó)
   }); // Fin de la prueba 11
   testWidgets('Inicio muestra solo los anuncios para todos y vigentes', (WidgetTester tester) async { // Prueba 12
+    pantallaAlta(tester); // Pantalla alta: el carrusel se ve sin desplazar
     await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Abre la app
     await tester.pumpAndSettle(); // Espera
-    await tester.scrollUntilVisible(find.text('Ayuno congregacional'), 200); // Baja hasta el anuncio
-    expect(find.text('ANUNCIOS'), findsOneWidget); // Encabezado de la sección
-    expect(find.text('Este sábado de 6 am a 12 md.'), findsOneWidget); // Su mensaje
-    expect(find.text('31 oct 2026'), findsOneWidget); // Su fecha (un solo día)
+    expect(find.text('NOVEDADES'), findsOneWidget); // Encabezado de la sección
+    expect(find.text('ANUNCIO · 31 oct 2026'), findsOneWidget); // Etiqueta y fecha en la tarjeta pequeña
+    expect(find.text('Este sábado de 6 am a 12 md.'), findsNothing); // El mensaje NO va en Inicio (Inicio queda corto)
     expect(find.text('Bienvenido al templo'), findsNothing); // El de área NO
     expect(find.text('Anuncio vencido'), findsNothing); // El vencido NO
+    await tester.tap(find.text('Ayuno congregacional')); // Toca la tarjeta
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Este sábado de 6 am a 12 md.'), findsOneWidget); // El detalle muestra el mensaje completo
+    expect(find.text('31 oct 2026'), findsOneWidget); // Y su fecha
   }); // Fin de la prueba 12
 
   testWidgets('Inicio se actualiza solo: aparece el en vivo sin tocar nada', (WidgetTester tester) async { // Prueba 13
@@ -565,10 +569,10 @@ void main() { // Punto de arranque de las pruebas
   testWidgets('Letra grande: agranda los textos de la app', (WidgetTester tester) async { // Prueba 27
     await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Abre la app
     await tester.pumpAndSettle(); // Espera
-    final antes = tester.getSize(find.text('ANUNCIOS')).height; // Alto del texto normal
+    final antes = tester.getSize(find.text('NOVEDADES')).height; // Alto del texto normal
     Preferencias.letraGrande.value = true; // Activa letra grande
     await tester.pumpAndSettle(); // Redibuja
-    final despues = tester.getSize(find.text('ANUNCIOS')).height; // Alto con letra grande
+    final despues = tester.getSize(find.text('NOVEDADES')).height; // Alto con letra grande
     Preferencias.letraGrande.value = false; // La deja como estaba (para las demás pruebas)
     expect(despues, greaterThan(antes)); // Más grande
   }); // Fin de la prueba 27
@@ -630,10 +634,10 @@ void main() { // Punto de arranque de las pruebas
     ]; // Fin de los eventos
     await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
     await tester.pumpAndSettle(); // Espera
-    expect(find.text('PRÓXIMOS EVENTOS'), findsOneWidget); // Sección en Inicio
-    expect(tester.getTopLeft(find.text('ANUNCIOS')).dy, lessThan(tester.getTopLeft(find.text('PRÓXIMOS EVENTOS')).dy)); // Los anuncios van ANTES que los eventos
-    expect(find.text('Campamento de jóvenes'), findsOneWidget); // El evento
-    expect(find.text('📍 Finca El Paraíso'), findsOneWidget); // Lugar
+    expect(find.text('NOVEDADES'), findsOneWidget); // Carrusel en Inicio
+    expect(tester.getTopLeft(find.text('Ayuno congregacional')).dx, lessThan(tester.getTopLeft(find.text('Campamento de jóvenes')).dx)); // Los anuncios van ANTES (a la izquierda) que los eventos
+    await tester.drag(find.byType(PageView), const Offset(-600, 0)); // Desliza el carrusel a la siguiente tarjeta
+    await tester.pumpAndSettle(); // Espera
     await tester.tap(find.text('Campamento de jóvenes')); // Abre el detalle
     await tester.pumpAndSettle(); // Espera
     expect(find.text('Tres días de alabanza.'), findsOneWidget); // Descripción
@@ -648,12 +652,16 @@ void main() { // Punto de arranque de las pruebas
     await tester.pumpAndSettle(); // Espera
     expect(find.text('Eventos especiales'), findsOneWidget); // Título de la pestaña
     expect(find.text('Campamento de jóvenes'), findsOneWidget); // El evento
+    expect(find.text('📍 Finca El Paraíso'), findsOneWidget); // Lugar (en la tarjeta completa)
   }); // Fin de la prueba 31
 
   testWidgets('Anuncio con botón de enlace', (WidgetTester tester) async { // Prueba 32
+    pantallaAlta(tester); // Pantalla alta: el carrusel se ve sin desplazar
     await tester.pumpWidget(CanaanApp(api: ApiFalsa()..anuncioConBoton = true)); // Anuncio con botón
     await tester.pumpAndSettle(); // Espera
-    expect(find.text('Inscríbete'), findsOneWidget); // Botón en la tarjeta
+    await tester.tap(find.text('Ayuno congregacional')); // Abre el anuncio
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Inscríbete'), findsOneWidget); // Botón en el detalle
   }); // Fin de la prueba 32
 
   testWidgets('Modo oscuro: se elige en Servicios y cambia los colores', (WidgetTester tester) async { // Prueba 33
@@ -986,4 +994,20 @@ void main() { // Punto de arranque de las pruebas
     await tester.pumpAndSettle(); // Espera
     expect(find.text('Culto cancelado'), findsOneWidget); // Dentro: se ve
   }); // Fin de la prueba 52
+  testWidgets('Novedades: "Ver todo" muestra anuncios y eventos completos', (WidgetTester tester) async { // Prueba 53
+    pantallaAlta(tester); // Pantalla alta
+    final inicio = DateTime.now().add(const Duration(days: 10)); // Dentro de 10 días
+    final api = ApiFalsa()..eventos = [ // Un evento
+      {'id': 8, 'titulo': 'Aniversario', 'inicia_en': inicio.toIso8601String(), 'lugar': 'Templo central', 'se_transmite': false, 'en_curso': false},
+    ]; // Fin de los eventos
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Este sábado de 6 am a 12 md.'), findsNothing); // En Inicio el anuncio va resumido
+    await tester.tap(find.text('Ver todo')); // Abre la lista completa
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('ANUNCIOS'), findsOneWidget); // Sección de anuncios
+    expect(find.text('PRÓXIMOS EVENTOS'), findsOneWidget); // Sección de eventos
+    expect(find.text('Este sábado de 6 am a 12 md.'), findsOneWidget); // Anuncio completo
+    expect(find.text('📍 Templo central'), findsOneWidget); // Evento completo
+  }); // Fin de la prueba 53
 } // Fin de main
