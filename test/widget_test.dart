@@ -511,7 +511,8 @@ void main() { // Punto de arranque de las pruebas
     await tester.pumpAndSettle(); // Espera (presentación incluida)
     expect(find.text('Radio'), findsOneWidget); // Botón Radio
     expect(find.text('Oración'), findsOneWidget); // Botón Oración
-    expect(find.text('Cómo llegar'), findsOneWidget); // Botón Cómo llegar (el panel falso tiene ubicación)
+    expect(find.text('Mapa'), findsOneWidget); // Botón Mapa (el panel falso tiene ubicación; antes "Cómo llegar", se partía en dos renglones)
+    expect(find.bySemanticsLabel('Cómo llegar a la iglesia (mapa)'), findsOneWidget); // Los lectores de pantalla lo dicen completo
     expect(find.text('YouTube'), findsNothing); // Sin canal en el panel falso: no se muestra
     expect(find.text('Biblia'), findsOneWidget); // "Biblia" solo en el menú de abajo (ya no repetido)
     expect(find.text('AHORA EN LA IGLESIA'), findsOneWidget); // Tarjeta del culto en curso

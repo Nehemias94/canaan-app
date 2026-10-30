@@ -388,7 +388,11 @@ class _AccesosRapidos extends StatelessWidget { // Tarjeta con botones grandes d
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
-    Widget boton(String texto, IconData icono, Color color, VoidCallback alTocar) => Expanded( // Un botón (reparte el ancho)
+    Widget boton(String texto, IconData icono, Color color, VoidCallback alTocar, {String? leer}) => Expanded( // Un botón (reparte el ancho); "leer" = lo que dicen los lectores de pantalla si es distinto del texto
+          child: Semantics( // Para lectores de pantalla
+          label: leer, // Texto más claro (si se dio)
+          button: true, // Se puede tocar
+          excludeSemantics: leer != null, // Si hay "leer", no repite el texto corto
           child: InkWell( // Efecto al tocar
             onTap: alTocar, // Qué hace
             borderRadius: BorderRadius.circular(12), // Efecto con esquinas redondeadas
@@ -402,11 +406,15 @@ class _AccesosRapidos extends StatelessWidget { // Tarjeta con botones grandes d
                     child: Icon(icono, color: context.vivo(color), size: 28), // Ícono grande (más claro en modo oscuro)
                   ), // Fin de la burbuja
                   const SizedBox(height: 6), // Espacio
-                  Text(texto, textAlign: TextAlign.center, maxLines: 2, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.cc.titulo, height: 1.15)), // Texto (hasta 2 renglones: "Cómo llegar")
+                  FittedBox( // Si no cabe (ej. letra grande), se achica un poco en vez de partirse: los 5 botones quedan parejos
+                    fit: BoxFit.scaleDown, // Solo achica, nunca agranda
+                    child: Text(texto, textAlign: TextAlign.center, maxLines: 1, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.cc.titulo, height: 1.15)), // Texto en UN renglón
+                  ), // Fin del ajuste
                 ], // Fin de los elementos
               ), // Fin de la columna
             ), // Fin del margen
           ), // Fin del efecto
+          ), // Fin de Semantics
         ); // Fin de boton
     return Card( // Tarjeta blanca
       margin: const EdgeInsets.only(top: 14), // Separación del encabezado
@@ -418,7 +426,7 @@ class _AccesosRapidos extends StatelessWidget { // Tarjeta con botones grandes d
             boton('Radio', Icons.headphones, doradoOscuro, alRadio), // Radio (dorado)
             boton('Oración', Icons.volunteer_activism, const Color(0xFFB4235A), alOracion), // Petición de oración (vino)
             if (alYoutube != null) boton('YouTube', Icons.smart_display, const Color(0xFFDC2626), alYoutube!), // Canal de la iglesia (rojo YouTube)
-            if (alComoLlegar != null) boton('Cómo llegar', Icons.place, const Color(0xFF0E7490), alComoLlegar!), // Google Maps (verde azulado: el verde es del Horario)
+            if (alComoLlegar != null) boton('Mapa', Icons.place, const Color(0xFF0E7490), alComoLlegar!, leer: 'Cómo llegar a la iglesia (mapa)'), // Google Maps (verde azulado: el verde es del Horario); "Mapa" cabe en un renglón ("Cómo llegar" se partía en dos)
           ], // Fin de los botones
         ), // Fin de la fila
       ), // Fin del margen
