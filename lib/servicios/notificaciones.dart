@@ -8,6 +8,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart'; /
 import '../firebase_config.dart'; // Datos del proyecto de Firebase (vacíos = sin notificaciones)
 import 'api.dart'; // Para enviar el fcm_token al panel
 import 'geocerca.dart'; // Copia de los anuncios "Solo área" (se actualiza con el aviso silencioso)
+import 'geocerca_fondo.dart'; // Círculos de cada anuncio con la app cerrada
 import 'recarga.dart'; // "Timbre" para recargar Inicio al instante (aviso urgente)
 import 'preferencias.dart'; // Qué notificaciones quiere recibir la persona
 import 'registro.dart'; // Llave del teléfono
@@ -20,6 +21,7 @@ Future<void> actualizarCopiaArea() async { // Pide los anuncios al panel y guard
   try { // Sin internet o panel dormido: se queda la copia anterior
     final anuncios = await const Api().obtenerAnuncios().timeout(const Duration(seconds: 40)); // Anuncios visibles (40 s: el panel puede tardar en despertar)
     await Geocerca().guardarCopia(anuncios); // Guarda los de área en la caja fuerte
+    await GeocercaFondo.sincronizarAnuncios(anuncios, null); // Si la persona activó el aviso con la app cerrada: registra el círculo del anuncio nuevo (o quita el borrado)
   } catch (error) { // Falló
     debugPrint('Notificaciones: no se pudo actualizar la copia de anuncios de área: $error'); // Solo lo anota
   } // Fin del try

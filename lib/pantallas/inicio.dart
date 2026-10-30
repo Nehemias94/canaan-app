@@ -97,7 +97,7 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
       }); // Fin de setState
       unawaited(WidgetVersiculo.actualizar(datos.versiculo)); // Pasa el versículo de hoy al widget de la pantalla de inicio (solo Android)
       await _revisarGeocerca(datos, lista); // Revisa si está en la iglesia (solo pide la ubicación si hay anuncios de área en su ventana)
-      unawaited(GeocercaFondo.actualizar(datos)); // Si la persona activó el aviso con la app cerrada y el panel cambió la ubicación, la vuelve a registrar
+      unawaited(GeocercaFondo.actualizar(datos, lista)); // Si la persona activó el aviso con la app cerrada: registra los círculos de la iglesia y de cada anuncio de área (si cambiaron)
     } catch (_) { // Falló (sin internet, servidor dormido)
       if (mounted && _iglesia == null) setState(() => _fallo = true); // Solo muestra el error si no había nada en pantalla
     } // Fin del try
@@ -110,19 +110,22 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
       await _geocerca.guardarCopia(anuncios); // Guarda los anuncios "Solo área" en el teléfono: el aviso con la app cerrada los usa sin esperar al panel
       final nuevos = await _geocerca.revisar(iglesia, anuncios, DateTime.now()); // Anuncios nuevos por estar en la iglesia (vacío si no, o si ya se mostraron como notificación)
       if (!mounted) return; // Pantalla cerrada: nada
-      if (nuevos.isNotEmpty) await _mostrarBienvenida(nuevos); // Recién llegó: ventana de bienvenida UNA sola vez (luego ya no aparece en ningún lado)
+      final llegada = nuevos.where((a) => !a.alSalir).toList(); // Anuncios "al llegar"
+      final salida = nuevos.where((a) => a.alSalir).toList(); // Anuncios "al salir"
+      if (llegada.isNotEmpty) await _mostrarBienvenida(llegada); // Recién llegó: ventana de bienvenida UNA sola vez (luego ya no aparece en ningún lado)
+      if (salida.isNotEmpty && mounted) await _mostrarBienvenida(salida, alSalir: true); // Se fue: ventana de despedida UNA sola vez
     } catch (_) { // Cualquier falla de ubicación: se ignora (la app sigue igual)
     } finally { // Pase lo que pase...
       _revisandoGeocerca = false; // ...termina la revisión
     } // Fin del try
   } // Fin de _revisarGeocerca
 
-  Future<void> _mostrarBienvenida(List<Anuncio> anuncios) { // Ventana "¡Qué bueno que estás aquí!" con los anuncios del templo
+  Future<void> _mostrarBienvenida(List<Anuncio> anuncios, {bool alSalir = false}) { // Ventana "¡Qué bueno que estás aquí!" (o "¡Gracias por venir!" al salir) con los anuncios del área
     return showDialog<void>( // Ventana
       context: context, // Dónde mostrarla
       builder: (context) => AlertDialog( // Contenido
-        icon: const Icon(Icons.place, color: doradoCanaan, size: 40), // Pin de ubicación dorado
-        title: const Text('¡Qué bueno que estás aquí!'), // Título
+        icon: Icon(alSalir ? Icons.waving_hand : Icons.place, color: doradoCanaan, size: 40), // Pin dorado (o mano que saluda al salir)
+        title: Text(alSalir ? '¡Gracias por venir!' : '¡Qué bueno que estás aquí!'), // Título
         content: SingleChildScrollView( // Desplazable si son varios
           child: Column( // Uno debajo del otro
             mainAxisSize: MainAxisSize.min, // Solo lo necesario

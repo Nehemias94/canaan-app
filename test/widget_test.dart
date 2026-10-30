@@ -17,6 +17,8 @@ import 'package:canaan_app/servicios/registro.dart'; // Registro del teléfono
 import 'package:canaan_app/pantallas/ministerios.dart'; // Molde de un ministerio
 import 'package:canaan_app/pantallas/video.dart'; // Pantalla del video (para cambiar el reproductor por uno de prueba)
 import 'package:canaan_app/servicios/geocerca.dart'; // Geocerca (distancia)
+import 'package:canaan_app/servicios/geocerca_fondo.dart'; // Elección del aviso con la app cerrada
+import 'package:native_geofence/native_geofence.dart'; // GeofenceEvent (entrar / quedarse / salir)
 import 'package:canaan_app/servicios/ubicacion.dart'; // Servicio de ubicación (para cambiarlo por uno de prueba)
 import 'package:canaan_app/servicios/recordatorios.dart'; // Cálculo de los avisos de eventos
 import 'package:canaan_app/servicios/compartir.dart'; // Compartir (se cambia por uno de mentira)
@@ -917,4 +919,52 @@ void main() { // Punto de arranque de las pruebas
     expect(find.text('👤 Líder: Carlos'), findsOneWidget); // Líder
     expect(find.text('Escribir por WhatsApp'), findsOneWidget); // Botón
   }); // Fin de la prueba 47
+
+  Anuncio area(int id, {ZonaAnuncio? zona, String disparo = 'llegar', int minutos = 0}) => Anuncio( // Anuncio "Solo área" en su ventana (ayuda de las pruebas 48–50)
+        id: id, titulo: 'A$id', mensaje: 'm', tipo: 'area', // Datos básicos
+        iniciaEn: DateTime.now().subtract(const Duration(hours: 1)), terminaEn: DateTime.now().add(const Duration(hours: 2)), // Ventana actual
+        zona: zona, disparo: disparo, minutos: minutos, // Área y momento
+      ); // Fin
+
+  test('Geocerca: cada anuncio usa SU área (propia o la de la iglesia)', () async { // Prueba 48
+    final iglesia = await ApiFalsa().obtenerIglesia(); // Iglesia en 13.6929, -89.2182 (200 m)
+    final gps = UbicacionFalsa(const Coordenadas(13.6930, -89.2183)); // En el templo
+    final salon = const ZonaAnuncio(latitud: 13.7000, longitud: -89.2182, radioMetros: 100, propia: true); // Otro lugar a ~800 m
+    final geocerca = Geocerca(ubicacion: gps); // Con la ubicación de mentira
+    final avisos = await geocerca.revisar(iglesia, [area(1), area(2, zona: salon)], DateTime.now()); // Revisa
+    expect(avisos.map((a) => a.id), [1]); // Solo el de la iglesia (el del salón queda pendiente)
+    gps.punto = const Coordenadas(13.7001, -89.2182); // Se va al salón
+    expect((await geocerca.revisar(iglesia, [area(1), area(2, zona: salon)], DateTime.now())).map((a) => a.id), [2]); // Ahora sí el del salón (el 1 ya se mostró)
+  }); // Fin de la prueba 48
+
+  test('Geocerca: "si se queda N minutos" espera y "al salir" avisa al irse', () async { // Prueba 49
+    final iglesia = await ApiFalsa().obtenerIglesia(); // Iglesia
+    final gps = UbicacionFalsa(const Coordenadas(13.6930, -89.2183)); // En el templo
+    final geocerca = Geocerca(ubicacion: gps); // Geocerca
+    final lista = [area(5, minutos: 10), area(6, disparo: 'salir')]; // Uno con espera y uno de despedida
+    final t0 = DateTime.now(); // Llega
+    expect(await geocerca.revisar(iglesia, lista, t0), isEmpty); // Recién llegó: nada (empieza a contar; el de salir anota que estuvo)
+    expect(await geocerca.revisar(iglesia, lista, t0.add(const Duration(minutes: 5))), isEmpty); // A los 5 min: aún no
+    expect((await geocerca.revisar(iglesia, lista, t0.add(const Duration(minutes: 11)))).map((a) => a.id), [5]); // A los 11 min: avisa el de espera
+    gps.punto = const Coordenadas(13.7100, -89.2182); // Se va (~1.9 km)
+    expect((await geocerca.revisar(iglesia, lista, t0.add(const Duration(minutes: 70)))).map((a) => a.id), [6]); // Avisa la despedida
+    final otro = Geocerca(ubicacion: UbicacionFalsa(const Coordenadas(13.7100, -89.2182))); // Teléfono que NUNCA estuvo en la iglesia
+    await const FlutterSecureStorage().deleteAll(); // Caja fuerte limpia
+    expect(await otro.revisar(iglesia, [area(7, disparo: 'salir')], DateTime.now()), isEmpty); // No recibe la despedida
+  }); // Fin de la prueba 49
+
+  test('Geocerca de fondo: elige el anuncio según el círculo y el evento', () { // Prueba 50
+    final salon = const ZonaAnuncio(latitud: 13.7000, longitud: -89.2182, radioMetros: 100, propia: true); // Área propia
+    final pendientes = [area(1), area(2, minutos: 5), area(3, disparo: 'salir'), area(4, zona: salon)]; // Varios tipos
+    List<int> elegir(List<String> c, GeofenceEvent e, {bool iphone = false, double? lat, double? lng}) => // Atajo
+        anunciosParaAvisar(circulos: c, evento: e, pendientes: pendientes, esIphone: iphone, latitud: lat, longitud: lng).map((a) => a.id).toList(); // Ids elegidos
+    expect(elegir(['iglesia'], GeofenceEvent.enter, lat: 13.6929, lng: -89.2182), [1]); // Iglesia: solo "al llegar, enseguida" (no el del salón)
+    expect(elegir(['iglesia'], GeofenceEvent.enter, iphone: true), [1, 2]); // iPhone: el de espera avisa al entrar; el del salón sin ubicación se deja a su círculo
+    expect(elegir(['anuncio-2'], GeofenceEvent.dwell), [2]); // Se quedó 5 min
+    expect(elegir(['anuncio-2'], GeofenceEvent.enter), isEmpty); // Al entrar aún no (Android espera)
+    expect(elegir(['anuncio-3'], GeofenceEvent.exit), [3]); // Al salir
+    expect(elegir(['anuncio-3'], GeofenceEvent.enter), isEmpty); // Al entrar no
+    expect(elegir(['anuncio-4'], GeofenceEvent.enter), [4]); // Su propia área
+    expect(elegir(['anuncio-99'], GeofenceEvent.enter), isEmpty); // Anuncio que ya no existe
+  }); // Fin de la prueba 50
 } // Fin de main

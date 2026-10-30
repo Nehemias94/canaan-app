@@ -7,7 +7,8 @@ import '../modelos/anuncio.dart'; // Molde de un anuncio
 import '../modelos/iglesia.dart'; // Molde de la iglesia (ubicación y radio)
 import 'ubicacion.dart'; // Ubicación del teléfono
 
-// Geocerca (Paso 10): anuncios "Solo área" que se muestran UNA vez cuando la persona está en la iglesia durante la ventana del anuncio.
+// Geocerca (Paso 10): anuncios "Solo área" que se muestran UNA vez cuando la persona está en SU área durante la ventana del anuncio.
+// Cada anuncio puede tener un área propia (si no, la de la iglesia) y avisar al llegar (enseguida o tras N minutos adentro) o al salir.
 // La ubicación solo se pide si hay un anuncio de área en su ventana, y NUNCA sale del teléfono (la distancia se calcula aquí).
 class Geocerca { // Revisa si el teléfono está en la iglesia
   Geocerca({ServicioUbicacion? ubicacion, FlutterSecureStorage? almacen}) // Constructor (en pruebas se pasan versiones de mentira)
@@ -20,6 +21,18 @@ class Geocerca { // Revisa si el teléfono está en la iglesia
   static const _clave = 'anuncios_area_mostrados'; // Nombre con el que se guarda la lista
   static const _claveCopia = 'anuncios_area_copia'; // Copia de los anuncios "Solo área" (la usa el aviso con la app cerrada)
   static const vigenciaCopia = Duration(hours: 12); // Si la copia tiene más de 12 h, el aviso de fondo intenta pedir los anuncios al panel
+  static const _claveDentro = 'anuncios_area_dentro'; // Desde cuándo el teléfono está dentro del área de cada anuncio (para "si se queda N minutos")
+  static const _claveEstuvo = 'anuncios_area_estuvo'; // Anuncios "al salir" cuya área ya visitó el teléfono (para avisar cuando se vaya)
+
+  static ZonaAnuncio? zonaDe(Anuncio anuncio, Iglesia? iglesia) { // Área donde avisa un anuncio: la suya o, si no trae, la de la iglesia
+    if (anuncio.zona != null) return anuncio.zona; // La que mandó el panel
+    if (iglesia == null || !iglesia.tieneUbicacion) return null; // Sin área
+    return ZonaAnuncio(latitud: iglesia.latitud!, longitud: iglesia.longitud!, radioMetros: iglesia.radioMetros); // La de la iglesia
+  } // Fin de zonaDe
+
+  Future<Map<String, dynamic>> _leerMapa(String clave) async { // Lee un dato guardado como mapa (vacío si no hay)
+    try { final t = await _almacen.read(key: clave); return t == null ? {} : jsonDecode(t) as Map<String, dynamic>; } catch (_) { return {}; } // Dañado → vacío
+  } // Fin de _leerMapa
 
   Future<Set<int>> mostrados() async { // Lista de anuncios ya mostrados en este teléfono (se lee siempre de la caja fuerte: la geocerca de fondo también la cambia)
     try { // Intenta leerla
@@ -63,16 +76,35 @@ class Geocerca { // Revisa si el teléfono está en la iglesia
     await _almacen.write(key: _clave, value: jsonEncode(vistos.toList())); // La guarda
   } // Fin de marcarMostrados
 
-  Future<List<Anuncio>> revisar(Iglesia iglesia, List<Anuncio> anuncios, DateTime ahora) async { // Devuelve los anuncios de área NUEVOS que hay que mostrar ahora (vacío si no está en la iglesia)
-    if (!iglesia.tieneUbicacion) return []; // El panel no tiene la ubicación del templo: no hay geocerca
-    final candidatos = await pendientes(anuncios, ahora); // De área, en su ventana y aún no mostrados
+  Future<List<Anuncio>> revisar(Iglesia iglesia, List<Anuncio> anuncios, DateTime ahora) async { // Devuelve los anuncios de área NUEVOS que hay que mostrar ahora (se llama con la app abierta, cada 90 s y al volver)
+    final candidatos = (await pendientes(anuncios, ahora)).where((a) => zonaDe(a, iglesia) != null).toList(); // De área, en su ventana, no mostrados y con un área conocida
     if (candidatos.isEmpty) return []; // Nada pendiente: NI SIQUIERA pide la ubicación
     final aqui = await _ubicacion.posicionActual(); // Dónde está el teléfono (puede pedir permiso la primera vez)
     if (aqui == null) return []; // No se sabe (sin permiso o sin señal)
-    final metros = distanciaMetros(aqui.latitud, aqui.longitud, iglesia.latitud!, iglesia.longitud!); // Distancia al templo
-    if (metros > iglesia.radioMetros) return []; // Lejos: nada
-    await marcarMostrados(candidatos); // Está en la iglesia: los marca como mostrados
-    return candidatos; // Los que hay que mostrar
+    final dentro = await _leerMapa(_claveDentro); // id → desde cuándo está adentro
+    final estuvo = (await _leerMapa(_claveEstuvo)).keys.toSet(); // ids "al salir" cuya área ya visitó
+    final ids = candidatos.map((a) => '${a.id}').toSet(); // Para olvidar anuncios que ya no aplican
+    dentro.removeWhere((id, _) => !ids.contains(id)); // Limpia lo viejo
+    estuvo.removeWhere((id) => !ids.contains(id)); // Limpia lo viejo
+    final mostrar = <Anuncio>[]; // Los que tocan ahora
+    for (final a in candidatos) { // Revisa cada anuncio con SU área
+      final zona = zonaDe(a, iglesia)!; // Su área
+      final adentro = distanciaMetros(aqui.latitud, aqui.longitud, zona.latitud, zona.longitud) <= zona.radioMetros; // ¿Está dentro del círculo?
+      final id = '${a.id}'; // Clave
+      if (a.alSalir) { // "Al salir": hay que haber estado adentro y luego estar afuera
+        if (adentro) { estuvo.add(id); } else if (estuvo.contains(id)) { mostrar.add(a); } // Adentro: lo anota; afuera después de estar: avisa
+        continue; // Siguiente
+      } // Fin de "al salir"
+      if (!adentro) { dentro.remove(id); continue; } // "Al llegar" y está afuera: reinicia la espera
+      if (a.minutos <= 0) { mostrar.add(a); continue; } // Enseguida
+      final desde = DateTime.tryParse(dentro[id] as String? ?? ''); // ¿Desde cuándo está adentro?
+      if (desde == null) { dentro[id] = ahora.toIso8601String(); continue; } // Recién llegó: empieza a contar
+      if (ahora.difference(desde) >= Duration(minutes: a.minutos)) mostrar.add(a); // Ya se quedó lo suficiente: avisa
+    } // Fin del for
+    await _almacen.write(key: _claveDentro, value: jsonEncode(dentro)); // Guarda las esperas
+    await _almacen.write(key: _claveEstuvo, value: jsonEncode({for (final id in estuvo) id: true})); // Guarda las visitas
+    if (mostrar.isNotEmpty) await marcarMostrados(mostrar); // Los marca: no se repiten (tampoco como notificación)
+    return mostrar; // Los que hay que mostrar
   } // Fin de revisar
 
   static double distanciaMetros(double lat1, double lon1, double lat2, double lon2) { // Distancia entre dos puntos de la Tierra (fórmula de "haversine")
