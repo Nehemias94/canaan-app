@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 import 'package:just_audio_background/just_audio_background.dart'; // Radio en segundo plano (pantalla bloqueada)
 
+import 'pantallas/bienvenida.dart'; // Bienvenida (solo la primera vez)
 import 'pantallas/principal.dart'; // Pantalla con el menú de abajo y las pestañas
 import 'servicios/api.dart'; // Llamadas a la API del panel
 import 'servicios/preferencias.dart'; // Letra grande y otras preferencias guardadas
@@ -34,7 +35,12 @@ class CanaanApp extends StatelessWidget { // La app completa
       theme: temaCanaan(), // Colores y estilos de Canaán (lib/tema.dart)
       darkTheme: temaCanaan(oscuro: true), // Los mismos, en modo oscuro
       themeMode: switch (apariencia) { 'claro' => ThemeMode.light, 'oscuro' => ThemeMode.dark, _ => ThemeMode.system }, // Cuál usar (por defecto, como el teléfono)
-      home: PantallaPrincipal(api: api, registro: registro), // Primera pantalla: la del menú de abajo
+      home: ValueListenableBuilder<bool>( // Primera pantalla según si ya vio la bienvenida
+        valueListenable: Preferencias.bienvenidaVista, // Se vuelve true al terminarla
+        builder: (context, vista, _) => vista // ¿Ya la vio?
+            ? PantallaPrincipal(api: api, registro: registro) // Sí: la del menú de abajo
+            : PantallaBienvenida(api: api), // No: la bienvenida (3 pasos)
+      ), // Fin de la primera pantalla
       builder: (context, pantalla) => ValueListenableBuilder<bool>( // Envuelve TODA la app para aplicar "Letra grande"
         valueListenable: Preferencias.letraGrande, // Escucha la preferencia
         builder: (context, grande, _) { // Cada vez que cambia

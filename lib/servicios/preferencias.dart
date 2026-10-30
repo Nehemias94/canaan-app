@@ -10,6 +10,8 @@ class Preferencias { // Todo junto en un solo lugar
 
   static final ValueNotifier<bool> letraGrande = ValueNotifier<bool>(false); // ¿Agrandar toda la letra de la app?
   static final ValueNotifier<String> apariencia = ValueNotifier<String>('sistema'); // 'sistema' (como el teléfono), 'claro' u 'oscuro'
+  static final ValueNotifier<bool> bienvenidaVista = ValueNotifier<bool>(true); // ¿Ya vio la bienvenida? (true por defecto: en las pruebas no sale; cargar() lee el valor real)
+  static bool notificacionesPospuestas = false; // Tocó "Ahora no" en la bienvenida: no se pide el permiso al abrir la app (se pide al encender un aviso en Servicios)
   static final ValueNotifier<bool> avisosEnVivo = ValueNotifier<bool>(true); // ¿Recibir "¡Estamos en vivo!"?
   static final ValueNotifier<bool> avisosAnuncios = ValueNotifier<bool>(true); // ¿Recibir los anuncios?
   static final ValueNotifier<bool> avisosVersiculo = ValueNotifier<bool>(true); // ¿Recibir el versículo del día como notificación?
@@ -23,6 +25,8 @@ class Preferencias { // Todo junto en un solo lugar
 
   static Future<void> cargar() async { // Lee lo guardado (se llama al abrir la app)
     try { // Si la caja fuerte falla, se quedan los valores por defecto
+      bienvenidaVista.value = await _almacen.read(key: 'pref_bienvenida') == 'si' || await _almacen.read(key: 'dispositivo_token') != null; // Ya la vio (o ya usaba la app antes de que existiera: tiene su registro)
+      notificacionesPospuestas = await _almacen.read(key: 'pref_notificaciones_pospuestas') == 'si'; // Dijo "Ahora no" a las notificaciones
       letraGrande.value = await _almacen.read(key: 'pref_letra_grande') == 'si'; // Letra grande
       apariencia.value = await _almacen.read(key: 'pref_apariencia') ?? 'sistema'; // Claro / oscuro / como el teléfono
       nombreInscripcion = await _almacen.read(key: 'pref_inscripcion_nombre') ?? ''; // Último nombre de inscripción
@@ -36,6 +40,16 @@ class Preferencias { // Todo junto en un solo lugar
       recordatoriosEventos.value = eventos == null ? {} : (jsonDecode(eventos) as List).cast<int>().toSet(); // A conjunto de números
     } catch (_) {} // Valores por defecto
   } // Fin de cargar
+
+  static Future<void> terminarBienvenida() async { // La persona terminó (o saltó) la bienvenida: no vuelve a salir
+    await _guardar('pref_bienvenida', 'si'); // Lo recuerda
+    bienvenidaVista.value = true; // Avisa a la app (pasa a la pantalla principal)
+  } // Fin de terminarBienvenida
+
+  static Future<void> posponerNotificaciones(bool valor) async { // "Ahora no" (true) o ya decidió (false)
+    notificacionesPospuestas = valor; // En memoria
+    await _guardar('pref_notificaciones_pospuestas', valor ? 'si' : 'no'); // Lo recuerda
+  } // Fin de posponerNotificaciones
 
   static Future<void> cambiarLetraGrande(bool valor) async { // Interruptor "Letra grande"
     letraGrande.value = valor; // Avisa a la app (se redibuja con el tamaño nuevo)

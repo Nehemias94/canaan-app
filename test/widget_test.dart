@@ -220,6 +220,8 @@ void main() { // Punto de arranque de las pruebas
   setUp(() { // Antes de cada prueba:
     FlutterSecureStorage.setMockInitialValues({}); // Caja fuerte vacía y en memoria
     Geocerca.reiniciarApartados(); // Ningún anuncio de área apartado de una prueba anterior
+    Preferencias.bienvenidaVista.value = true; // La bienvenida no sale (la prueba 59 la enciende)
+    Preferencias.notificacionesPospuestas = false; // Sin "Ahora no" de una prueba anterior
     ImagenGuardada.usarGuardado = false; // Imágenes sin guardar en el teléfono (en las pruebas no hay almacenamiento real)
     Carruseles.pasoAutomatico = null; // Los carruseles NO pasan solos (así las tarjetas están donde la prueba las espera); la prueba 54 lo enciende
     PantallaVideo.reproductorDePrueba = const SizedBox(height: 200, child: Text('[video de prueba]')); // Reproductor de mentira (YouTube no carga en las pruebas)
@@ -1137,4 +1139,21 @@ void main() { // Punto de arranque de las pruebas
     await tester.pumpAndSettle(); // Espera
     expect(find.byWidgetPredicate((w) => w is ImagenGuardada && w.url == 'https://ejemplo.com/flyer.jpg'), findsOneWidget); // El flyer del carrusel usa ImagenGuardada
   }); // Fin de la prueba 58
+  testWidgets('Bienvenida: solo la primera vez, explica y deja posponer las notificaciones', (WidgetTester tester) async { // Prueba 59
+    pantallaAlta(tester); // Pantalla alta
+    Preferencias.bienvenidaVista.value = false; // Primera vez
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Bienvenido a Canaán'), findsOneWidget); // Paso 1
+    expect(find.text('Saltar'), findsOneWidget); // Siempre se puede saltar
+    expect(find.byType(NavigationBar), findsNothing); // Aún no se ve la app
+    await tester.tap(find.text('Comenzar')); // Siguiente
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Te avisamos lo importante'), findsOneWidget); // Paso 2 (notificaciones)
+    await tester.tap(find.text('Ahora no')); // No por ahora (en la PC no hay paso 3: la ubicación es solo de teléfonos)
+    await tester.pumpAndSettle(); // Espera
+    expect(Preferencias.notificacionesPospuestas, isTrue); // Recordado: no se pedirá al abrir
+    expect(Preferencias.bienvenidaVista.value, isTrue); // Ya no vuelve a salir
+    expect(find.byType(NavigationBar), findsOneWidget); // Entró a la app
+  }); // Fin de la prueba 59
 } // Fin de main

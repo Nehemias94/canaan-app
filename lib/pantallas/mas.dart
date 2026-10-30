@@ -49,16 +49,19 @@ class _PantallaMasState extends State<PantallaMas> { // Estado de la pestaña M�
   } // Fin de _abrirWhatsApp
 
   Future<void> _cambiarAvisarEnVivo(bool valor) async { // Interruptor "Avisarme cuando estemos en vivo"
+    if (valor) await ServicioNotificaciones.pedirPermisoSiFalta(); // Si en la bienvenida dijo "Ahora no", ahora pide el permiso
     await Preferencias.cambiarAvisosEnVivo(valor); // Lo guarda
     await ServicioNotificaciones.aplicarTemas(); // Se suscribe o se da de baja del tema en_vivo
   } // Fin de _cambiarAvisarEnVivo
 
   Future<void> _cambiarAvisarAnuncios(bool valor) async { // Interruptor "Avisarme de anuncios"
+    if (valor) await ServicioNotificaciones.pedirPermisoSiFalta(); // Igual
     await Preferencias.cambiarAvisosAnuncios(valor); // Lo guarda
     await ServicioNotificaciones.aplicarTemas(); // Se suscribe o se da de baja del tema anuncios
   } // Fin de _cambiarAvisarAnuncios
 
   Future<void> _cambiarAvisarVersiculo(bool valor) async { // Interruptor "Recibir el versículo del día"
+    if (valor) await ServicioNotificaciones.pedirPermisoSiFalta(); // Igual
     await Preferencias.cambiarAvisosVersiculo(valor); // Lo guarda
     await ServicioNotificaciones.aplicarTemas(); // Se suscribe o se da de baja del tema versiculo
   } // Fin de _cambiarAvisarVersiculo

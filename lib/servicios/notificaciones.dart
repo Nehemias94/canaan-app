@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart'; // Arranque de Firebase
 import 'package:firebase_messaging/firebase_messaging.dart'; // Notificaciones de Firebase
 import 'package:flutter/foundation.dart'; // kIsWeb y debugPrint
 import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // Crear el canal "Anuncios y avisos" de Android
+import 'package:permission_handler/permission_handler.dart'; // Permiso de notificaciones (al encender un aviso)
 
 import '../firebase_config.dart'; // Datos del proyecto de Firebase (vacíos = sin notificaciones)
 import 'api.dart'; // Para enviar el fcm_token al panel
@@ -51,6 +52,13 @@ class ServicioNotificaciones { // Todo lo de notificaciones en un solo lugar
 
   static bool get temasSoportados => !kIsWeb; // Los temas solo existen en Android/iPhone (el navegador recibe por su dirección)
 
+  static Future<void> pedirPermisoSiFalta() async { // Al encender un aviso en Servicios: si en la bienvenida dijo "Ahora no", ahora sí pide el permiso
+    if (!Preferencias.notificacionesPospuestas) return; // Ya había decidido: nada
+    await Preferencias.posponerNotificaciones(false); // Ya no está pospuesto
+    if (kIsWeb) return; // En el navegador lo pide Firebase al iniciar
+    await Permission.notification.request(); // Ventana del teléfono "¿Permitir notificaciones?"
+  } // Fin de pedirPermisoSiFalta
+
   static Future<void> aplicarTemas() async { // Se suscribe / da de baja según las preferencias (al abrir la app y al tocar los interruptores de Servicios)
     if (!_iniciado || !temasSoportados) return; // Sin Firebase o en el navegador: nada
     try { // Sin internet puede fallar: se reintenta la próxima vez que se abra la app
@@ -86,8 +94,9 @@ class ServicioNotificaciones { // Todo lo de notificaciones en un solo lugar
             )); // Fin del canal
       } // Fin del if
 
-      final permiso = await mensajeria.requestPermission(); // 2) Pide permiso (Android 13+, iPhone y navegador muestran una ventana)
-      if (permiso.authorizationStatus == AuthorizationStatus.denied) { // Si dijo que no...
+      final pospuesto = Preferencias.notificacionesPospuestas; // ¿Dijo "Ahora no" en la bienvenida?
+      final permiso = pospuesto ? await mensajeria.getNotificationSettings() : await mensajeria.requestPermission(); // 2) Pide permiso (Android 13+, iPhone y navegador muestran una ventana); si lo pospuso, solo consulta (no molesta)
+      if (!pospuesto && permiso.authorizationStatus == AuthorizationStatus.denied) { // Si dijo que no...
         await registro.conLlave((t) => api.guardarFcmToken(token: t, fcmToken: null)); // ...avisa al panel (borra su dirección)
         return; // ...y termina
       } // Fin del if
