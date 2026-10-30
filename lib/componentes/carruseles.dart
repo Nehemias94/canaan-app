@@ -65,6 +65,7 @@ class CarruselEventos extends StatelessWidget { // Sección "PRÓXIMOS EVENTOS" 
       colorTitulo: context.cc.morado, // Morado de los eventos
       textoVerTodo: 'Ver todos', // Enlace
       alVerTodo: alVerTodos, // Pestaña Eventos
+      retraso: const Duration(seconds: 3), // Empieza 3 s después que ANUNCIOS: los dos carruseles se alternan (no se mueve todo a la vez)
       novedades: [ // Una tarjeta por evento
         for (final e in eventos.take(maximo)) // Los más cercanos
           _Novedad(titulo: e.titulo, tipo: 'Evento', linea: e.enCurso ? '● AHORA' : e.cuandoTexto(), color: moradoEvento, icono: Icons.celebration_outlined, imagenUrl: e.imagenUrl, abrir: () => PantallaEvento(evento: e)), // Morado con celebración; la línea es la fecha del evento
@@ -74,21 +75,24 @@ class CarruselEventos extends StatelessWidget { // Sección "PRÓXIMOS EVENTOS" 
 } // Fin de CarruselEventos
 
 class _Carrusel extends StatefulWidget { // Encabezado + fila de tarjetas que se deslizan + puntitos y ⏸ (lo comparten anuncios y eventos)
-  const _Carrusel({required this.titulo, required this.colorTitulo, required this.novedades, required this.textoVerTodo, this.alVerTodo}); // Constructor
+  const _Carrusel({required this.titulo, required this.colorTitulo, required this.novedades, required this.textoVerTodo, this.alVerTodo, this.retraso = Duration.zero}); // Constructor
 
   final String titulo; // "ANUNCIOS" o "PRÓXIMOS EVENTOS"
   final Color colorTitulo; // Color del encabezado y del puntito actual
   final List<_Novedad> novedades; // Tarjetas
   final String textoVerTodo; // "Ver todo" / "Ver todos"
   final VoidCallback? alVerTodo; // Qué hacer al tocar el enlace (null = no se muestra)
+  final Duration retraso; // Espera antes de empezar a pasar solo (para alternarse con el otro carrusel)
 
   @override // Reemplaza createState
   State<_Carrusel> createState() => _CarruselState(); // Crea el estado
 } // Fin de _Carrusel
 
 class _CarruselState extends State<_Carrusel> { // Estado: tarjeta actual, paso automático y pausas
-  final _control = PageController(viewportFraction: 0.86); // Cada tarjeta ocupa el 86 %: se asoma la siguiente (así se nota que se desliza)
+  final _control = ScrollController(); // Posición de la fila de tarjetas (en puntos)
+  double _anchoTarjeta = 1; // Ancho de cada tarjeta con su separación (se calcula al dibujar); lo que avanza el carrusel por tarjeta
   int _actual = 0; // Tarjeta que se ve ahora
+  Timer? _arranque; // Espera el "retraso" antes de arrancar el reloj
   Timer? _reloj; // Pasa a la siguiente tarjeta cada cierto tiempo
   bool _detenido = false; // La persona tocó ⏸ (no pasa solo hasta que toque ▶)
   DateTime? _tocadoEn; // Última vez que la persona tocó o deslizó el carrusel (pausa corta)
@@ -97,11 +101,15 @@ class _CarruselState extends State<_Carrusel> { // Estado: tarjeta actual, paso 
   void initState() { // Al crearse
     super.initState(); // Preparación normal
     final paso = Carruseles.pasoAutomatico; // Cada cuánto pasa
-    if (paso != null) _reloj = Timer.periodic(paso, (_) => _siguiente()); // Arranca el paso automático
+    if (paso != null) { // Si pasan solas...
+      _arranque = Timer(widget.retraso, () => _reloj = Timer.periodic(paso, (_) => _siguiente())); // ...arranca el reloj después del retraso (eventos: 3 s)
+    } // Fin del if
+    _control.addListener(_alMoverse); // Al deslizar (o al pasar solo), actualiza los puntitos
   } // Fin de initState
 
   @override // Reemplaza dispose
   void dispose() { // Al cerrar la pantalla
+    _arranque?.cancel(); // Cancela el arranque (si aún no ocurrió)
     _reloj?.cancel(); // Detiene el reloj
     _control.dispose(); // Libera el control
     super.dispose(); // Limpieza normal
@@ -110,12 +118,17 @@ class _CarruselState extends State<_Carrusel> { // Estado: tarjeta actual, paso 
   bool get _pasaSolo => // ¿Debe pasar solo? (más de una tarjeta, sin ⏸ y sin "quitar animaciones" en el teléfono)
       widget.novedades.length > 1 && !_detenido && !MediaQuery.of(context).disableAnimations; // Las tres condiciones
 
+  void _alMoverse() { // Calcula qué tarjeta se ve según la posición
+    final i = (_control.offset / _anchoTarjeta).round().clamp(0, widget.novedades.length - 1); // Tarjeta más cercana
+    if (i != _actual) setState(() => _actual = i); // Si cambió, redibuja los puntitos
+  } // Fin de _alMoverse
+
   void _siguiente() { // Lo llama el reloj
     if (!mounted || !_pasaSolo || !_control.hasClients) return; // Nada que hacer
     final tocado = _tocadoEn; // Último toque
     if (tocado != null && DateTime.now().difference(tocado) < Carruseles.pausaAlTocar) return; // La persona lo está viendo: espera
     final destino = (_actual + 1) % widget.novedades.length; // La siguiente (después de la última, vuelve a la primera)
-    _control.animateToPage(destino, duration: const Duration(milliseconds: 600), curve: Curves.easeInOut); // Pasa con movimiento suave
+    _control.animateTo(destino * _anchoTarjeta, duration: const Duration(milliseconds: 600), curve: Curves.easeInOut); // Pasa con movimiento suave
   } // Fin de _siguiente
 
   @override // Reemplaza build
@@ -139,7 +152,8 @@ class _CarruselState extends State<_Carrusel> { // Estado: tarjeta actual, paso 
         ), // Fin del encabezado
         LayoutBuilder( // Mide el ancho disponible para calcular el alto de las tarjetas
           builder: (context, medidas) { // Con las medidas
-            final ancho = medidas.maxWidth * 0.86; // Ancho de cada tarjeta
+            final ancho = medidas.maxWidth * 0.86; // Ancho de cada tarjeta (con su separación): el 14 % que sobra muestra la siguiente asomándose
+            _anchoTarjeta = ancho; // Lo guarda para el paso automático y los puntitos
             final altoImagen = ancho * 9 / 16; // Flyer en proporción 16:9 (como los que crea el panel)
             final alto = altoImagen + 44 * escala; // Imagen + una línea corta
             return SizedBox( // Alto fijo del carrusel
@@ -147,16 +161,19 @@ class _CarruselState extends State<_Carrusel> { // Estado: tarjeta actual, paso 
               child: Listener( // Se entera cuando la persona toca el carrusel (para detener el paso automático un rato)
                 onPointerDown: (_) => _tocadoEn = DateTime.now(), // Al tocar
                 onPointerUp: (_) => _tocadoEn = DateTime.now(), // Al soltar (cuenta los 15 s desde ahí)
-                child: PageView.builder( // Tarjetas que se deslizan
-                  controller: _control, // Control (86 % por tarjeta)
-                  padEnds: false, // La primera empieza a la izquierda (no centrada)
+                child: ListView.builder( // Fila de tarjetas
+                  key: ValueKey('carrusel-${widget.titulo}'), // Nombre (lo usan las pruebas)
+                  controller: _control, // Posición
+                  scrollDirection: Axis.horizontal, // De lado
+                  physics: _FisicaTarjetas(ancho: ancho), // Al soltar, se "imanta" a la tarjeta más cercana (como páginas)
+                  padding: EdgeInsets.only(right: medidas.maxWidth - ancho), // Espacio al final: así la ÚLTIMA tarjeta también queda alineada a la izquierda
+                  itemExtent: ancho, // Todas del mismo ancho
                   itemCount: novedades.length, // Cuántas
-                  onPageChanged: (i) => setState(() => _actual = i), // Actualiza los puntitos
                   itemBuilder: (context, i) => Padding( // Separación entre tarjetas
                     padding: const EdgeInsets.only(right: 12), // Espacio a la derecha
                     child: _TarjetaNovedad(novedad: novedades[i], altoImagen: altoImagen), // La tarjeta
                   ), // Fin de la separación
-                ), // Fin del PageView
+                ), // Fin de la fila
               ), // Fin del Listener
             ); // Fin del alto fijo
           }, // Fin del builder
@@ -198,6 +215,32 @@ class _CarruselState extends State<_Carrusel> { // Estado: tarjeta actual, paso 
     ); // Fin de la columna
   } // Fin de build
 } // Fin de _CarruselState
+
+class _FisicaTarjetas extends ScrollPhysics { // Movimiento de la fila: al soltar el dedo, termina justo en una tarjeta (como un libro de páginas)
+  const _FisicaTarjetas({required this.ancho, super.parent}); // Constructor
+
+  final double ancho; // Lo que mide cada tarjeta con su separación
+
+  @override // Reemplaza applyTo
+  _FisicaTarjetas applyTo(ScrollPhysics? ancestor) => _FisicaTarjetas(ancho: ancho, parent: buildParent(ancestor)); // Copia con el comportamiento base del teléfono
+
+  @override // Reemplaza createBallisticSimulation (lo que pasa al soltar el dedo)
+  Simulation? createBallisticSimulation(ScrollMetrics posicion, double velocidad) { // Calcula el movimiento final
+    if ((velocidad <= 0 && posicion.pixels <= posicion.minScrollExtent) || (velocidad >= 0 && posicion.pixels >= posicion.maxScrollExtent)) { // En un borde...
+      return super.createBallisticSimulation(posicion, velocidad); // ...lo normal
+    } // Fin del if
+    final tolerancia = toleranceFor(posicion); // Margen de "casi quieto"
+    var tarjeta = posicion.pixels / ancho; // Tarjeta (con decimales) donde quedó
+    if (velocidad < -tolerancia.velocity) { // Si lo lanzó hacia atrás...
+      tarjeta -= 0.5; // ...va a la anterior
+    } else if (velocidad > tolerancia.velocity) { // Si lo lanzó hacia adelante...
+      tarjeta += 0.5; // ...va a la siguiente
+    } // Fin del if
+    final destino = (tarjeta.roundToDouble() * ancho).clamp(posicion.minScrollExtent, posicion.maxScrollExtent); // Posición exacta de esa tarjeta
+    if (destino == posicion.pixels) return null; // Ya está ahí
+    return ScrollSpringSimulation(spring, posicion.pixels, destino, velocidad, tolerance: tolerancia); // Se desliza suave hasta ella
+  } // Fin de createBallisticSimulation
+} // Fin de _FisicaTarjetas
 
 class _TarjetaNovedad extends StatelessWidget { // Tarjeta pequeña del carrusel: imagen (o bloque con el título) + una línea corta
   const _TarjetaNovedad({required this.novedad, required this.altoImagen}); // Constructor

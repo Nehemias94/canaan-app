@@ -1027,28 +1027,34 @@ void main() { // Punto de arranque de las pruebas
     ]; // Fin de los eventos
     await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
     await tester.pumpAndSettle(); // Espera
-    final carrusel = find.byType(PageView).last; // Carrusel de eventos (el de abajo)
-    final control = tester.widget<PageView>(carrusel).controller!; // Su control (dice qué tarjeta se ve)
-    expect(control.page!.round(), 0); // Empieza en la primera
-    await tester.pump(const Duration(seconds: 6)); // Pasan 6 s
+    final carrusel = find.byKey(const ValueKey('carrusel-PRÓXIMOS EVENTOS')); // Carrusel de eventos
+    final control = tester.widget<ListView>(carrusel).controller!; // Su control (posición)
+    final ancho = tester.getSize(find.byKey(const ValueKey('carrusel-PRÓXIMOS EVENTOS'))).width * 0.86; // Ancho de cada tarjeta
+    int tarjeta() => (control.offset / ancho).round(); // Qué tarjeta se ve
+    expect(tarjeta(), 0); // Empieza en la primera
+    await tester.pump(const Duration(seconds: 6)); // Pasan 6 s (el de eventos espera 3 s más: aún no se mueve)
+    await tester.pumpAndSettle(); // Espera
+    expect(tarjeta(), 0); // Desfasado del de anuncios: sigue en la primera
+    await tester.pump(const Duration(seconds: 3)); // Pasan los 3 s del desfase
     await tester.pumpAndSettle(); // Termina el movimiento
-    expect(control.page!.round(), 1); // Pasó sola a la segunda
+    expect(tarjeta(), 1); // Pasó sola a la segunda
     await tester.tap(find.byTooltip('Detener el paso de las tarjetas').last); // Toca ⏸ del carrusel de eventos
     await tester.pump(); // Redibuja
     await tester.pump(const Duration(seconds: 13)); // Pasan 13 s (dos pasos)
     await tester.pumpAndSettle(); // Espera
-    expect(control.page!.round(), 1); // Detenido: sigue en la segunda
+    expect(tarjeta(), 1); // Detenido: sigue en la segunda
     expect(find.byTooltip('Pasar las tarjetas solas'), findsOneWidget); // Ahora el botón es ▶
     await tester.tap(find.byTooltip('Pasar las tarjetas solas')); // Reanuda
     await tester.pump(); // Redibuja
     await tester.pump(const Duration(seconds: 6)); // Siguiente paso
     await tester.pumpAndSettle(); // Espera
-    expect(control.page!.round(), 2); // Volvió a pasar sola
+    expect(tarjeta(), 2); // Volvió a pasar sola
+    expect(control.offset, closeTo(2 * ancho, 1)); // La ÚLTIMA tarjeta queda exactamente alineada a la izquierda (no se corre)
     final centro = tester.getCenter(carrusel); // Centro del carrusel
     final gesto = await tester.startGesture(centro); // La persona pone el dedo
     await gesto.cancel(); // Y lo retira sin completar un toque (así no abre el evento)
     await tester.pump(const Duration(seconds: 7)); // Pasan 7 s (menos de 15 desde el toque)
     await tester.pumpAndSettle(); // Espera
-    expect(control.page!.round(), 2); // Pausa corta por el toque: no se movió
+    expect(tarjeta(), 2); // Pausa corta por el toque: no se movió
   }); // Fin de la prueba 54
 } // Fin de main
