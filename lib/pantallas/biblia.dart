@@ -91,7 +91,7 @@ class _PantallaBibliaState extends State<PantallaBiblia> { // Estado de la pesta
   // Estilo que se agrega a la página de Bible.com para ocultar lo que ya tenemos en la app (evita dos menús y dos botones de letra):
   // encabezado "Bible App" (logo, buscar, idioma, cuenta), menú de abajo "Navegación rápida" (Inicio · Biblia · Hoy · Planes), pie de página,
   // la barra de publicidad de abajo "La Biblia App · Descargar" (la pone el servicio Branch dentro de un iframe "branch-banner…")
-  // y el botón "AA" (se busca por su TEXTO: su nombre interno cambió el 30 oct 2026 y la regla vieja dejó de funcionar).
+  // y el botón "AA" (por dentro se llama "Configuraciones": las letras AA son un dibujo; se busca por ese nombre o por el texto "AA").
   // Como la barra y el "AA" aparecen unos segundos DESPUÉS de cargar, un vigilante (MutationObserver) los oculta en cuanto aparecen.
   // Se QUEDAN: selector de libro/capítulo, versión, audio y flechas ‹ ›.
   // Si Bible.com cambia su página y algo deja de ocultarse, la Biblia sigue funcionando igual (solo se vería eso de ellos).
@@ -115,7 +115,8 @@ class _PantallaBibliaState extends State<PantallaBiblia> { // Estado de la pesta
     var botones = document.querySelectorAll('button, a, [role="button"]');
     for (var i = 0; i < botones.length; i++) {
       var t = (botones[i].innerText || '').split(' ').join('').trim();
-      if (t === 'AA' || t === 'Aa') botones[i].style.setProperty('display', 'none', 'important');
+      var nombre = ((botones[i].getAttribute('aria-label') || '') + ' ' + (botones[i].textContent || '')).toLowerCase();
+      if (t === 'AA' || t === 'Aa' || nombre.indexOf('configuraci') >= 0 || nombre.indexOf('settings') >= 0) botones[i].style.setProperty('display', 'none', 'important');
     }
   }
   ocultarAA();
