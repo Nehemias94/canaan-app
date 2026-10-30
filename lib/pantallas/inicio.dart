@@ -1,6 +1,8 @@
 import 'dart:async'; // Timer (actualizar cada 90 s)
 
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
+
+import '../componentes/imagen_guardada.dart'; // Imágenes guardadas en el teléfono (no en la galería)
 import 'package:flutter/services.dart'; // SystemUiOverlayStyle (colores de la barra de arriba del teléfono)
 import 'package:url_launcher/url_launcher.dart'; // Abrir YouTube y Google Maps fuera de la app
 
@@ -355,7 +357,7 @@ class _Encabezado extends StatelessWidget { // Franja marino de arriba: logo, sa
       child: Row( // Logo a la izquierda y textos a la derecha
         children: [ // Elementos
           if (iglesia.logoUrl != null) // Si la iglesia subió un logo en el panel...
-            Image.network(iglesia.logoUrl!, height: 52) // ...lo muestra (pequeño)
+            ImagenGuardada(iglesia.logoUrl!, height: 52) // ...lo muestra (pequeño; guardado en el teléfono)
           else // Si no...
             Image.asset('assets/imagenes/canaan-icono.png', height: 52), // ...el ícono oficial dorado de Canaán (va dentro de la app)
           const SizedBox(width: 14), // Espacio

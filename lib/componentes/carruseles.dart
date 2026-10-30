@@ -2,6 +2,7 @@ import 'dart:async'; // Timer (paso automático de las tarjetas)
 
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 
+import 'imagen_guardada.dart'; // Imágenes guardadas en el teléfono (no en la galería)
 import '../modelos/anuncio.dart'; // Molde de un anuncio
 import '../modelos/evento.dart'; // Molde de un evento
 import '../pantallas/anuncio.dart'; // Detalle del anuncio y lista de anuncios
@@ -293,7 +294,7 @@ class _TarjetaNovedad extends StatelessWidget { // Tarjeta pequeña del carrusel
                 width: double.infinity, // Todo el ancho
                 child: novedad.imagenUrl == null // ¿Tiene flyer?
                     ? bloque // No: bloque de color con el título
-                    : Image.network(novedad.imagenUrl!, fit: BoxFit.cover, errorBuilder: (context, error, pila) => bloque), // Sí: el flyer (el nombre ya está en la imagen; si no carga, el bloque)
+                    : ImagenGuardada(novedad.imagenUrl!, fit: BoxFit.cover, alError: (_) => bloque), // Sí: el flyer (el nombre ya está en la imagen; si no carga, el bloque)
               ), // Fin del flyer
               Expanded( // La línea corta ocupa el resto
                 child: Padding( // Márgenes

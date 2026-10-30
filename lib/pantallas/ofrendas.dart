@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 import 'package:flutter/services.dart'; // Clipboard (copiar el número de cuenta)
 
+import '../componentes/imagen_guardada.dart'; // Imágenes guardadas en el teléfono (no en la galería)
 import '../modelos/iglesia.dart'; // Molde de las ofrendas
 import '../tema.dart'; // Colores de Canaán
 
@@ -83,7 +84,7 @@ class PantallaOfrendas extends StatelessWidget { // Pantalla de ofrendas
                   children: [ // Elementos
                     Text('Escanea para dar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.cc.titulo)), // Título
                     const SizedBox(height: 12), // Espacio
-                    Image.network(ofrendas.qrUrl!, height: 260, errorBuilder: (context, error, pila) => const Text('No se pudo cargar el código QR.')), // QR
+                    ImagenGuardada(ofrendas.qrUrl!, height: 260, alError: (context) => const Text('No se pudo cargar el código QR.')), // QR
                   ], // Fin de los elementos
                 ), // Fin de la columna
               ), // Fin del margen

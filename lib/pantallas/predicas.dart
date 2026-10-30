@@ -2,6 +2,7 @@ import 'dart:async'; // Timer (actualizar cada 90 s)
 
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 
+import '../componentes/imagen_guardada.dart'; // Imágenes guardadas en el teléfono (no en la galería)
 import '../componentes/estados.dart'; // Vistas compartidas: Cargando, ErrorConexion, Vacio
 import '../modelos/predica.dart'; // Molde de una prédica
 import '../config.dart'; // intervaloActualizacion (90 s)
@@ -195,10 +196,10 @@ class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la
             if (predica.miniaturaUrl != null) // Si hay miniatura del video...
               AspectRatio( // ...con proporción de video 16:9
                 aspectRatio: 16 / 9, // Ancho : alto
-                child: Image.network( // Imagen descargada de internet
+                child: ImagenGuardada( // Imagen guardada en el teléfono (la segunda vez sale al instante y sin internet)
                   predica.miniaturaUrl!, // Enlace de la miniatura
                   fit: BoxFit.cover, // Llena el espacio recortando lo que sobre
-                  errorBuilder: (context, error, pila) => Container(color: Colors.black12), // Si no carga, un recuadro gris
+                  alError: (_) => Container(color: Colors.black12), // Si no carga, un recuadro gris
                 ), // Fin de la imagen
               ), // Fin de AspectRatio
             Padding( // Margen de los textos

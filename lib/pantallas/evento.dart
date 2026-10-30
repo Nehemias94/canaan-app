@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 
+import '../componentes/imagen_guardada.dart'; // Imágenes guardadas en el teléfono (no en la galería)
 import '../componentes/contar_vista.dart'; // Avisa al panel que se abrió (vistas anónimas)
 import '../componentes/campanita_evento.dart'; // Activar/quitar el recordatorio
 import '../componentes/imagen_y_boton.dart'; // Imagen (flyer) y botón con enlace
@@ -203,7 +204,7 @@ class _Galeria extends StatelessWidget { // Cuadrícula de fotos del evento (al 
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => VisorGaleria(fotos: evento.fotos, titulo: evento.titulo, inicial: i))), // Pantalla completa
               child: ClipRRect( // Esquinas redondeadas
                 borderRadius: BorderRadius.circular(8), // Radio
-                child: Image.network(evento.fotos[i], fit: BoxFit.cover, errorBuilder: (c, e, p) => Container(color: Colors.black12)), // Miniatura
+                child: ImagenGuardada(evento.fotos[i], fit: BoxFit.cover, alError: (c) => Container(color: Colors.black12)), // Miniatura
               ), // Fin del recorte
             ), // Fin de la foto
           ), // Fin de la cuadrícula

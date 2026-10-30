@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 import 'package:url_launcher/url_launcher.dart'; // Abrir el enlace del botón fuera de la app
 
+import 'imagen_guardada.dart'; // Imágenes guardadas en el teléfono (no en la galería)
 import '../servicios/compartir.dart'; // Compartir la foto que se está viendo
 
 // Piezas que comparten los anuncios y los eventos especiales: la imagen (flyer) y el botón con enlace.
@@ -22,14 +23,12 @@ class ImagenRed extends StatelessWidget { // Imagen de internet con esquinas red
           borderRadius: BorderRadius.circular(12), // Redondeadas
           child: ConstrainedBox( // Límite de alto
             constraints: BoxConstraints(maxHeight: altoMaximo), // Máximo
-            child: Image.network( // Descarga la imagen
+            child: ImagenGuardada( // Imagen guardada en el teléfono (la segunda vez sale al instante y sin internet)
               url, // Dirección
               width: double.infinity, // Todo el ancho
               fit: BoxFit.cover, // Llena el espacio (recorta lo que sobre)
-              loadingBuilder: (context, hijo, progreso) => progreso == null // Mientras descarga...
-                  ? hijo // ...ya terminó: la imagen
-                  : Container(height: 180, color: Colors.black12, alignment: Alignment.center, child: const CircularProgressIndicator(strokeWidth: 2)), // ...recuadro gris con rueda
-              errorBuilder: (context, error, pila) => const SizedBox.shrink(), // Si no carga (sin internet), no muestra nada: el texto sigue
+              cargando: (_) => Container(height: 180, color: Colors.black12, alignment: Alignment.center, child: const CircularProgressIndicator(strokeWidth: 2)), // Mientras descarga: recuadro gris con rueda
+              alError: (_) => const SizedBox.shrink(), // Si no carga (sin internet y sin copia), no muestra nada: el texto sigue
             ), // Fin de la imagen
           ), // Fin del límite
         ), // Fin del recorte
@@ -50,7 +49,7 @@ class VisorImagen extends StatelessWidget { // Pantalla negra con la imagen en g
       appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white, title: const Text('Imagen')), // Barra con flecha para volver
       body: InteractiveViewer( // Permite acercar y mover con los dedos
         maxScale: 5, // Hasta 5 veces
-        child: Center(child: Image.network(url, fit: BoxFit.contain)), // Imagen completa
+        child: Center(child: ImagenGuardada(url, fit: BoxFit.contain)), // Imagen completa
       ), // Fin del visor
     ); // Fin del Scaffold
   } // Fin de build
@@ -116,7 +115,7 @@ class _VisorGaleriaState extends State<VisorGaleria> { // Estado: foto actual
         onPageChanged: (i) => setState(() => _actual = i), // Actualiza el contador
         itemBuilder: (context, i) => InteractiveViewer( // Acercar con dos dedos
           maxScale: 5, // Hasta 5 veces
-          child: Center(child: Image.network(widget.fotos[i], fit: BoxFit.contain, errorBuilder: (c, e, p) => const Icon(Icons.broken_image, color: Colors.white54, size: 64))), // Foto (o ícono si no carga)
+          child: Center(child: ImagenGuardada(widget.fotos[i], fit: BoxFit.contain, alError: (c) => const Icon(Icons.broken_image, color: Colors.white54, size: 64))), // Foto (o ícono si no carga)
         ), // Fin de la página
       ), // Fin de PageView
     ); // Fin del Scaffold

@@ -24,7 +24,8 @@ import 'package:canaan_app/servicios/recordatorios.dart'; // Cálculo de los avi
 import 'package:canaan_app/servicios/compartir.dart'; // Compartir (se cambia por uno de mentira)
 import 'package:canaan_app/servicios/preferencias.dart'; // Letra grande
 import 'package:canaan_app/servicios/recarga.dart'; // "Timbre" para recargar Inicio al instante
-import 'package:canaan_app/componentes/carruseles.dart'; // Ajustes de los carruseles (paso automático)
+import 'package:canaan_app/componentes/carruseles.dart';
+import 'package:canaan_app/componentes/imagen_guardada.dart'; // Imágenes guardadas (en pruebas: sin guardar) // Ajustes de los carruseles (paso automático)
 import 'package:canaan_app/servicios/radio.dart'; // Control de la radio (para cambiarlo por uno de prueba)
 import 'dart:async'; // StreamController (estados de la radio de mentira)
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Caja fuerte (en pruebas, una de mentira en memoria)
@@ -219,6 +220,7 @@ void main() { // Punto de arranque de las pruebas
   setUp(() { // Antes de cada prueba:
     FlutterSecureStorage.setMockInitialValues({}); // Caja fuerte vacía y en memoria
     Geocerca.reiniciarApartados(); // Ningún anuncio de área apartado de una prueba anterior
+    ImagenGuardada.usarGuardado = false; // Imágenes sin guardar en el teléfono (en las pruebas no hay almacenamiento real)
     Carruseles.pasoAutomatico = null; // Los carruseles NO pasan solos (así las tarjetas están donde la prueba las espera); la prueba 54 lo enciende
     PantallaVideo.reproductorDePrueba = const SizedBox(height: 200, child: Text('[video de prueba]')); // Reproductor de mentira (YouTube no carga en las pruebas)
   }); // Fin de setUp
@@ -1125,4 +1127,14 @@ void main() { // Punto de arranque de las pruebas
     expect(await appAbierta.reclamar(anuncios), isEmpty); // Más tarde, tampoco se repite
     expect(await appAbierta.mostrados(), {9}); // Quedó marcado
   }); // Fin de la prueba 57
+  testWidgets('Imágenes: los flyers usan el componente que las guarda en el teléfono', (WidgetTester tester) async { // Prueba 58
+    pantallaAlta(tester); // Pantalla alta
+    final inicio = DateTime.now().add(const Duration(days: 10)); // Dentro de 10 días
+    final api = ApiFalsa()..eventos = [ // Un evento con flyer
+      {'id': 8, 'titulo': 'Aniversario', 'inicia_en': inicio.toIso8601String(), 'imagen_url': 'https://ejemplo.com/flyer.jpg', 'se_transmite': false, 'en_curso': false},
+    ]; // Fin de los eventos
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    expect(find.byWidgetPredicate((w) => w is ImagenGuardada && w.url == 'https://ejemplo.com/flyer.jpg'), findsOneWidget); // El flyer del carrusel usa ImagenGuardada
+  }); // Fin de la prueba 58
 } // Fin de main
