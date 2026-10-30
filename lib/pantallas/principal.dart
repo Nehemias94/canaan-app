@@ -1,5 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart'; // RemoteMessage (una notificación recibida)
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
+import 'package:flutter/services.dart'; // SystemNavigator (salir de la app con el botón atrás)
 
 import '../componentes/carga_animada.dart'; // presentacionEnCurso: ocultar el menú mientras se ve el logo animado
 import '../servicios/api.dart'; // Llamadas a la API (se pasa a cada pestaña)
@@ -26,6 +27,7 @@ class PantallaPrincipal extends StatefulWidget { // Pantalla con el menú de aba
 
 class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recuerda qué pestaña está abierta
   int _pestana = 0; // Pestaña elegida (0 = Inicio, 1 = Prédicas, 2 = Biblia, 3 = Eventos, 4 = Servicios)
+  final _pilas = List.generate(5, (_) => GlobalKey<NavigatorState>()); // Una "pila" de pantallas por pestaña: lo que se abre desde una pestaña se queda dentro de ella y el menú de abajo SIEMPRE se ve
 
   @override // Reemplaza initState
   void initState() { // Se ejecuta una vez, al abrir la app
@@ -41,8 +43,28 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
   } // Fin de initState
 
   void _irAInicio() { // Cambia a la pestaña Inicio (ahí se ven el en vivo, el aviso urgente y los anuncios)
-    if (mounted) setState(() => _pestana = 0); // Pestaña 0 = Inicio
+    if (!mounted) return; // Si la pantalla ya no existe, nada
+    _alPrincipio(0); // Cierra lo que estuviera abierto dentro de Inicio (se ve Inicio desde arriba)
+    setState(() => _pestana = 0); // Pestaña 0 = Inicio
   } // Fin de _irAInicio
+
+  void _alPrincipio(int pestana) => _pilas[pestana].currentState?.popUntil((ruta) => ruta.isFirst); // Cierra todas las pantallas abiertas dentro de esa pestaña
+
+  Widget _pila(int pestana, Widget raiz) => Navigator( // "Pila" de pantallas propia de una pestaña
+        key: _pilas[pestana], // Su llave (para cerrar pantallas desde el menú y el botón atrás)
+        onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => raiz), // La primera pantalla es la pestaña misma
+      ); // Fin de la pila
+
+  void _alTocarAtras() { // Botón "atrás" de Android
+    final pila = _pilas[_pestana].currentState; // Pila de la pestaña visible
+    if (pila != null && pila.canPop()) { // Si hay una pantalla abierta dentro de la pestaña...
+      pila.pop(); // ...la cierra
+    } else if (_pestana != 0) { // Si no, y no está en Inicio...
+      setState(() => _pestana = 0); // ...vuelve a Inicio
+    } else { // Si ya está en Inicio sin nada abierto...
+      SystemNavigator.pop(); // ...sale de la app (como siempre)
+    } // Fin del if
+  } // Fin de _alTocarAtras
 
   void _mostrarNotificacion(RemoteMessage mensaje) { // Con la app abierta, el teléfono NO muestra la notificación: la mostramos nosotros
     if (!mounted) return; // Si la pantalla ya no existe, nada
@@ -57,15 +79,18 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
-    return Scaffold( // Estructura de la pantalla
-      body: IndexedStack( // Muestra solo la pestaña elegida, pero MANTIENE las otras vivas (no se recargan al volver)
+    return PopScope( // Controla el botón "atrás" de Android
+      canPop: false, // No sale de la app directamente: primero decide _alTocarAtras
+      onPopInvokedWithResult: (salio, _) { if (!salio) _alTocarAtras(); }, // Al tocar "atrás"
+      child: Scaffold( // Estructura de la pantalla
+      body: IndexedStack( // Muestra solo la pestaña elegida, pero MANTIENE las otras vivas (no se recargan al volver, y conservan lo que tenían abierto)
         index: _pestana, // Cuál mostrar
-        children: [ // Las 5 pestañas, en el mismo orden que el menú
-          PantallaInicio(api: widget.api, registro: widget.registro, alIrAPestana: (i) { if (i == 3) recargarEventos.value++; setState(() => _pestana = i); }), // 0: Inicio ("Ver todos" de eventos cambia de pestaña y la actualiza)
-          PantallaPredicas(api: widget.api, registro: widget.registro), // 1: Prédicas
-          const PantallaBiblia(), // 2: Biblia
-          PantallaEventos(api: widget.api), // 3: Eventos (el Horario se abre desde Inicio)
-          PantallaMas(api: widget.api, registro: widget.registro), // 4: Servicios (radio, peticiones de oración, aviso al llegar)
+        children: [ // Las 5 pestañas (cada una con su pila de pantallas), en el mismo orden que el menú
+          _pila(0, PantallaInicio(api: widget.api, registro: widget.registro, alIrAPestana: (i) { if (i == 3) recargarEventos.value++; setState(() => _pestana = i); })), // 0: Inicio ("Ver todos" de eventos cambia de pestaña y la actualiza)
+          _pila(1, PantallaPredicas(api: widget.api, registro: widget.registro)), // 1: Prédicas
+          _pila(2, const PantallaBiblia()), // 2: Biblia
+          _pila(3, PantallaEventos(api: widget.api)), // 3: Eventos (el Horario se abre desde Inicio)
+          _pila(4, PantallaMas(api: widget.api, registro: widget.registro)), // 4: Servicios (radio, peticiones de oración, aviso al llegar)
         ], // Fin de las pestañas
       ), // Fin de IndexedStack
       bottomNavigationBar: ValueListenableBuilder<bool>( // Escucha si se está viendo la presentación del logo
@@ -88,6 +113,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
         child: NavigationBar( // Menú de abajo (estilo Material 3)
         selectedIndex: _pestana, // Opción resaltada
         onDestinationSelected: (i) { // Al tocar una opción...
+          if (i == _pestana) _alPrincipio(i); // ...si ya estaba en esa pestaña, vuelve a su principio (cierra lo abierto)
           if (i == 1) recargarPredicas.value++; // ...si es Prédicas, que se actualice (por si el panel cambió algo)
           if (i == 3) recargarEventos.value++; // ...si es Eventos, igual
           setState(() => _pestana = i); // ...cambia de pestaña y redibuja
@@ -101,6 +127,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
         ], // Fin de las opciones
       ), // Fin del menú
       ), // Fin de ValueListenableBuilder
-    ); // Fin del Scaffold
+      ), // Fin del Scaffold
+    ); // Fin de PopScope
   } // Fin de build
 } // Fin de _PantallaPrincipalState

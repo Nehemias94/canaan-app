@@ -1057,4 +1057,31 @@ void main() { // Punto de arranque de las pruebas
     await tester.pumpAndSettle(); // Espera
     expect(tarjeta(), 2); // Pausa corta por el toque: no se movió
   }); // Fin de la prueba 54
+  testWidgets('Menú de abajo: se ve en las pantallas abiertas; atrás y tocar la pestaña regresan', (WidgetTester tester) async { // Prueba 55
+    pantallaAlta(tester); // Pantalla alta
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.text('Ver todo')); // Abre la lista de anuncios
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Este sábado de 6 am a 12 md.'), findsOneWidget); // Está en la lista
+    expect(find.byType(NavigationBar), findsOneWidget); // El menú de abajo SIGUE visible
+    await tester.binding.handlePopRoute(); // Botón "atrás" de Android
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Este sábado de 6 am a 12 md.'), findsNothing); // Cerró la lista (volvió a Inicio, no salió de la app)
+    await tester.tap(find.text('Ver todo')); // La abre otra vez
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Eventos'))); // Cambia a Eventos
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Inicio'))); // Vuelve a Inicio
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Este sábado de 6 am a 12 md.'), findsOneWidget); // La lista seguía abierta (donde la dejó)
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Inicio'))); // Toca Inicio OTRA vez
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Este sábado de 6 am a 12 md.'), findsNothing); // Volvió al principio de Inicio
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Eventos'))); // Va a Eventos
+    await tester.pumpAndSettle(); // Espera
+    await tester.binding.handlePopRoute(); // "Atrás" sin nada abierto en Eventos
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('ANUNCIOS'), findsOneWidget); // Regresó a Inicio
+  }); // Fin de la prueba 55
 } // Fin de main

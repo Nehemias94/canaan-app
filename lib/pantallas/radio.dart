@@ -88,6 +88,7 @@ class _PantallaRadioState extends State<PantallaRadio> { // Estado de la pantall
 
   Widget _fueraDelAire() { // Vista cuando la radio no está al aire
     return Center( // Centrado
+      child: SingleChildScrollView( // Se puede desplazar si no cabe (teléfonos pequeños, letra grande o con el menú de abajo)
       child: Padding( // Margen
         padding: const EdgeInsets.all(32), // 32 por lado
         child: Column( // Elementos uno debajo del otro
@@ -110,6 +111,7 @@ class _PantallaRadioState extends State<PantallaRadio> { // Estado de la pantall
           ], // Fin de los elementos
         ), // Fin de la columna
       ), // Fin del margen
+      ), // Fin del desplazamiento
     ); // Fin del centrado
   } // Fin de _fueraDelAire
 
@@ -117,6 +119,7 @@ class _PantallaRadioState extends State<PantallaRadio> { // Estado de la pantall
     final sonando = _estado == EstadoRadio.sonando; // ¿Está sonando?
     final cargando = _estado == EstadoRadio.cargando; // ¿Está conectando?
     return Center( // Centrado
+      child: SingleChildScrollView( // Se puede desplazar si no cabe (teléfonos pequeños, letra grande o con el menú de abajo)
       child: Padding( // Margen
         padding: const EdgeInsets.all(32), // 32 por lado
         child: Column( // Elementos uno debajo del otro
@@ -167,6 +170,7 @@ class _PantallaRadioState extends State<PantallaRadio> { // Estado de la pantall
           ], // Fin de los elementos
         ), // Fin de la columna
       ), // Fin del margen
+      ), // Fin del desplazamiento
     ); // Fin del centrado
   } // Fin de _reproductor
 } // Fin de _PantallaRadioState
