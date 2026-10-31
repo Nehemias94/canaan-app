@@ -7,6 +7,7 @@ import '../modelos/iglesia.dart'; // Ofrendas (botón Ofrendar)
 import '../servicios/api.dart'; // Llamadas a la API (vistas y señales)
 import '../servicios/compartir.dart'; // Botón Compartir
 import '../servicios/registro.dart'; // Llave del teléfono
+import '../servicios/ventana_flotante.dart'; // Ventana flotante del video (Android)
 import '../tema.dart'; // Colores de Canaán
 import '../modelos/predica.dart'; // Prédica (bosquejo y siguiente parte)
 import 'bosquejo.dart'; // Pantalla del bosquejo
@@ -70,9 +71,21 @@ class _PantallaVideoState extends State<PantallaVideo> { // Estado de la pantall
       _escucha = _control!.stream.listen((valor) { // Cada vez que el reproductor cambia de estado...
         if (valor.playerState == PlayerState.playing) _contarVista(); // ...si empezó a reproducirse, cuenta la vista
       }); // Fin de la escucha
+      VentanaFlotante.permitir(true); // Si la persona sale de la app, el video sigue en una ventanita (Android)
+      VentanaFlotante.alCerrarla = () => _control?.pauseVideo(); // Si cierra la ventanita con la X, el video se pausa (que no siga sonando sin verse)
+      VentanaFlotante.activa.addListener(_alCambiarVentana); // Redibuja al entrar o salir de la ventanita
     } // Fin del if
     if (widget.enVivo) _enviarSenal(); // En vivo: primera señal apenas se abre (luego cada 30 s)
   } // Fin de initState
+
+  void _alCambiarVentana() { if (mounted) setState(() {}); } // Entró o salió de la ventanita: redibuja (en la ventanita solo se ve el video)
+
+  Future<void> _entrarVentana() async { // Botón de la barra: pasar a la ventanita ahora
+    final mensajero = ScaffoldMessenger.of(context); // Para avisar si no se pudo
+    if (!await VentanaFlotante.entrar()) { // Android no aceptó...
+      mensajero.showSnackBar(const SnackBar(content: Text('No se pudo abrir la ventana flotante. Revisa en los ajustes del teléfono que "Pantalla en pantalla" esté permitido para Canaán.'))); // ...explica cómo activarla
+    } // Fin del if
+  } // Fin de _entrarVentana
 
   Future<void> _contarVista() async { // Avisa al panel que se está viendo la prédica (una sola vez)
     if (_vistaContada || widget.predicaId == null) return; // Ya contada, o no es una prédica: nada que hacer
@@ -88,6 +101,7 @@ class _PantallaVideoState extends State<PantallaVideo> { // Estado de la pantall
       if (!mounted) return; // Si ya se cerró la pantalla, no hace nada más
       if (!senal.enVivo) { // El panel dice que terminó la transmisión...
         _control?.stopVideo(); // ...detiene el video (si no, seguiría sonando lo que YouTube aún tenga)...
+        VentanaFlotante.permitir(false); // ...ya no hay video para la ventanita...
         setState(() => _transmisionTerminada = true); // ...cambia el reproductor por el aviso de "terminó"...
         return; // ...y deja de mandar señales
       } // Fin del if
@@ -101,6 +115,11 @@ class _PantallaVideoState extends State<PantallaVideo> { // Estado de la pantall
   @override // Reemplaza dispose
   void dispose() { // Al cerrar la pantalla
     _temporizador?.cancel(); // Detiene las señales ("?." = solo si existe)
+    if (_control != null) { // Si se había permitido la ventanita (reproductor real)...
+      VentanaFlotante.permitir(false); // ...al salir de la app ya no se achica
+      VentanaFlotante.alCerrarla = null; // ...nada que pausar
+      VentanaFlotante.activa.removeListener(_alCambiarVentana); // ...deja de escuchar
+    } // Fin del if
     _escucha?.cancel(); // Deja de escuchar al reproductor
     _control?.close(); // Cierra el reproductor (libera memoria)
     if (widget.enVivo && !_transmisionTerminada) { // Si estaba viendo un en vivo activo...
@@ -111,14 +130,28 @@ class _PantallaVideoState extends State<PantallaVideo> { // Estado de la pantall
 
   @override // Reemplaza build
   Widget build(BuildContext context) { // Describe cómo se ve
+    final flotante = VentanaFlotante.activa.value && _control != null; // ¿Se está viendo como ventanita? (entonces solo el video, sin barra ni textos)
     return Scaffold( // Estructura de la pantalla
-      appBar: AppBar(title: Text(widget.enVivo ? 'En vivo' : 'Prédica')), // Barra con flecha para volver
-      body: ListView( // Video arriba y textos abajo (desplazable)
+      backgroundColor: flotante ? Colors.black : null, // En la ventanita, fondo negro
+      appBar: flotante ? null : AppBar( // Barra con flecha para volver (oculta en la ventanita)
+        title: Text(widget.enVivo ? 'En vivo' : 'Prédica'), // Título
+        actions: [ // Botones a la derecha
+          if (VentanaFlotante.soportada && _control != null && !_transmisionTerminada) // Solo en Android y con video
+            IconButton( // Botón de ventana flotante
+              tooltip: 'Ver en ventana flotante', // Explicación (también para lectores de pantalla)
+              icon: const Icon(Icons.picture_in_picture_alt), // Ícono de ventanita
+              onPressed: _entrarVentana, // Pasa a la ventanita
+            ), // Fin del botón
+        ], // Fin de los botones
+      ), // Fin de la barra
+      body: Column( // El video SIEMPRE es el primer elemento (así no se recarga al entrar o salir de la ventanita)
         children: [ // Elementos
           if (_transmisionTerminada) // Si el en vivo terminó...
             _videoTerminado() // ...recuadro negro con el aviso (el reproductor se quita para que no siga sonando)
           else // Si no...
             PantallaVideo.reproductorDePrueba ?? YoutubePlayer(controller: _control!, aspectRatio: 16 / 9), // ...el video (16:9) o el de reemplazo en pruebas
+          if (!flotante) Expanded(child: ListView( // Debajo del video, lo demás (desplazable); en la ventanita no se muestra
+            children: [ // Elementos
           if (widget.enVivo) _barraEnVivo(), // En vivo: franja con "EN VIVO · N viendo" o "terminó"
           if (widget.acciones) _botonesAcciones(), // Botones grandes: Pedir oración · Ofrendar · Compartir
           Padding( // Margen de los textos
@@ -161,8 +194,10 @@ class _PantallaVideoState extends State<PantallaVideo> { // Estado de la pantall
               ], // Fin de los elementos
             ), // Fin de la columna
           ), // Fin del margen
+            ], // Fin de los elementos de la lista
+          )), // Fin de la lista y de Expanded
         ], // Fin de los elementos
-      ), // Fin de la lista
+      ), // Fin de la columna
     ); // Fin del Scaffold
   } // Fin de build
 

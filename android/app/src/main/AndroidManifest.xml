@@ -15,10 +15,12 @@
         android:label="Canaán"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- supportsPictureInPicture: permite la ventana flotante del video (lib/servicios/ventana_flotante.dart y MainActivity.kt) -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
+            android:supportsPictureInPicture="true"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"

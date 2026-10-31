@@ -2,6 +2,7 @@ import 'package:firebase_messaging/firebase_messaging.dart'; // RemoteMessage (u
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 import 'package:flutter/services.dart'; // SystemNavigator (salir de la app con el botón atrás)
 
+import '../servicios/ventana_flotante.dart'; // VentanaFlotante.activa: ocultar el menú cuando el video está en la ventanita
 import '../componentes/carga_animada.dart'; // presentacionEnCurso: ocultar el menú mientras se ve el logo animado
 import '../servicios/api.dart'; // Llamadas a la API (se pasa a cada pestaña)
 import '../servicios/conexion.dart'; // Franja "Sin conexión"
@@ -93,9 +94,9 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
           _pila(4, PantallaMas(api: widget.api, registro: widget.registro)), // 4: Servicios (radio, peticiones de oración, aviso al llegar)
         ], // Fin de las pestañas
       ), // Fin de IndexedStack
-      bottomNavigationBar: ValueListenableBuilder<bool>( // Escucha si se está viendo la presentación del logo
-        valueListenable: presentacionEnCurso, // Aviso que cambia Inicio
-        builder: (context, enPresentacion, menu) => enPresentacion ? const SizedBox.shrink() : Column( // Durante la presentación: sin menú (pantalla completa)
+      bottomNavigationBar: ListenableBuilder( // Escucha la presentación del logo y la ventana flotante del video
+        listenable: Listenable.merge([presentacionEnCurso, VentanaFlotante.activa]), // Cualquiera de los dos avisos redibuja el menú
+        builder: (context, menu) => presentacionEnCurso.value || VentanaFlotante.activa.value ? const SizedBox.shrink() : Column( // Durante la presentación o en la ventanita: sin menú
           mainAxisSize: MainAxisSize.min, // Solo lo necesario
           children: [ // Franja "sin conexión" (si aplica) y el menú
             ValueListenableBuilder<bool>( // Escucha si lo que se ve es la copia guardada
@@ -129,7 +130,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
           NavigationDestination(icon: Icon(Icons.apps_outlined), selectedIcon: Icon(Icons.apps), label: 'Servicios'), // Cuadritos: radio, oración, avisos
         ], // Fin de las opciones
       ), // Fin del menú
-      ), // Fin de ValueListenableBuilder
+      ), // Fin de ListenableBuilder
       ), // Fin del Scaffold
     ); // Fin de PopScope
   } // Fin de build
