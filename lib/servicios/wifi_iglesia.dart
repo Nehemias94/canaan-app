@@ -33,7 +33,8 @@ class WifiIglesiaServicio { // Solo funciones estáticas
   static const toqueConectar = 'conectar_wifi'; // Marca de la notificación: al tocarla, la app se conecta sola
   static const _claveTodo = 'wifi_todo_telefono'; // Red puesta para TODO el teléfono ("nombre\ncontraseña\nhora"), para quitarla después
   static const _horasTodo = 4; // A las 4 horas se quita sola (por si la geocerca no avisó la salida)
-  static final llaveAvisos = GlobalKey<ScaffoldMessengerState>(); // Avisos de abajo de toda la app ("Preparando el Wi-Fi para compartir…")
+  static final llaveAvisos = GlobalKey<ScaffoldMessengerState>(); // Avisos de abajo de toda la app ("Un momento…" si compartir tarda)
+  static Duration avisoSiTarda = const Duration(seconds: 2); // Si preparar el Wi-Fi tarda más que esto, sale "Un momento…" (si es rápido, no sale nada)
   static final ValueNotifier<bool> conexionPendiente = ValueNotifier(false); // true = la persona tocó la notificación: la franja conecta en cuanto pueda
 
   // Se pueden cambiar en las pruebas automáticas (no hay Android ni GPS de verdad):
@@ -179,7 +180,11 @@ class WifiIglesiaServicio { // Solo funciones estáticas
     if (wifi == null || !wifi.todoElTelefono) return; // No ofrece, o el panel no lo permite: se comparte normal (WhatsApp enviará cuando haya datos)
     if (!await appConectada()) return; // La app no usa el Wi-Fi "solo para la app": el teléfono tiene sus datos (o no está en la iglesia)
     final avisos = llaveAvisos.currentState; // Avisos de abajo
-    avisos?.showSnackBar(const SnackBar(content: Text('Preparando el Wi-Fi para compartir…'), duration: Duration(seconds: 30))); // Mientras tanto
+    var mostrado = false; // ¿Ya salió "Un momento…"?
+    final reloj = Timer(avisoSiTarda, () { // Solo si tarda más de 2 s (para que no parezca que el botón no hace nada)
+      mostrado = true; // Salió
+      avisos?.showSnackBar(const SnackBar(content: Text('Un momento… preparando para compartir'), duration: Duration(seconds: 30))); // Texto sencillo, sin hablar del Wi-Fi
+    }); // Fin del reloj
     await desconectarRed(); // Suelta la conexión "solo la app" (ahora la tendrá todo el teléfono)
     final puesta = await ponerTodo(wifi.nombre, wifi.contrasena); // Pone la red para todo el teléfono
     if (puesta) { // Anota (para cerrarla al terminar, o a las 4 horas si algo falla)
@@ -192,7 +197,8 @@ class WifiIglesiaServicio { // Solo funciones estáticas
       conInternet = await hayInternet(); // ¿Ya?
       if (!conInternet) await Future.delayed(const Duration(seconds: 2)); // Todavía no: espera un poco
     } // Fin de la espera
-    avisos?.hideCurrentSnackBar(); // Quita "Preparando…"
+    reloj.cancel(); // Si terminó antes de 2 s, el aviso ya no sale
+    if (mostrado) avisos?.hideCurrentSnackBar(); // Si salió, lo quita
     if (conInternet) return; // Listo: se abre la ventana de compartir y WhatsApp tiene internet
     await despuesDeCompartir(esperar: false); // No se conectó: vuelve a dejar el Wi-Fi solo para la app
     avisos?.showSnackBar(const SnackBar(duration: Duration(seconds: 10), content: Text('No se pudo abrir el Wi-Fi para WhatsApp: se enviará cuando tengas datos. Si Android muestra arriba "¿Permitir redes sugeridas por Canaán?", toca Permitir.'))); // Explicación

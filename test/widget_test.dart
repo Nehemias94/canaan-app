@@ -1280,7 +1280,17 @@ void main() { // Punto de arranque de las pruebas
     await tester.tap(find.text('Compartir')); // Comparte
     await tester.pumpAndSettle(); // Espera
     expect(find.text('¿Enviar por WhatsApp sin datos?'), findsNothing); // No pregunta nada
+    expect(find.textContaining('Un momento'), findsNothing); // Fue rápido: no salió ningún aviso
     expect(pasos, ['soltar solo-app', 'abrir todo el teléfono', 'compartir', 'cerrar todo el teléfono', 'solo la app']); // Abre, comparte, cierra y vuelve a solo la app
+    pasos.clear(); // Otra vez, pero ahora Android tarda en conectar
+    var intentos = 0; // Veces que se revisó el internet
+    WifiIglesiaServicio.hayInternet = () async => ++intentos > 2; // Las primeras 2 veces no hay (tarda ~4 s)
+    await tester.tap(find.text('Compartir')); // Comparte
+    await tester.pump(const Duration(seconds: 3)); // Pasan 3 s
+    expect(find.text('Un momento… preparando para compartir'), findsOneWidget); // Tardó más de 2 s: sale el aviso sencillo
+    await tester.pump(const Duration(seconds: 5)); // Pasan 5 s más (Android ya conectó)
+    await tester.pumpAndSettle(); // Termina
+    expect(pasos.last, 'solo la app'); // Y al final quedó otra vez solo la app
     pasos.clear(); // Otra vez, pero el panel NO lo permite
     await WifiIglesiaServicio.sincronizar(WifiIglesia.desdeJson({'nombre': 'Canaán Invitados', 'contrasena': 'bendiciones', 'latitud': 13.69, 'longitud': -89.21, 'radio_metros': 150, 'todo_el_telefono': false})); // Panel con la casilla apagada
     await tester.tap(find.text('Compartir')); // Comparte
