@@ -232,7 +232,6 @@ class _DatosIglesia extends StatelessWidget { // Contenido de Inicio cuando lleg
         subtitulo: iglesia.nombre, // Nombre de la iglesia
         enVivo: true, // Es en vivo: manda señales y muestra cuántos ven
         acciones: true, // Botones Pedir oración · Ofrendar · Compartir
-        radioDisponible: iglesia.radioDisponible, // Si la radio está al aire: botón "Escuchar solo el audio"
         ofrendas: iglesia.ofrendas, // Para el botón Ofrendar
       )), // Fin de la ruta
     ); // Fin de Navigator.push

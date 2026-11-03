@@ -10,11 +10,9 @@ import '../servicios/registro.dart'; // Llave del teléfono
 import '../servicios/ventana_flotante.dart'; // Ventana flotante del video (Android)
 import '../tema.dart'; // Colores de Canaán
 import '../modelos/predica.dart'; // Prédica (bosquejo y siguiente parte)
-import 'audio.dart'; // "Escuchar solo el audio" de la prédica (MP3)
 import 'bosquejo.dart'; // Pantalla del bosquejo
 import 'ofrendas.dart'; // Pantalla de ofrendas (botón Ofrendar)
 import 'peticion.dart'; // Formulario de petición (botón Pedir oración)
-import 'radio.dart'; // Radio (en el en vivo, "Escuchar solo el audio" abre la radio)
 
 class PantallaVideo extends StatefulWidget { // Pantalla con el video de YouTube (prédica o transmisión en vivo)
   const PantallaVideo({ // Constructor
@@ -30,7 +28,6 @@ class PantallaVideo extends StatefulWidget { // Pantalla con el video de YouTube
     this.acciones = false, // true = muestra los botones Pedir oración · Ofrendar · Compartir (en vivo y repetición del culto)
     this.ofrendas, // Datos de ofrendas (el botón Ofrendar sale solo si el panel las muestra)
     this.predica, // Prédica completa (para el bosquejo y la siguiente parte de la serie)
-    this.radioDisponible = false, // En vivo: true si la radio está al aire (botón "Escuchar solo el audio")
   }); // Fin del constructor
 
   final Api api; // De dónde se envían vistas y señales
@@ -44,7 +41,6 @@ class PantallaVideo extends StatefulWidget { // Pantalla con el video de YouTube
   final bool acciones; // ¿Mostrar los botones bajo el video?
   final Ofrendas? ofrendas; // Ofrendas del panel (null = sin botón Ofrendar)
   final Predica? predica; // Prédica (null en el en vivo)
-  final bool radioDisponible; // ¿La radio está al aire? (solo se usa en el en vivo)
 
   static Widget? reproductorDePrueba; // Solo en pruebas automáticas: reemplaza al reproductor real (YouTube no carga ahí). En la app siempre es null
 
@@ -157,7 +153,6 @@ class _PantallaVideoState extends State<PantallaVideo> { // Estado de la pantall
           if (!flotante) Expanded(child: ListView( // Debajo del video, lo demás (desplazable); en la ventanita no se muestra
             children: [ // Elementos
           if (widget.enVivo) _barraEnVivo(), // En vivo: franja con "EN VIVO · N viendo" o "terminó"
-          if (_haySoloAudio) _botonSoloAudio(), // "🎧 Escuchar solo el audio" (MP3 de la prédica o la radio en el en vivo)
           if (widget.acciones) _botonesAcciones(), // Botones grandes: Pedir oración · Ofrendar · Compartir
           Padding( // Margen de los textos
             padding: const EdgeInsets.all(16), // 16 por lado
@@ -205,33 +200,6 @@ class _PantallaVideoState extends State<PantallaVideo> { // Estado de la pantall
       ), // Fin de la columna
     ); // Fin del Scaffold
   } // Fin de build
-
-  bool get _haySoloAudio => widget.predica?.tieneAudio == true || (widget.enVivo && widget.radioDisponible && !_transmisionTerminada); // ¿Hay algo que escuchar sin video?
-
-  Future<void> _escucharSoloAudio() async { // Pausa el video y abre el audio (prédica → MP3; en vivo → radio)
-    _control?.pauseVideo(); // Que no suenen los dos a la vez
-    VentanaFlotante.permitir(false); // Mientras escucha, al salir de la app NO debe aparecer la ventanita del video
-    final p = widget.predica; // Prédica (null en el en vivo)
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => p != null && p.tieneAudio // ¿Prédica con MP3?
-        ? PantallaAudio(api: widget.api, registro: widget.registro, predica: p) // Sí: reproductor del MP3
-        : PantallaRadio(api: widget.api))); // No (en vivo): la radio de la iglesia
-    if (mounted && _control != null && !_transmisionTerminada) VentanaFlotante.permitir(true); // Al volver al video, la ventanita vuelve a estar permitida
-  } // Fin de _escucharSoloAudio
-
-  Widget _botonSoloAudio() { // Renglón grande "🎧 Escuchar solo el audio" bajo el video
-    final esRadio = widget.predica?.tieneAudio != true; // En vivo: se escucha por la radio
-    return Material( // Fondo (para el efecto del toque)
-      color: context.cc.tarjeta, // Blanco (u oscuro en modo oscuro)
-      child: ListTile( // Renglón
-        onTap: _escucharSoloAudio, // Abre el audio
-        leading: CircleAvatar(radius: 22, backgroundColor: context.vivo(doradoOscuro).withValues(alpha: context.alfaBurbuja), child: Icon(Icons.headphones, color: context.vivo(doradoOscuro))), // Audífonos dorados
-        title: Text('Escuchar solo el audio', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: context.cc.titulo)), // Texto
-        subtitle: Text(esRadio ? 'Por la radio de la iglesia · sigue sonando con la pantalla apagada' : 'Sigue sonando con la pantalla apagada o en otra app', style: TextStyle(color: context.cc.suave)), // Explicación
-        trailing: const Icon(Icons.chevron_right), // Flechita
-        shape: Border(bottom: BorderSide(color: context.cc.borde)), // Línea abajo
-      ), // Fin del renglón
-    ); // Fin del fondo
-  } // Fin de _botonSoloAudio
 
   Future<void> _abrirSiguiente() async { // Abre la siguiente parte de la serie (pide la serie al panel para tener todos sus datos)
     final p = widget.predica!; // Esta prédica
