@@ -10,6 +10,7 @@ class Predica { // Molde con los datos de una prédica
   final String? youtubeId; // Código del video (para el reproductor, más adelante)
   final String? youtubeUrl; // Enlace completo de YouTube
   final String? miniaturaUrl; // Imagen de vista previa del video
+  final String? audioUrl; // Enlace directo del MP3 (null = no tiene "Escuchar solo el audio")
   final int reproducciones; // Veces vista desde la app
   final int? serieId; // Serie a la que pertenece (null = suelta)
   final String? serieNombre; // Nombre de la serie
@@ -21,6 +22,7 @@ class Predica { // Molde con los datos de una prédica
   final String? bosquejo; // Bosquejo (texto)
   final String? bosquejoPdfUrl; // Bosquejo (PDF)
 
+  bool get tieneAudio => audioUrl != null; // ¿Se puede escuchar solo el audio?
   bool get tieneBosquejo => (bosquejo ?? '').trim().isNotEmpty || bosquejoPdfUrl != null; // ¿Hay algo que mostrar en "Ver bosquejo"?
 
   const Predica({ // Constructor
@@ -33,6 +35,7 @@ class Predica { // Molde con los datos de una prédica
     this.youtubeId, // Opcional
     this.youtubeUrl, // Opcional
     this.miniaturaUrl, // Opcional
+    this.audioUrl, // Opcional
     this.reproducciones = 0, // Por defecto, 0 vistas
     this.serieId, this.serieNombre, this.serieParte, this.serieTotal = 0, // Serie (opcional)
     this.siguienteId, this.siguienteTitulo, this.siguienteParte, // Siguiente parte (opcional)
@@ -50,6 +53,7 @@ class Predica { // Molde con los datos de una prédica
       youtubeId: json['youtube_id'] as String?, // Código de YouTube
       youtubeUrl: json['youtube_url'] as String?, // Enlace de YouTube
       miniaturaUrl: json['miniatura_url'] as String?, // Miniatura
+      audioUrl: (json['audio_url'] as String?)?.trim().isEmpty ?? true ? null : (json['audio_url'] as String).trim(), // Audio (vacío = sin audio)
       reproducciones: json['reproducciones'] as int? ?? 0, // Vistas (0 si no viene)
       serieId: (json['serie'] as Map<String, dynamic>?)?['id'] as int?, // Serie
       serieNombre: (json['serie'] as Map<String, dynamic>?)?['nombre'] as String?, // Nombre de la serie

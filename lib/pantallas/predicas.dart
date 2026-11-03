@@ -192,6 +192,14 @@ class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la
         ].join('\n')), // Fin del texto
       ); // Fin del botón
 
+  String? _textoExtra() { // Renglón pequeño: vistas y si tiene audio ("5 vistas · 🎧 Audio"); null si no hay nada
+    final partes = [ // Partes del texto
+      if (predica.reproducciones > 0) '${predica.reproducciones} ${predica.reproducciones == 1 ? 'vista' : 'vistas'}', // "1 vista" / "5 vistas"
+      if (predica.tieneAudio) '🎧 Audio', // Se puede escuchar solo el audio
+    ]; // Fin de las partes
+    return partes.isEmpty ? null : partes.join(' · '); // Unidas con un punto
+  } // Fin de _textoExtra
+
   String? _textoSerie() => predica.serieNombre == null ? null : '📚 ${predica.serieNombre}${predica.serieParte != null ? ' · Parte ${predica.serieParte}${predica.serieTotal > 1 ? ' de ${predica.serieTotal}' : ''}' : ''}'; // "📚 La familia · Parte 2 de 4" (o nada)
 
   @override // Reemplaza build
@@ -234,7 +242,7 @@ class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la
                     Text(predica.titulo, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: context.cc.titulo, height: 1.2)), // Título (máx. 2 renglones)
                     const SizedBox(height: 3), // Espacio
                     Text(_subtitulo(), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: context.cc.suave, fontSize: 13)), // Predicador · fecha
-                    if (predica.reproducciones > 0) Text('${predica.reproducciones} ${predica.reproducciones == 1 ? 'vista' : 'vistas'}', style: TextStyle(color: context.cc.suave, fontSize: 12)), // Vistas
+                    if (_textoExtra() != null) Text(_textoExtra()!, style: TextStyle(color: context.cc.suave, fontSize: 12)), // "12 vistas · 🎧 Audio"
                   ], // Fin de los elementos
                 ), // Fin de la columna
               ), // Fin de los datos
@@ -284,8 +292,8 @@ class _TarjetaPredica extends StatelessWidget { // Tarjeta de una prédica en la
                   ), // Fin de la fila
                   const SizedBox(height: 2), // Espacio
                   Text(_subtitulo(), style: TextStyle(color: context.cc.suave)), // Predicador · fecha
-                  if (predica.reproducciones > 0) // Si alguien la ha visto...
-                    Text('${predica.reproducciones} ${predica.reproducciones == 1 ? 'vista' : 'vistas'}', style: TextStyle(color: context.cc.suave, fontSize: 12)), // ...cuántas veces ("1 vista" / "5 vistas")
+                  if (_textoExtra() != null) // Si alguien la ha visto o tiene audio...
+                    Text(_textoExtra()!, style: TextStyle(color: context.cc.suave, fontSize: 12)), // ..."1 vista" / "5 vistas · 🎧 Audio"
                 ], // Fin de los elementos
               ), // Fin de la columna
             ), // Fin del margen

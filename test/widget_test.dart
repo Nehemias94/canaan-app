@@ -27,6 +27,7 @@ import 'package:canaan_app/servicios/recarga.dart'; // "Timbre" para recargar In
 import 'package:canaan_app/componentes/carruseles.dart';
 import 'package:canaan_app/componentes/imagen_guardada.dart'; // Imágenes guardadas (en pruebas: sin guardar) // Ajustes de los carruseles (paso automático)
 import 'package:canaan_app/servicios/radio.dart'; // Control de la radio (para cambiarlo por uno de prueba)
+import 'package:canaan_app/servicios/audio.dart'; // Control del audio de las prédicas (para cambiarlo por uno de prueba)
 import 'dart:async'; // StreamController (estados de la radio de mentira)
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Caja fuerte (en pruebas, una de mentira en memoria)
 
@@ -56,6 +57,26 @@ class RadioFalsa implements ControlRadio { // Radio de mentira: no suena, solo a
   @override // Cumple la plantilla
   Future<void> cerrar() async => cerrada = true; // Anota que se cerró
 } // Fin de RadioFalsa
+
+class AudioFalso implements ControlAudio { // Audio de mentira: no suena, solo anota lo que le piden
+  final _estados = StreamController<EstadoRadio>.broadcast(); // Avisos de estado
+  final _posiciones = StreamController<Duration>.broadcast(); // Avisos de avance
+  final _duraciones = StreamController<Duration?>.broadcast(); // Avisos de duración
+  String? urlCargada; // Enlace que se pidió cargar
+  Duration? cargadoDesde; // Desde dónde se pidió empezar
+  Duration? ultimoSalto; // Último "irA"
+  bool cerrado = false; // ¿Se liberó al salir?
+
+  @override Stream<EstadoRadio> get estados => _estados.stream; // Estados
+  @override Stream<Duration> get posiciones => _posiciones.stream; // Avance
+  @override Stream<Duration?> get duraciones => _duraciones.stream; // Duración
+  @override Stream<bool> get terminados => const Stream.empty(); // Nunca termina en la prueba
+  @override Future<void> cargar(String url, {required String titulo, String? artista, Duration desde = Duration.zero}) async { urlCargada = url; cargadoDesde = desde; _duraciones.add(const Duration(minutes: 45)); } // "Carga" un audio de 45 min
+  @override Future<void> reproducir() async => _estados.add(EstadoRadio.sonando); // "Suena"
+  @override Future<void> pausar() async => _estados.add(EstadoRadio.detenida); // "Pausa"
+  @override Future<void> irA(Duration posicion) async { ultimoSalto = posicion; _posiciones.add(posicion); } // "Salta"
+  @override Future<void> cerrar() async => cerrado = true; // Anota que se cerró
+} // Fin de AudioFalso
 
 class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar internet
   ApiFalsa({this.falla = false, this.radioAlAire = false, this.avisoNivel, this.conExtras = false, this.avisoArea}); // Constructor; falla = true simula que no hay conexión; avisoNivel = hay aviso urgente de ese nivel; conExtras = WhatsApp, ofrendas y versículo
@@ -163,6 +184,11 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
   Future<List<SerieResumen>> obtenerSeries() async => conSerie ? [const SerieResumen(id: 2, nombre: 'La familia', partes: 2)] : []; // Series falsas
 
   bool conSerie = false; // ¿El panel falso tiene una serie de 2 partes?
+  String? audioPredica; // Enlace del MP3 de la prédica destacada (null = sin audio)
+  final List<int> reproduccionesContadas = []; // Prédicas cuya vista se avisó al panel
+
+  @override // Reemplaza el método real
+  Future<bool> registrarReproduccion({required String token, required int predicaId}) async { reproduccionesContadas.add(predicaId); return true; } // La anota
 
   @override // Reemplaza el método real
   Future<List<Ministerio>> obtenerMinisterios() async => [const Ministerio(id: 1, nombre: 'Ministerio de jóvenes', horario: 'Sábados 4:00 pm', lider: 'Carlos', whatsapp: '50370001234')]; // Un ministerio falso
@@ -175,7 +201,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
       final parte2 = Predica.desdeJson({'id': 22, 'titulo': 'Padres que bendicen', 'youtube_id': 'serie2xxxxx', 'serie': {'id': 2, 'nombre': 'La familia', 'parte': 2, 'total': 2}}); // Parte 2
       return serieId == 2 ? [parte1, parte2] : [parte1, parte2, Predica.desdeJson({'id': 1, 'titulo': tituloPredica})]; // Con filtro: solo la serie
     } // Fin del if
-    return [Predica.desdeJson({'id': 1, 'titulo': tituloPredica, 'predicador': 'Pastor Juan', 'fecha': '2026-10-05', 'destacada': true, 'youtube_id': 'predica123', 'descripcion': 'Mateo 17:20'})]; // Una prédica destacada
+    return [Predica.desdeJson({'id': 1, 'titulo': tituloPredica, 'predicador': 'Pastor Juan', 'fecha': '2026-10-05', 'destacada': true, 'youtube_id': 'predica123', 'descripcion': 'Mateo 17:20', 'audio_url': audioPredica})]; // Una prédica destacada (con audio si se pidió)
   } // Fin de obtenerPredicas
 
   @override // Reemplaza el método real
@@ -1194,4 +1220,59 @@ void main() { // Punto de arranque de las pruebas
     expect(fila.height, lessThan(140)); // Compacta (antes ~330 con la miniatura grande)
     expect(find.text('📚 La familia · Parte 1 de 2'), findsWidgets); // La serie se sigue viendo
   }); // Fin de la prueba 62
+
+  testWidgets('Prédica con audio: "Escuchar solo el audio" pausa el video, suena y recuerda dónde quedó', (WidgetTester tester) async { // Prueba 63
+    pantallaAlta(tester); // Pantalla alta
+    final audio = AudioFalso(); // Audio de mentira
+    ControlAudio.crear = () => audio; // La app usará el de mentira
+    await PosicionesAudio.guardar(1, const Duration(minutes: 12)); // La vez pasada se quedó en el minuto 12
+    final api = ApiFalsa()..audioPredica = 'https://audio.ejemplo/predica.mp3'; // Prédica con MP3
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('Prédicas'))); // Pestaña Prédicas
+    await tester.pumpAndSettle(); // Espera
+    expect(find.textContaining('🎧 Audio'), findsOneWidget); // La lista avisa que tiene audio
+    await tester.tap(find.text('La fe que mueve montañas')); // Abre el video
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.text('Escuchar solo el audio')); // Toca el botón nuevo
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Escuchar prédica'), findsOneWidget); // Abrió el reproductor
+    expect(audio.urlCargada, 'https://audio.ejemplo/predica.mp3'); // Cargó el MP3 del panel
+    expect(audio.cargadoDesde, const Duration(minutes: 11, seconds: 55)); // Retomó 5 s antes de donde se quedó
+    expect(find.textContaining('Seguiste donde te quedaste'), findsOneWidget); // Lo avisa
+    expect(find.text('Escuchando'), findsOneWidget); // Suena
+    expect(api.reproduccionesContadas, [1]); // Contó la vista una vez
+    await tester.tap(find.bySemanticsLabel('Pausar')); // Pausa
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('En pausa'), findsOneWidget); // En pausa
+    await tester.tap(find.byTooltip('Adelantar 10 segundos')); // +10 s
+    await tester.pumpAndSettle(); // Espera
+    expect(audio.ultimoSalto, const Duration(minutes: 12, seconds: 5)); // Saltó
+    await tester.pageBack(); // Sale
+    await tester.pumpAndSettle(); // Espera
+    expect(audio.cerrado, isTrue); // Liberó el reproductor
+    expect(await PosicionesAudio.leer(1), const Duration(minutes: 12, seconds: 5)); // Recordó dónde quedó
+  }); // Fin de la prueba 63
+
+  testWidgets('En vivo con la radio al aire: "Escuchar solo el audio" abre la radio; sin radio no sale', (WidgetTester tester) async { // Prueba 64
+    pantallaAlta(tester); // Pantalla alta
+    ControlRadio.crear = () => RadioFalsa(); // Radio de mentira
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa(radioAlAire: true))); // En vivo y radio al aire
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.text('Ver transmisión')); // Abre el en vivo
+    await tester.pumpAndSettle(); // Espera
+    expect(find.textContaining('Por la radio de la iglesia'), findsOneWidget); // Explica que es por la radio
+    await tester.tap(find.text('Escuchar solo el audio')); // Lo toca
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Radio en línea'), findsOneWidget); // Abrió la radio
+  }); // Fin de la prueba 64
+
+  testWidgets('En vivo sin radio y prédica sin audio: no sale el botón', (WidgetTester tester) async { // Prueba 65
+    pantallaAlta(tester); // Pantalla alta
+    await tester.pumpWidget(CanaanApp(api: ApiFalsa())); // En vivo sin radio
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.text('Ver transmisión')); // Abre el en vivo
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('Escuchar solo el audio'), findsNothing); // Sin radio: no hay botón
+  }); // Fin de la prueba 65
 } // Fin de main

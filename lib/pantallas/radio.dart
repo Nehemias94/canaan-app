@@ -163,7 +163,7 @@ class _PantallaRadioState extends State<PantallaRadio> { // Estado de la pantall
               ), // Fin del error
             const SizedBox(height: 24), // Espacio
             const Text( // Aviso temporal
-              'Por ahora la radio suena mientras esta pantalla esté abierta.', // Lo de pantalla bloqueada llega en el Paso 11
+              'Puedes bloquear el teléfono o usar otra app: la radio sigue sonando. Se detiene al salir de esta pantalla.', // Explicación (pantalla bloqueada: Paso 11)
               textAlign: TextAlign.center, // Centrado
               style: TextStyle(color: Colors.white54, fontSize: 12), // Gris claro pequeño
             ), // Fin del aviso
