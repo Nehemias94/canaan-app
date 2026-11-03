@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 
 import '../servicios/conexion.dart'; // sinConexion (true = la app está mostrando lo guardado porque no hay internet)
+import '../servicios/recarga.dart'; // Timbres para recargar las pestañas al conectarse
 import '../servicios/wifi_iglesia.dart'; // Wi-Fi para invitados
 
-// Franja "📶 ¿Sin internet? Toca para conectarte al Wi-Fi de la iglesia" (opción B, con un toque).
+// Franja "📶 ¿Sin internet? Toca para conectarte al Wi-Fi de la iglesia".
 // Sale solo si: la app no tiene internet, el panel ofrece Wi-Fi para invitados (Android) y el teléfono está en el área
 // (si no dio permiso de ubicación, pregunta "¿Estás en la iglesia?"). No pide permisos.
+// Al tocarla, SOLO la app Canaán se conecta a la red (las demás apps siguen sin internet).
 class FranjaWifi extends StatefulWidget { // Franja encima del menú de abajo
   const FranjaWifi({super.key}); // Constructor
 
@@ -21,12 +23,21 @@ class _FranjaWifiState extends State<FranjaWifi> { // Estado de la franja
   void initState() { // Al crearse
     super.initState(); // Lo de Flutter por defecto
     sinConexion.addListener(_revisar); // Cada vez que cambia "sin conexión"...
+    WifiIglesiaServicio.conexionPendiente.addListener(_alTocarNotificacion); // Si toca la notificación "¿Sin internet?"...
     _revisar(); // ...y ahora mismo
+    _alTocarNotificacion(); // (por si la app se abrió tocándola)
   } // Fin de initState
+
+  void _alTocarNotificacion() { // La persona tocó la notificación del Wi-Fi: se conecta sola
+    if (!WifiIglesiaServicio.conexionPendiente.value) return; // No había toque
+    WifiIglesiaServicio.conexionPendiente.value = false; // Atendido
+    Future.microtask(() { if (mounted && !_conectando) _conectar(); }); // Conecta enseguida (en cuanto termine lo que se está haciendo)
+  } // Fin de _alTocarNotificacion
 
   @override // Reemplaza dispose
   void dispose() { // Al quitarse
     sinConexion.removeListener(_revisar); // Deja de escuchar
+    WifiIglesiaServicio.conexionPendiente.removeListener(_alTocarNotificacion); // Deja de escuchar los toques
     super.dispose(); // Lo de Flutter por defecto
   } // Fin de dispose
 
@@ -39,10 +50,15 @@ class _FranjaWifiState extends State<FranjaWifi> { // Estado de la franja
   Future<void> _conectar() async { // Al tocar la franja
     final mensajero = ScaffoldMessenger.of(context); // Para avisar el resultado
     setState(() => _conectando = true); // Muestra la rueda
-    final mensaje = await WifiIglesiaServicio.conectarConUnToque(); // Sugiere la red
+    final (conectada, mensaje) = await WifiIglesiaServicio.conectarConUnToque(); // Conecta la app (Android puede preguntar)
     if (!mounted) return; // Ya no está en pantalla
-    setState(() => _conectando = false); // Quita la rueda
-    mensajero.showSnackBar(SnackBar(content: Text(mensaje), duration: const Duration(seconds: 8))); // Explica qué pasa ahora
+    setState(() { _conectando = false; if (conectada) _enArea = null; }); // Quita la rueda; si se conectó, quita la franja
+    mensajero.showSnackBar(SnackBar(content: Text(mensaje), duration: const Duration(seconds: 8))); // Explica qué pasó
+    if (conectada) { // Conectada: que las pestañas traigan lo de ahora (y se quite "Sin conexión")
+      tocarTimbreInicio(); // Inicio
+      recargarPredicas.value++; // Prédicas
+      recargarEventos.value++; // Eventos
+    } // Fin del if
   } // Fin de _conectar
 
   @override // Reemplaza build

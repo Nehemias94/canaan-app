@@ -1200,35 +1200,40 @@ void main() { // Punto de arranque de las pruebas
     expect(find.text('📚 La familia · Parte 1 de 2'), findsWidgets); // La serie se sigue viendo
   }); // Fin de la prueba 62
 
-  testWidgets('Wi-Fi para invitados: al entrar sin internet sugiere la red, con internet no, al salir la quita y si el panel lo apaga se olvida', (WidgetTester tester) async { // Prueba 63
-    final sugeridas = <String>[], quitadas = <String>[]; // Lo que se le pidió a "Android"
-    var internet = false; // ¿Hay internet? (se cambia a mitad de la prueba)
+  testWidgets('Wi-Fi para invitados: guarda la red, al llegar SIN datos avisa (con datos no), al salir quita el aviso y si el panel lo apaga se olvida', (WidgetTester tester) async { // Prueba 63
+    var soltadas = 0; // Veces que se soltó la red
     WifiIglesiaServicio.soportado = () => true; // Como si fuera Android
-    WifiIglesiaServicio.hayInternet = () async => internet; // Internet de mentira
-    WifiIglesiaServicio.sugerirRed = (n, c) async { sugeridas.add('$n/$c'); return true; }; // Anota
-    WifiIglesiaServicio.quitarRed = (n, c) async { quitadas.add(n); return true; }; // Anota
+    WifiIglesiaServicio.desconectarRed = () async { soltadas++; return true; }; // Anota
     final iglesia = Iglesia.desdeJson({'nombre': 'MCC', 'wifi': {'nombre': 'Canaán Invitados', 'contrasena': 'bendiciones', 'latitud': 13.69, 'longitud': -89.21, 'radio_metros': 150}}); // Como lo manda el panel
     expect(iglesia.wifi?.nombre, 'Canaán Invitados'); // Se leyó el bloque
     expect(Iglesia.desdeJson({'nombre': 'MCC', 'wifi': null}).wifi, isNull); // Apagado = null
     await WifiIglesiaServicio.sincronizar(iglesia.wifi); // Inicio guarda la copia
-    await WifiIglesiaServicio.alEntrar(); // Llega a la iglesia SIN internet
-    expect(sugeridas, ['Canaán Invitados/bendiciones']); // Le sugirió la red
+    expect((await WifiIglesiaServicio.leerCopia())?.contrasena, 'bendiciones'); // Quedó guardada (sirve sin internet)
+    var avisos = 0, quitados = 0; // Notificaciones "¿Sin internet?" mostradas y quitadas
+    var internet = true; // ¿Tiene datos?
+    WifiIglesiaServicio.hayInternet = () async => internet; // Internet de mentira
+    WifiIglesiaServicio.mostrarNotificacion = () async => avisos++; // Anota
+    WifiIglesiaServicio.quitarNotificacion = () async => quitados++; // Anota
+    WifiIglesiaServicio.ubicacionSinPreguntar = () async => null; // Sin permiso de ubicación
+    await WifiIglesiaServicio.alEntrar(); // La geocerca lo ve llegar CON datos
+    expect(avisos, 0); // No se le ofrece nada
+    expect(await WifiIglesiaServicio.ofrecerFranja(), isFalse); // (sin ubicación ni llegada anotada: solo la pregunta "¿Estás en la iglesia?")
+    internet = false; // Llega SIN datos
+    await WifiIglesiaServicio.alEntrar(); // La geocerca lo ve llegar
+    expect(avisos, 1); // Notificación "¿Sin internet en la iglesia?"
+    expect(await WifiIglesiaServicio.ofrecerFranja(), isTrue); // La franja sabe que está en el área (sin pedir la ubicación)
     await WifiIglesiaServicio.alSalir(); // Se va
-    expect(quitadas, ['Canaán Invitados']); // La quitó
-    internet = true; // Ahora llega CON datos
-    await WifiIglesiaServicio.alEntrar(); // Llega otra vez
-    expect(sugeridas.length, 1); // No le sugirió nada (sigue con sus datos)
-    internet = false; // Sin internet otra vez
-    await WifiIglesiaServicio.alEntrar(); // Llega y se le sugiere
+    expect(quitados, 1); // Quitó la notificación
+    expect(soltadas, 1); // Y soltó la red (si la usaba)
     await WifiIglesiaServicio.sincronizar(null); // El panel apagó el servicio
-    expect(quitadas.length, 2); // Quitó la red del teléfono
+    expect(soltadas, 2); // Soltó la red
     expect(await WifiIglesiaServicio.leerCopia(), isNull); // Y olvidó los datos
   }); // Fin de la prueba 63
 
-  testWidgets('Wi-Fi para invitados: sin internet y en el área sale la franja; al tocarla sugiere la red', (WidgetTester tester) async { // Prueba 64
-    final sugeridas = <String>[]; // Lo que se le pidió a "Android"
+  testWidgets('Wi-Fi para invitados: sin internet y en el área sale la franja; al tocarla conecta la app', (WidgetTester tester) async { // Prueba 64
+    final conectadas = <String>[]; // Lo que se le pidió a "Android"
     WifiIglesiaServicio.soportado = () => true; // Como si fuera Android
-    WifiIglesiaServicio.sugerirRed = (n, c) async { sugeridas.add(n); return true; }; // Anota
+    WifiIglesiaServicio.conectarRed = (n, c) async { conectadas.add('$n/$c'); return true; }; // Anota y "se conecta"
     WifiIglesiaServicio.ubicacionSinPreguntar = () async => const Coordenadas(13.6901, -89.2101); // A unos metros del centro
     WifiIglesiaServicio.wifiEncendido = () async => true; // Wi-Fi encendido
     final api = ApiFalsa()..wifi = {'nombre': 'Canaán Invitados', 'contrasena': 'bendiciones', 'latitud': 13.69, 'longitud': -89.21, 'radio_metros': 150}; // Panel con Wi-Fi
@@ -1240,8 +1245,13 @@ void main() { // Punto de arranque de las pruebas
     expect(find.text('¿Sin internet? Toca para conectarte al Wi-Fi de la iglesia'), findsOneWidget); // Sale la franja
     await tester.tap(find.text('¿Sin internet? Toca para conectarte al Wi-Fi de la iglesia')); // La toca
     await tester.pumpAndSettle(); // Espera
-    expect(sugeridas, ['Canaán Invitados']); // Sugirió la red
-    expect(find.textContaining('se conectará a «Canaán Invitados»'), findsOneWidget); // Explica qué pasa (mensaje abajo)
+    expect(conectadas, ['Canaán Invitados/bendiciones']); // Conectó la app a la red del panel
+    expect(find.textContaining('Solo la app Canaán lo usa'), findsOneWidget); // Explica que es solo para la app
+    expect(find.textContaining('Toca para conectarte'), findsNothing); // Ya conectada: la franja se quita
+    conectadas.clear(); // Limpia
+    WifiIglesiaServicio.conexionPendiente.value = true; // Como si tocara la notificación "¿Sin internet?"
+    await tester.pumpAndSettle(); // Espera
+    expect(conectadas.length, 1); // Se conectó sola (sin tocar la franja)
     WifiIglesiaServicio.ubicacionSinPreguntar = () async => const Coordenadas(13.80, -89.21); // Lejos (12 km)
     sinConexion.value = false; await tester.pumpAndSettle(); sinConexion.value = true; await tester.pumpAndSettle(); // Vuelve y se va el internet
     expect(find.textContaining('Toca para conectarte'), findsNothing); // Lejos: no sale

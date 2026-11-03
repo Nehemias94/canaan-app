@@ -1,5 +1,6 @@
-<!-- Permisos del complemento: ver el estado del Wi-Fi y dejar sugerencias de red (no permite leer contraseñas ni otras redes) -->
+<!-- Permisos del complemento: ver el estado del Wi-Fi y pedir la red de la iglesia SOLO para la app (no permite leer contraseñas ni otras redes) -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" /> <!-- Saber si el Wi-Fi está encendido -->
-    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" /> <!-- Agregar y quitar la sugerencia de la red de la iglesia -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" /> <!-- Pedir la red de la iglesia (WifiNetworkSpecifier) -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" /> <!-- Pedir una red y hacer que la app la use (requestNetwork / bindProcessToNetwork) -->
 </manifest>

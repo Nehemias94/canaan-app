@@ -66,7 +66,7 @@ class GeocercaFondo { // Todo lo de la geocerca de fondo
     await _almacen.delete(key: _claveLugar); // Olvida el lugar
     await _almacen.delete(key: _claveAnuncios); // Olvida los anuncios registrados
     await _almacen.delete(key: _claveWifi); // Olvida el círculo del Wi-Fi
-    await WifiIglesiaServicio.alSalir(); // Quita la sugerencia de la red (sin el aviso al salir, se quedaría puesta)
+    await WifiIglesiaServicio.alSalir(); // Quita la notificación del Wi-Fi (sin el aviso al salir, se quedaría puesta)
   } // Fin de desactivar
 
   static Future<void> actualizar(Iglesia iglesia, [List<Anuncio>? anuncios]) async { // Se llama al cargar Inicio: vuelve a registrar lo que haya cambiado en el panel
@@ -131,7 +131,7 @@ class GeocercaFondo { // Todo lo de la geocerca de fondo
             id: idWifi, // Nombre
             location: Location(latitude: wifi.latitud, longitude: wifi.longitud), // Centro del área del Wi-Fi
             radiusMeters: max(wifi.radioMetros, 100).toDouble(), // Radio (mínimo 100 m)
-            triggers: {GeofenceEvent.enter, GeofenceEvent.exit}, // Al ENTRAR (sugerir si no hay internet) y al SALIR (quitar)
+            triggers: {GeofenceEvent.enter, GeofenceEvent.exit}, // Al ENTRAR (si no hay internet, ofrecer el Wi-Fi) y al SALIR (quitar el ofrecimiento)
             iosSettings: const IosGeofenceSettings(initialTrigger: true), // iPhone (aún no se usa): si ya está adentro, cuenta como entrar
             androidSettings: const AndroidGeofenceSettings( // Android
               initialTriggers: {GeofenceEvent.enter}, // Si ya está adentro al registrarlo, cuenta como entrar
@@ -244,8 +244,8 @@ Future<void> geocercaEntro(GeofenceCallbackParams params) async { // Datos del a
   try { // Cualquier falla: no hace nada (no hay pantalla donde mostrar errores)
     final circulos = params.geofences.map((g) => g.id).toList(); // Círculos que avisó el teléfono
     if (circulos.contains(GeocercaFondo.idWifi)) { // Círculo del Wi-Fi para invitados...
-      if (params.event == GeofenceEvent.enter) await WifiIglesiaServicio.alEntrar(); // ...al entrar: si no hay internet, sugiere la red
-      if (params.event == GeofenceEvent.exit) await WifiIglesiaServicio.alSalir(); // ...al salir: la quita
+      if (params.event == GeofenceEvent.enter) await WifiIglesiaServicio.alEntrar(); // ...al entrar: si no hay internet, notificación "¿Sin internet? Toca para conectarte"
+      if (params.event == GeofenceEvent.exit) await WifiIglesiaServicio.alSalir(); // ...al salir: quita la notificación
       circulos.remove(GeocercaFondo.idWifi); // Ya se atendió
       if (circulos.isEmpty) return; // Solo era el Wi-Fi: no hay anuncios que revisar
     } // Fin del if

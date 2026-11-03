@@ -2,28 +2,34 @@ package com.mcccanaan.wifi_invitados; // Paquete del complemento
 
 import android.content.Context; // Acceso a los servicios del teléfono
 import android.content.Intent; // Para abrir el panel de Wi-Fi
+import android.net.ConnectivityManager; // Servicio de conexiones (pedir una red solo para la app)
+import android.net.Network; // Una red conectada
+import android.net.NetworkCapabilities; // Qué ofrece una red
+import android.net.NetworkRequest; // Pedido de red
 import android.net.wifi.WifiManager; // Servicio de Wi-Fi
-import android.net.wifi.WifiNetworkSuggestion; // Sugerencia de red (Android 10+)
+import android.net.wifi.WifiNetworkSpecifier; // "Esta red exacta, solo para esta app" (Android 10+)
 import android.os.Build; // Versión de Android
+import android.os.Handler; // Para responder en el hilo principal
+import android.os.Looper; // Hilo principal
 import android.provider.Settings; // Panel de Wi-Fi de los ajustes
 
 import androidx.annotation.NonNull; // Marca "nunca es null"
-
-import java.util.ArrayList; // Listas
-import java.util.List; // Listas
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin; // Base de los complementos de Flutter
 import io.flutter.plugin.common.MethodCall; // Llamada que llega desde Dart
 import io.flutter.plugin.common.MethodChannel; // Canal de comunicación con Dart
 
-// Sugiere a Android la red Wi-Fi de invitados de la iglesia (WifiNetworkSuggestion, Android 10+).
-// Con una sugerencia, Android se conecta SOLO cuando la red está cerca (la primera vez pregunta "¿Permitir que Canaán sugiera redes?").
-// Al quitar la sugerencia, Android se desconecta de esa red y la olvida. La app NO puede leer otras redes ni contraseñas.
+// Conecta SOLO la app Canaán a la red Wi-Fi de invitados de la iglesia (WifiNetworkSpecifier, Android 10+).
+// Las demás apps del teléfono NO usan esta red. Android muestra su ventana "¿Conectar a…?" (normalmente solo la primera vez),
+// y la conexión se suelta sola al cerrar la app o al salir del alcance del router (el teléfono vuelve a sus datos).
 public class WifiInvitadosPlugin implements FlutterPlugin, MethodChannel.MethodCallHandler { // Complemento + receptor de llamadas
+  private static final int ESPERA_MS = 45000; // Máximo 45 s para encontrar la red y que la persona confirme
   private MethodChannel canal; // Canal con Dart
-  private Context contexto; // Contexto de la app (sirve también con la app cerrada)
+  private Context contexto; // Contexto de la app
+  private ConnectivityManager.NetworkCallback escucha; // Escucha de la red pedida (null = no hay conexión pedida)
+  private final Handler principal = new Handler(Looper.getMainLooper()); // Para responder a Dart en el hilo principal
 
-  @Override // Al conectarse con Flutter (app abierta o despertada por la geocerca)
+  @Override // Al conectarse con Flutter
   public void onAttachedToEngine(@NonNull FlutterPluginBinding enlace) { // Recibe el enlace
     contexto = enlace.getApplicationContext(); // Guarda el contexto de la app
     canal = new MethodChannel(enlace.getBinaryMessenger(), "com.mcccanaan.canaan_app/wifi_invitados"); // Crea el canal
@@ -32,6 +38,7 @@ public class WifiInvitadosPlugin implements FlutterPlugin, MethodChannel.MethodC
 
   @Override // Al desconectarse
   public void onDetachedFromEngine(@NonNull FlutterPluginBinding enlace) { // Recibe el enlace
+    desconectar(); // Suelta la red de la iglesia (si estaba conectada)
     canal.setMethodCallHandler(null); // Deja de escuchar
     canal = null; // Libera
   } // Fin de onDetachedFromEngine
@@ -40,33 +47,23 @@ public class WifiInvitadosPlugin implements FlutterPlugin, MethodChannel.MethodC
   public void onMethodCall(@NonNull MethodCall llamada, @NonNull MethodChannel.Result resultado) { // Llamada y respuesta
     WifiManager wifi = (WifiManager) contexto.getSystemService(Context.WIFI_SERVICE); // Servicio de Wi-Fi
     switch (llamada.method) { // Según lo que se pidió
-      case "soportado": // ¿Este teléfono acepta sugerencias?
+      case "soportado": // ¿Este teléfono permite conectar solo la app?
         resultado.success(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q); // Solo Android 10 o más nuevo
         return; // Fin
       case "wifiEncendido": // ¿El Wi-Fi está encendido?
         resultado.success(wifi != null && wifi.isWifiEnabled()); // true / false
         return; // Fin
-      case "sugerir": // Agregar la sugerencia de la red
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || wifi == null) { resultado.success(false); return; } // Teléfono viejo: no se puede
-        String red = llamada.argument("nombre"); // Nombre de la red (SSID)
-        String clave = llamada.argument("contrasena"); // Contraseña (vacía = red abierta)
-        List<WifiNetworkSuggestion> nueva = new ArrayList<>(); // Lista con una sola sugerencia
-        nueva.add(construir(red, clave)); // La sugerencia
-        quitarPorNombre(wifi, red); // Quita la anterior (por si cambió la contraseña en el panel)
-        int estado = wifi.addNetworkSuggestions(nueva); // Se la da a Android
-        resultado.success(estado == WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS || estado == WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_DUPLICATE); // Bien (o ya estaba)
+      case "conectado": // ¿La app está usando ahora la red de la iglesia?
+        resultado.success(escucha != null); // true mientras dure la conexión
         return; // Fin
-      case "quitar": // Quitar la sugerencia (al salir del área o si el panel apagó el servicio)
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || wifi == null) { resultado.success(false); return; } // Teléfono viejo: no había
-        String nombre = llamada.argument("nombre"); // Nombre de la red
-        String contrasena = llamada.argument("contrasena"); // Contraseña con la que se sugirió
-        List<WifiNetworkSuggestion> igual = new ArrayList<>(); // La misma sugerencia (Android 10 las compara así)
-        igual.add(construir(nombre, contrasena)); // Igual a la que se agregó
-        wifi.removeNetworkSuggestions(igual); // La quita (si no estaba, no pasa nada)
-        quitarPorNombre(wifi, nombre); // Android 11+: también cualquier otra con ese nombre (ej. con una contraseña vieja)
+      case "conectarSoloApp": // Conectar la app (solo la app) a la red
+        conectar(llamada.argument("nombre"), llamada.argument("contrasena"), resultado); // Pide la red
+        return; // Fin
+      case "desconectar": // Soltar la red y volver a los datos
+        desconectar(); // Suelta
         resultado.success(true); // Listo
         return; // Fin
-      case "abrirPanelWifi": // Abrir el panelito de Wi-Fi (para encenderlo) — solo con la app abierta
+      case "abrirPanelWifi": // Abrir el panelito de Wi-Fi (para encenderlo)
         Intent panel = new Intent(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ? Settings.Panel.ACTION_WIFI : Settings.ACTION_WIFI_SETTINGS); // Panel (Android 10+) o ajustes de Wi-Fi
         panel.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); // Necesario al abrir desde el contexto de la app
         try { contexto.startActivity(panel); resultado.success(true); } catch (Exception e) { resultado.success(false); } // Lo abre
@@ -76,18 +73,49 @@ public class WifiInvitadosPlugin implements FlutterPlugin, MethodChannel.MethodC
     } // Fin del switch
   } // Fin de onMethodCall
 
-  private WifiNetworkSuggestion construir(String nombre, String contrasena) { // Arma la sugerencia (requiere Android 10+)
-    WifiNetworkSuggestion.Builder b = new WifiNetworkSuggestion.Builder().setSsid(nombre); // Nombre de la red
-    if (contrasena != null && !contrasena.isEmpty()) b.setWpa2Passphrase(contrasena); // Con contraseña: WPA2 (sirve también en redes WPA2/WPA3)
-    return b.build(); // Lista
-  } // Fin de construir
+  private void conectar(String nombre, String contrasena, MethodChannel.Result resultado) { // Pide la red a Android (muestra su ventana de confirmación)
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) { resultado.success(false); return; } // Teléfono viejo: no se puede
+    desconectar(); // Suelta un pedido anterior (si había)
+    WifiNetworkSpecifier.Builder red = new WifiNetworkSpecifier.Builder().setSsid(nombre); // Esta red exacta
+    if (contrasena != null && !contrasena.isEmpty()) red.setWpa2Passphrase(contrasena); // Con contraseña (WPA2; sirve en WPA2/WPA3)
+    NetworkRequest pedido = new NetworkRequest.Builder() // Pedido
+        .addTransportType(NetworkCapabilities.TRANSPORT_WIFI) // Por Wi-Fi
+        .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) // Android marca estas redes "solo para la app": no se exige que el sistema la valide como internet (igual navega si el router tiene internet)
+        .setNetworkSpecifier(red.build()) // La red de la iglesia
+        .build(); // Listo
+    ConnectivityManager conexiones = (ConnectivityManager) contexto.getSystemService(Context.CONNECTIVITY_SERVICE); // Servicio de conexiones
+    final boolean[] respondido = {false}; // Para responder a Dart una sola vez
+    escucha = new ConnectivityManager.NetworkCallback() { // Lo que pasa con la red pedida
+      @Override public void onAvailable(@NonNull Network n) { // Se conectó
+        conexiones.bindProcessToNetwork(n); // TODA la app (pantallas, videos, Biblia) usa esta red; las demás apps no
+        responder(resultado, respondido, true); // Avisa a Dart: conectada
+      } // Fin de onAvailable
+      @Override public void onUnavailable() { // No la encontró o la persona tocó "Cancelar"
+        escucha = null; // Ya no hay pedido
+        responder(resultado, respondido, false); // Avisa a Dart: no se pudo
+      } // Fin de onUnavailable
+      @Override public void onLost(@NonNull Network n) { // Se perdió (salió del alcance del router o la apagaron)
+        conexiones.bindProcessToNetwork(null); // La app vuelve a los datos del teléfono
+        desconectar(); // Suelta el pedido
+      } // Fin de onLost
+    }; // Fin de la escucha
+    try { // Pedir la red puede fallar (permisos, Wi-Fi apagado)
+      conexiones.requestNetwork(pedido, escucha, ESPERA_MS); // Pide la red (máx. 45 s)
+    } catch (Exception e) { // Falló
+      escucha = null; // Sin pedido
+      responder(resultado, respondido, false); // No se pudo
+    } // Fin del try
+  } // Fin de conectar
 
-  private void quitarPorNombre(WifiManager wifi, String nombre) { // Quita las sugerencias de la app con ese nombre (Android 11+)
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return; // Android 10 no permite leer las sugerencias
-    List<WifiNetworkSuggestion> quitar = new ArrayList<>(); // Las que se quitan
-    for (WifiNetworkSuggestion s : wifi.getNetworkSuggestions()) { // Sugerencias de ESTA app (no ve las de otras)
-      if (nombre != null && nombre.equals(s.getSsid())) quitar.add(s); // Mismo nombre
-    } // Fin del for
-    if (!quitar.isEmpty()) wifi.removeNetworkSuggestions(quitar); // Las quita
-  } // Fin de quitarPorNombre
+  private void responder(MethodChannel.Result resultado, boolean[] respondido, boolean valor) { // Responde a Dart una sola vez y en el hilo principal
+    principal.post(() -> { if (!respondido[0]) { respondido[0] = true; resultado.success(valor); } }); // Solo la primera vez
+  } // Fin de responder
+
+  private void desconectar() { // Suelta la red de la iglesia (la app vuelve a los datos)
+    if (escucha == null) return; // No había conexión pedida
+    ConnectivityManager conexiones = (ConnectivityManager) contexto.getSystemService(Context.CONNECTIVITY_SERVICE); // Servicio de conexiones
+    conexiones.bindProcessToNetwork(null); // La app deja de usar esa red
+    try { conexiones.unregisterNetworkCallback(escucha); } catch (Exception ignorado) {} // Suelta el pedido (Android se desconecta de la red)
+    escucha = null; // Sin pedido
+  } // Fin de desconectar
 } // Fin de WifiInvitadosPlugin

@@ -11,6 +11,7 @@ import '../modelos/actividad.dart'; // Molde de una actividad del horario
 import '../modelos/evento.dart'; // Molde de un evento especial
 import '../tema.dart'; // horaCorta (texto de las horas)
 import 'preferencias.dart'; // Lista de cultos con recordatorio
+import 'wifi_iglesia.dart'; // Toque de la notificación "¿Sin internet?" del Wi-Fi
 
 // Recordatorios de cultos: el teléfono avisa 30 minutos antes, CADA SEMANA, aunque no haya internet ni la app esté abierta.
 // La persona los activa con la campanita 🔔 de cada culto en Horario. Si el panel cambia la hora, se reprograman al abrir Horario.
@@ -35,7 +36,7 @@ class Recordatorios { // Todo lo de recordatorios
     await _notificaciones.initialize(settings: const InitializationSettings( // Prepara las notificaciones
       android: AndroidInitializationSettings('@mipmap/ic_launcher'), // Ícono
       iOS: DarwinInitializationSettings(requestAlertPermission: false, requestBadgePermission: false, requestSoundPermission: false), // Permisos se piden aparte
-    )); // Fin de la preparación
+    ), onDidReceiveNotificationResponse: WifiIglesiaServicio.alTocarNotificacion); // Fin de la preparación (con el mismo "al tocar" del Wi-Fi: si no, esta preparación lo borraría)
     _listo = true; // Listo
   } // Fin de _preparar
 

@@ -2,6 +2,7 @@ import 'package:firebase_messaging/firebase_messaging.dart'; // RemoteMessage (u
 import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 import 'package:flutter/services.dart'; // SystemNavigator (salir de la app con el botón atrás)
 
+import '../servicios/wifi_iglesia.dart'; // Wi-Fi para invitados (toque de su notificación)
 import '../servicios/ventana_flotante.dart'; // VentanaFlotante.activa: ocultar el menú cuando el video está en la ventanita
 import '../componentes/franja_wifi.dart'; // Franja del Wi-Fi para invitados
 import '../componentes/carga_animada.dart'; // presentacionEnCurso: ocultar el menú mientras se ve el logo animado
@@ -34,6 +35,7 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
   @override // Reemplaza initState
   void initState() { // Se ejecuta una vez, al abrir la app
     super.initState(); // Lo de Flutter por defecto
+    WifiIglesiaServicio.prepararToques(); // Escucha el toque de la notificación del Wi-Fi (y revisa si la app se abrió con ella)
     ServiciosApp.api = widget.api; // API al alcance de todas las pantallas (eventos: 🔔 e inscripciones)
     ServiciosApp.registro = widget.registro; // Llave del teléfono, igual
     widget.registro.iniciar().then((_) => ServicioNotificaciones.iniciar( // Registra el teléfono en segundo plano y, al terminar, activa las notificaciones

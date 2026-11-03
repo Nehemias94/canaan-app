@@ -1,8 +1,8 @@
-# Complemento propio de Canaán: sugiere a Android la red Wi-Fi de invitados de la iglesia (y la quita)
+# Complemento propio de Canaán: conecta SOLO la app a la red Wi-Fi de invitados de la iglesia (las demás apps no la usan)
 # Se hizo propio porque los paquetes publicados abren ventanas o piden permisos de más (ej. "modificar ajustes del sistema").
-# Al ser un complemento, también funciona cuando la geocerca despierta a la app CERRADA.
+# Funciona con la app ABIERTA (Android pide confirmar con su ventana "¿Conectar a…?").
 name: wifi_invitados # Nombre del paquete
-description: Sugerencias de red Wi-Fi (WifiNetworkSuggestion) para la app Canaán. # Descripción
+description: Conexión Wi-Fi solo para la app (WifiNetworkSpecifier) para la app Canaán. # Descripción
 version: 1.0.0 # Versión
 publish_to: none # Solo para esta app (no se publica en pub.dev)
 

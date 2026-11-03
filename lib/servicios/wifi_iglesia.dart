@@ -2,29 +2,39 @@ import 'dart:convert'; // jsonEncode / jsonDecode (copia guardada)
 import 'dart:io' show Platform; // ¿Es Android?
 
 import 'package:flutter/foundation.dart'; // kIsWeb (navegador)
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // Notificación "¿Sin internet?" al llegar (la crea el teléfono)
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Caja fuerte del teléfono
 import 'package:geolocator/geolocator.dart'; // Ubicación (solo si ya dio permiso: la franja NO pide permisos)
 import 'package:http/http.dart' as http; // Para probar si hay internet de verdad
-import 'package:wifi_invitados/wifi_invitados.dart'; // Complemento propio: sugerir / quitar la red
+import 'package:wifi_invitados/wifi_invitados.dart'; // Complemento propio: conectar solo la app a la red
 
 import '../modelos/iglesia.dart'; // WifiIglesia
 import 'geocerca.dart'; // distanciaMetros
 import 'ubicacion.dart'; // Coordenadas
 
-// Wi-Fi para invitados (solo Android 10+): quien llega a la iglesia SIN internet recibe la sugerencia de la red y Android se conecta solo.
-// A) Automático: la geocerca de fondo avisa al ENTRAR (alEntrar) y al SALIR (alSalir) del área, aunque la app esté cerrada.
-// B) Con un toque: con la app abierta sin internet dentro del área, la franja "¿Sin internet?" llama a conectarConUnToque().
-// Los datos de la red se guardan en el teléfono (copia) para funcionar sin internet. La ubicación nunca sale del teléfono.
+// Wi-Fi para invitados (solo Android 10+): SOLO la app Canaán usa la red de la iglesia (las demás apps del teléfono no),
+// y solo para quien llega SIN internet y está en el área.
+// 1) Geocerca (app cerrada; requiere "Avisarme al llegar a la iglesia"): al ENTRAR al área revisa si hay internet; si NO hay,
+//    muestra la notificación "¿Sin internet?". Al tocarla se abre la app y se conecta sola. Al SALIR se quita la notificación.
+//    (Android no deja conectar "solo la app" con la app cerrada: necesita su ventana "¿Conectar a…?", normalmente solo la primera vez.)
+// 2) Con la app abierta sin internet en el área: la franja "¿Sin internet? Toca para conectarte".
+// La conexión se suelta sola al cerrar la app o al salir del alcance del router. La ubicación nunca sale del teléfono.
 class WifiIglesiaServicio { // Solo funciones estáticas
   static const _almacen = FlutterSecureStorage(); // Caja fuerte
   static const _claveCopia = 'wifi_copia'; // Datos de la red (JSON) que mandó el panel
-  static const _claveSugerida = 'wifi_sugerida'; // Red que se le sugirió a Android (para poder quitarla al salir)
+  static const _claveEnArea = 'wifi_en_area'; // Hora en que la geocerca vio llegar al teléfono SIN internet (se borra al salir)
+  static const _horasEnArea = 4; // Cuánto vale ese dato (un culto largo); después se vuelve a revisar con la ubicación
+  static const idNotificacion = 990001; // Número de la notificación "¿Sin internet?" (no choca con anuncios ni recordatorios)
+  static const toqueConectar = 'conectar_wifi'; // Marca de la notificación: al tocarla, la app se conecta sola
+  static final ValueNotifier<bool> conexionPendiente = ValueNotifier(false); // true = la persona tocó la notificación: la franja conecta en cuanto pueda
 
-  // Se pueden cambiar en las pruebas automáticas (no hay Android ni GPS ni internet de verdad):
+  // Se pueden cambiar en las pruebas automáticas (no hay Android ni GPS de verdad):
   static bool Function() soportado = () => !kIsWeb && Platform.isAndroid; // ¿Este teléfono puede usarlo? (el complemento revisa además Android 10+)
   static Future<bool> Function() hayInternet = _hayInternetReal; // ¿Hay internet de verdad?
-  static Future<bool> Function(String, String) sugerirRed = WifiInvitados.sugerir; // Agrega la sugerencia
-  static Future<bool> Function(String, String) quitarRed = WifiInvitados.quitar; // Quita la sugerencia
+  static Future<void> Function() mostrarNotificacion = _mostrarNotificacionReal; // Muestra "¿Sin internet en la iglesia?"
+  static Future<void> Function() quitarNotificacion = _quitarNotificacionReal; // La quita
+  static Future<bool> Function(String, String) conectarRed = WifiInvitados.conectarSoloApp; // Conecta la app a la red (true = conectada)
+  static Future<bool> Function() desconectarRed = WifiInvitados.desconectar; // Suelta la red
   static Future<Coordenadas?> Function() ubicacionSinPreguntar = _ubicacionSinPreguntarReal; // Dónde está (null = sin permiso o no se sabe)
   static Future<bool> Function() wifiEncendido = WifiInvitados.wifiEncendido; // ¿Wi-Fi encendido?
   static Future<bool> Function() abrirPanelWifi = WifiInvitados.abrirPanelWifi; // Abre el panelito de Wi-Fi
@@ -35,6 +45,59 @@ class WifiIglesiaServicio { // Solo funciones estáticas
       return r.statusCode == 204; // 204 = hay internet de verdad
     } catch (_) { return false; } // Sin respuesta: no hay internet
   } // Fin de _hayInternetReal
+
+  static void alTocarNotificacion(NotificationResponse respuesta) { // Se tocó una notificación local (también la pasan los recordatorios al prepararse)
+    if (respuesta.payload == toqueConectar) conexionPendiente.value = true; // Era la del Wi-Fi: la franja se conecta sola
+  } // Fin de alTocarNotificacion
+
+  static Future<void> prepararToques() async { // Al abrir la app: escucha los toques y revisa si se abrió desde la notificación del Wi-Fi
+    if (!soportado()) return; // Solo Android
+    try { // Cualquier falla: no pasa nada (la franja sigue disponible)
+      final n = FlutterLocalNotificationsPlugin(); // Notificaciones locales
+      await n.initialize(settings: const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')), onDidReceiveNotificationResponse: alTocarNotificacion); // Prepara y escucha los toques
+      final inicio = await n.getNotificationAppLaunchDetails(); // ¿La app se abrió tocando una notificación?
+      final toque = inicio?.notificationResponse; // El toque (si hubo)
+      if (inicio?.didNotificationLaunchApp == true && toque != null) alTocarNotificacion(toque); // Sí: lo atiende
+    } catch (_) {} // Falló
+  } // Fin de prepararToques
+
+  static Future<void> alEntrar() async { // La geocerca vio ENTRAR al teléfono al área (app cerrada o abierta)
+    final wifi = await leerCopia(); // Datos guardados
+    if (wifi == null) return; // El panel no ofrece Wi-Fi
+    if (await hayInternet()) return; // Tiene datos o internet: no se le ofrece nada
+    await _almacen.write(key: _claveEnArea, value: DateTime.now().toIso8601String()); // Anota que llegó sin internet (la franja no necesitará la ubicación)
+    await mostrarNotificacion(); // Le ofrece el Wi-Fi con una notificación
+  } // Fin de alEntrar
+
+  static Future<void> _mostrarNotificacionReal() async { // Notificación "¿Sin internet en la iglesia?" (la crea el teléfono)
+    final n = FlutterLocalNotificationsPlugin(); // Notificaciones locales
+    await n.initialize(settings: const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher'))); // Las prepara
+    await n.show( // Muestra la notificación
+      id: idNotificacion, // Siempre la misma (no se acumulan)
+      title: '📶 ¿Sin internet en la iglesia?', // Título
+      body: 'Toca para conectar la app Canaán al Wi-Fi de la iglesia (solo la app lo usará).', // Texto
+      payload: toqueConectar, // Marca: al tocarla, la app se conecta sola
+      notificationDetails: const NotificationDetails(android: AndroidNotificationDetails( // Cómo se ve en Android
+        'geocerca', 'Avisos al llegar a la iglesia', // Mismo canal que los anuncios al llegar
+        channelDescription: 'Anuncios que se muestran al llegar o al salir de la iglesia', // Descripción del canal
+        importance: Importance.high, priority: Priority.high, // Aparece arriba de la pantalla
+      )), // Fin
+    ); // Fin de show
+  } // Fin de _mostrarNotificacionReal
+
+  static Future<void> _quitarNotificacionReal() async { // Quita la notificación "¿Sin internet?"
+    final n = FlutterLocalNotificationsPlugin(); // Notificaciones locales
+    await n.initialize(settings: const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher'))); // Las prepara
+    await n.cancel(id: idNotificacion); // La quita (si seguía ahí)
+  } // Fin de _quitarNotificacionReal
+
+  static Future<void> alSalir() async { // La geocerca vio SALIR al teléfono del área
+    try { // Cualquier falla: no pasa nada
+      await _almacen.delete(key: _claveEnArea); // Ya no está en el área
+      await quitarNotificacion(); // Quita la notificación "¿Sin internet?" (si seguía ahí)
+      await desconectarRed(); // Suelta la red si la app la estaba usando (también se suelta sola al salir del alcance)
+    } catch (_) {} // Falló
+  } // Fin de alSalir
 
   static Future<Coordenadas?> _ubicacionSinPreguntarReal() async { // Ubicación SOLO si ya dio permiso (no muestra la ventana de permisos)
     try { // Cualquier falla = no se sabe
@@ -52,61 +115,42 @@ class WifiIglesiaServicio { // Solo funciones estáticas
     } catch (_) { return null; } // Falló: como si no hubiera
   } // Fin de leerCopia
 
-  static Future<void> sincronizar(WifiIglesia? wifi) async { // Inicio lo llama con lo que mandó el panel: guarda la copia o, si se apagó, quita la red
+  static Future<void> sincronizar(WifiIglesia? wifi) async { // Inicio lo llama con lo que mandó el panel: guarda la copia o, si se apagó, la borra
     if (!soportado()) return; // Solo Android
     try { // Cualquier falla: se intenta la próxima vez
-      final anterior = await leerCopia(); // Lo que había
       if (wifi == null) { // El panel apagó el servicio...
-        await alSalir(); // ...quita la sugerencia (si había)
-        await _almacen.delete(key: _claveCopia); // ...y olvida la red
+        await desconectarRed(); // ...suelta la red (si la app la estaba usando)
+        await _almacen.delete(key: _claveCopia); // ...y olvida los datos
         return; // Fin
       } // Fin del if
-      if (anterior != null && (anterior.nombre != wifi.nombre || anterior.contrasena != wifi.contrasena)) await alSalir(); // Cambió la red o la contraseña: quita la vieja (la nueva se sugiere al llegar)
-      await _almacen.write(key: _claveCopia, value: jsonEncode(wifi.aJson())); // Guarda la copia
+      await _almacen.write(key: _claveCopia, value: jsonEncode(wifi.aJson())); // Guarda la copia (para usarla sin internet)
     } catch (_) {} // Falló: no pasa nada
   } // Fin de sincronizar
-
-  static Future<void> alEntrar() async { // El teléfono ENTRÓ al área (geocerca, app cerrada o abierta)
-    final wifi = await leerCopia(); // Datos guardados
-    if (wifi == null) return; // El panel no ofrece Wi-Fi
-    if (await hayInternet()) return; // Tiene datos o internet: se queda con lo suyo
-    await _sugerir(wifi); // Sin internet: le sugiere la red a Android
-  } // Fin de alEntrar
-
-  static Future<void> alSalir() async { // El teléfono SALIÓ del área: quita la sugerencia (el próximo culto vuelve a decidir)
-    try { // Cualquier falla: no pasa nada
-      final sugerida = await _almacen.read(key: _claveSugerida); // ¿Qué red se sugirió? ("nombre\ncontraseña")
-      if (sugerida == null) return; // Ninguna
-      final partes = sugerida.split('\n'); // Separa nombre y contraseña
-      await quitarRed(partes.first, partes.length > 1 ? partes[1] : ''); // La quita (Android se desconecta de ella)
-      await _almacen.delete(key: _claveSugerida); // Olvida
-    } catch (_) {} // Falló
-  } // Fin de alSalir
-
-  static Future<bool> _sugerir(WifiIglesia wifi) async { // Agrega la sugerencia y anota cuál fue
-    final bien = await sugerirRed(wifi.nombre, wifi.contrasena); // Se la da a Android
-    if (bien) await _almacen.write(key: _claveSugerida, value: '${wifi.nombre}\n${wifi.contrasena}'); // Anota (para quitarla al salir)
-    return bien; // ¿Salió bien?
-  } // Fin de _sugerir
 
   static Future<bool?> ofrecerFranja() async { // ¿Mostrar "¿Sin internet? Toca para conectarte"? null = no; true = está en el área; false = no se sabe dónde está (sin permiso)
     if (!soportado()) return null; // Solo Android
     final wifi = await leerCopia(); // ¿El panel ofrece Wi-Fi?
     if (wifi == null) return null; // No
+    try { // ¿La geocerca lo vio llegar sin internet hace poco?
+      final llego = DateTime.tryParse(await _almacen.read(key: _claveEnArea) ?? ''); // Hora en que llegó
+      if (llego != null && DateTime.now().difference(llego).inHours < _horasEnArea) return true; // Sí: está en el área (no hace falta la ubicación)
+    } catch (_) {} // Falló: se revisa con la ubicación
     final aqui = await ubicacionSinPreguntar(); // Dónde está (sin pedir permisos)
     if (aqui == null) return false; // No se sabe: se ofrece preguntando "¿Estás en la iglesia?"
     final distancia = Geocerca.distanciaMetros(aqui.latitud, aqui.longitud, wifi.latitud, wifi.longitud); // Metros hasta el centro del área
     return distancia <= wifi.radioMetros ? true : null; // Dentro: se ofrece; lejos: no
   } // Fin de ofrecerFranja
 
-  static Future<String> conectarConUnToque() async { // Botón de la franja: sugiere la red y, si el Wi-Fi está apagado, abre su panel
+  static Future<(bool, String)> conectarConUnToque() async { // Botón de la franja: conecta la app; devuelve (¿conectada?, mensaje)
     final wifi = await leerCopia(); // Datos guardados
-    if (wifi == null) return 'La iglesia no tiene Wi-Fi para invitados en este momento.'; // Ya no se ofrece
-    if (!await _sugerir(wifi)) return 'Este teléfono no permite sugerir redes (requiere Android 10 o más nuevo). Conéctate a la red «${wifi.nombre}» desde los ajustes de Wi-Fi.'; // Teléfono viejo
+    if (wifi == null) return (false, 'La iglesia no tiene Wi-Fi para invitados en este momento.'); // Ya no se ofrece
     if (!await wifiEncendido()) { // Wi-Fi apagado...
       await abrirPanelWifi(); // ...abre el panelito para encenderlo
-      return 'Enciende el Wi-Fi: el teléfono se conectará solo a «${wifi.nombre}».'; // Instrucción
+      return (false, 'Enciende el Wi-Fi y vuelve a tocar la franja.'); // Instrucción
     } // Fin del if
-    return 'Listo: el teléfono se conectará a «${wifi.nombre}» en unos segundos. Si Android pregunta "¿Permitir sugerencias de red?", toca Permitir.'; // Éxito
+    if (!await conectarRed(wifi.nombre, wifi.contrasena)) { // No se conectó (no la encontró, contraseña distinta o tocó "Cancelar")
+      return (false, 'No se pudo conectar a «${wifi.nombre}». Revisa que estés cerca del router y, si Android pregunta, toca «Conectar».'); // Explicación
+    } // Fin del if
+    return (true, 'Conectado al Wi-Fi de la iglesia. Solo la app Canaán lo usa; las demás apps siguen con tus datos.'); // Éxito
   } // Fin de conectarConUnToque
 } // Fin de WifiIglesiaServicio
