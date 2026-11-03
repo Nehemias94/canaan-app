@@ -14,5 +14,7 @@ class WifiInvitados { // Solo funciones estáticas
   static Future<bool> conectado() => _llamar('conectado'); // ¿La app está usando la red de la iglesia?
   static Future<bool> conectarSoloApp(String nombre, String contrasena) => _llamar('conectarSoloApp', {'nombre': nombre, 'contrasena': contrasena}); // Conecta la app (Android pregunta); true = conectada
   static Future<bool> desconectar() => _llamar('desconectar'); // Suelta la red (vuelve a los datos)
+  static Future<bool> sugerir(String nombre, String contrasena) => _llamar('sugerir', {'nombre': nombre, 'contrasena': contrasena}); // Pone la red para TODO el teléfono (al compartir)
+  static Future<bool> quitar(String nombre, String contrasena) => _llamar('quitar', {'nombre': nombre, 'contrasena': contrasena}); // La quita de todo el teléfono
   static Future<bool> abrirPanelWifi() => _llamar('abrirPanelWifi'); // Abre el panel de Wi-Fi
 } // Fin de WifiInvitados

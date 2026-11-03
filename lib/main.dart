@@ -3,6 +3,7 @@ import 'package:just_audio_background/just_audio_background.dart'; // Radio en s
 
 import 'pantallas/bienvenida.dart'; // Bienvenida (solo la primera vez)
 import 'pantallas/principal.dart'; // Pantalla con el menú de abajo y las pestañas
+import 'servicios/wifi_iglesia.dart'; // Wi-Fi para invitados (llaves del navegador y de los avisos)
 import 'servicios/api.dart'; // Llamadas a la API del panel
 import 'servicios/preferencias.dart'; // Letra grande y otras preferencias guardadas
 import 'servicios/registro.dart'; // Registro del teléfono en el panel
@@ -31,6 +32,7 @@ class CanaanApp extends StatelessWidget { // La app completa
       valueListenable: Preferencias.apariencia, // 'sistema', 'claro' u 'oscuro'
       builder: (context, apariencia, _) => MaterialApp( // Contenedor principal con el estilo Material de Google
       title: 'Canaán', // Nombre de la app (pestaña del navegador y lista de apps abiertas)
+      scaffoldMessengerKey: WifiIglesiaServicio.llaveAvisos, // Avisos de abajo del Wi-Fi ("Preparando el Wi-Fi para compartir…")
       debugShowCheckedModeBanner: false, // Quita la cinta roja "DEBUG"
       theme: temaCanaan(), // Colores y estilos de Canaán (lib/tema.dart)
       darkTheme: temaCanaan(oscuro: true), // Los mismos, en modo oscuro

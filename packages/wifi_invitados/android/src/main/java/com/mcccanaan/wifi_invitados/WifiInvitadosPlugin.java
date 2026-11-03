@@ -8,12 +8,16 @@ import android.net.NetworkCapabilities; // Qué ofrece una red
 import android.net.NetworkRequest; // Pedido de red
 import android.net.wifi.WifiManager; // Servicio de Wi-Fi
 import android.net.wifi.WifiNetworkSpecifier; // "Esta red exacta, solo para esta app" (Android 10+)
+import android.net.wifi.WifiNetworkSuggestion; // Sugerencia de red para TODO el teléfono (Android 10+): se usa solo al compartir, si el panel lo permite
 import android.os.Build; // Versión de Android
 import android.os.Handler; // Para responder en el hilo principal
 import android.os.Looper; // Hilo principal
 import android.provider.Settings; // Panel de Wi-Fi de los ajustes
 
 import androidx.annotation.NonNull; // Marca "nunca es null"
+
+import java.util.ArrayList; // Listas
+import java.util.List; // Listas
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin; // Base de los complementos de Flutter
 import io.flutter.plugin.common.MethodCall; // Llamada que llega desde Dart
@@ -22,6 +26,8 @@ import io.flutter.plugin.common.MethodChannel; // Canal de comunicación con Dar
 // Conecta SOLO la app Canaán a la red Wi-Fi de invitados de la iglesia (WifiNetworkSpecifier, Android 10+).
 // Las demás apps del teléfono NO usan esta red. Android muestra su ventana "¿Conectar a…?" (normalmente solo la primera vez),
 // y la conexión se suelta sola al cerrar la app o al salir del alcance del router (el teléfono vuelve a sus datos).
+// Además, "sugerir"/"quitar" ponen la red para TODO el teléfono (WifiNetworkSuggestion): solo cuando la persona quiere compartir
+// algo por WhatsApp sin datos y el panel lo permite; la app la quita al salir de la iglesia.
 public class WifiInvitadosPlugin implements FlutterPlugin, MethodChannel.MethodCallHandler { // Complemento + receptor de llamadas
   private static final int ESPERA_MS = 45000; // Máximo 45 s para encontrar la red y que la persona confirme
   private MethodChannel canal; // Canal con Dart
@@ -61,6 +67,25 @@ public class WifiInvitadosPlugin implements FlutterPlugin, MethodChannel.MethodC
         return; // Fin
       case "desconectar": // Soltar la red y volver a los datos
         desconectar(); // Suelta
+        resultado.success(true); // Listo
+        return; // Fin
+      case "sugerir": // Poner la red para TODO el teléfono (al compartir)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || wifi == null) { resultado.success(false); return; } // Teléfono viejo: no se puede
+        String red = llamada.argument("nombre"); // Nombre de la red
+        String clave = llamada.argument("contrasena"); // Contraseña
+        List<WifiNetworkSuggestion> nueva = new ArrayList<>(); // Lista con una sola sugerencia
+        nueva.add(sugerencia(red, clave)); // La sugerencia
+        quitarPorNombre(wifi, red); // Quita una anterior (por si cambió la contraseña)
+        int estado = wifi.addNetworkSuggestions(nueva); // Se la da a Android (la 1.ª vez pregunta "¿Permitir redes sugeridas por Canaán?")
+        resultado.success(estado == WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS || estado == WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_DUPLICATE); // Bien (o ya estaba)
+        return; // Fin
+      case "quitar": // Quitar la red de TODO el teléfono (al salir de la iglesia)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || wifi == null) { resultado.success(false); return; } // Teléfono viejo: no había
+        String nombre = llamada.argument("nombre"); // Nombre de la red
+        List<WifiNetworkSuggestion> igual = new ArrayList<>(); // La misma sugerencia (Android 10 las compara así)
+        igual.add(sugerencia(nombre, llamada.argument("contrasena"))); // Igual a la que se agregó
+        wifi.removeNetworkSuggestions(igual); // La quita (Android se desconecta de ella)
+        quitarPorNombre(wifi, nombre); // Android 11+: también cualquier otra con ese nombre
         resultado.success(true); // Listo
         return; // Fin
       case "abrirPanelWifi": // Abrir el panelito de Wi-Fi (para encenderlo)
@@ -106,6 +131,19 @@ public class WifiInvitadosPlugin implements FlutterPlugin, MethodChannel.MethodC
       responder(resultado, respondido, false); // No se pudo
     } // Fin del try
   } // Fin de conectar
+
+  private WifiNetworkSuggestion sugerencia(String nombre, String contrasena) { // Arma la sugerencia para todo el teléfono (Android 10+)
+    WifiNetworkSuggestion.Builder b = new WifiNetworkSuggestion.Builder().setSsid(nombre); // Nombre de la red
+    if (contrasena != null && !contrasena.isEmpty()) b.setWpa2Passphrase(contrasena); // Con contraseña (WPA2)
+    return b.build(); // Lista
+  } // Fin de sugerencia
+
+  private void quitarPorNombre(WifiManager wifi, String nombre) { // Quita las sugerencias de ESTA app con ese nombre (Android 11+)
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return; // Android 10 no permite leerlas
+    List<WifiNetworkSuggestion> quitar = new ArrayList<>(); // Las que se quitan
+    for (WifiNetworkSuggestion s : wifi.getNetworkSuggestions()) { if (nombre != null && nombre.equals(s.getSsid())) quitar.add(s); } // Mismo nombre
+    if (!quitar.isEmpty()) wifi.removeNetworkSuggestions(quitar); // Las quita
+  } // Fin de quitarPorNombre
 
   private void responder(MethodChannel.Result resultado, boolean[] respondido, boolean valor) { // Responde a Dart una sola vez y en el hilo principal
     principal.post(() -> { if (!respondido[0]) { respondido[0] = true; resultado.success(valor); } }); // Solo la primera vez

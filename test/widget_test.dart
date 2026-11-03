@@ -231,7 +231,8 @@ void main() { // Punto de arranque de las pruebas
     Carruseles.pasoAutomatico = null; // Los carruseles NO pasan solos (así las tarjetas están donde la prueba las espera); la prueba 54 lo enciende
     PantallaVideo.reproductorDePrueba = const SizedBox(height: 200, child: Text('[video de prueba]')); // Reproductor de mentira (YouTube no carga en las pruebas)
     sinConexion.value = false; // Con internet (la prueba 43 lo cambia)
-    WifiIglesiaServicio.soportado = () => false; // Wi-Fi para invitados apagado (en la PC no hay Android); las pruebas 63 y 64 lo encienden
+    WifiIglesiaServicio.soportado = () => false; // Wi-Fi para invitados apagado (en la PC no hay Android); las pruebas 63 a 65 lo encienden
+    Compartir.antesDeCompartir = null; // Sin pregunta del Wi-Fi (la pone la pantalla principal; la prueba 65 la usa)
   }); // Fin de setUp
 
   testWidgets('Inicio muestra el nombre y EN VIVO', (WidgetTester tester) async { // Prueba 1
@@ -603,8 +604,8 @@ void main() { // Punto de arranque de las pruebas
   }); // Fin de la prueba 27
 
   testWidgets('Repetición: "¿Te lo perdiste?" abre el video con los botones', (WidgetTester tester) async { // Prueba 28
-    String? compartido; // Lo que se intentó compartir
-    Compartir.compartir = (texto) async => compartido = texto; // Compartir de mentira
+    String? compartido, imagen; // Lo que se intentó compartir
+    Compartir.compartirImagen = (texto, url) async { compartido = texto; imagen = url; }; // Compartir con imagen de mentira (como los eventos)
     final api = ApiFalsa(conExtras: true)..enVivoEnPanel = false..conRepeticion = true; // Sin en vivo, con repetición y ofrendas
     tester.view.physicalSize = const Size(800, 1800); // Pantalla alta: caben todas las tarjetas sin desplazarse
     tester.view.devicePixelRatio = 1; // 1 píxel = 1 punto
@@ -620,6 +621,8 @@ void main() { // Punto de arranque de las pruebas
     await tester.tap(find.text('Compartir')); // Comparte
     await tester.pump(); // Espera
     expect(compartido, contains('https://youtu.be/repeti123')); // Con el enlace del video
+    expect(compartido, contains('📺 Culto dominical')); // Con el título, como los eventos
+    expect(imagen, 'https://i.ytimg.com/vi/repeti123/hqdefault.jpg'); // Y la imagen del video
     await tester.tap(find.text('Pedir oración')); // Abre la petición
     await tester.pumpAndSettle(); // Espera
     expect(find.text('Enviar petición'), findsOneWidget); // Formulario de petición
@@ -1256,4 +1259,32 @@ void main() { // Punto de arranque de las pruebas
     sinConexion.value = false; await tester.pumpAndSettle(); sinConexion.value = true; await tester.pumpAndSettle(); // Vuelve y se va el internet
     expect(find.textContaining('Toca para conectarte'), findsNothing); // Lejos: no sale
   }); // Fin de la prueba 64
+
+  testWidgets('Wi-Fi: al compartir sin datos abre el Wi-Fi para todo el teléfono (sin preguntar) y al terminar vuelve a solo la app', (WidgetTester tester) async { // Prueba 65
+    pantallaAlta(tester); // Pantalla alta
+    final pasos = <String>[]; // Lo que pasó, en orden
+    Compartir.compartirImagen = (t, u) async => pasos.add('compartir'); // Compartir de mentira
+    WifiIglesiaServicio.soportado = () => true; // Como si fuera Android
+    WifiIglesiaServicio.appConectada = () async => true; // La app usa el Wi-Fi "solo para la app" (sin datos)
+    WifiIglesiaServicio.desconectarRed = () async { pasos.add('soltar solo-app'); return true; }; // Anota
+    WifiIglesiaServicio.ponerTodo = (n, c) async { pasos.add('abrir todo el teléfono'); return true; }; // Anota
+    WifiIglesiaServicio.quitarTodo = (n, c) async { pasos.add('cerrar todo el teléfono'); return true; }; // Anota
+    WifiIglesiaServicio.conectarRed = (n, c) async { pasos.add('solo la app'); return true; }; // Anota
+    WifiIglesiaServicio.hayInternet = () async => true; // Con la red abierta, hay internet
+    WifiIglesiaServicio.esperarRegreso = () async {}; // Como si ya hubiera vuelto de WhatsApp
+    final api = ApiFalsa()..wifi = {'nombre': 'Canaán Invitados', 'contrasena': 'bendiciones', 'latitud': 13.69, 'longitud': -89.21, 'radio_metros': 150, 'todo_el_telefono': true}; // Panel que lo permite
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app (guarda la red)
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.text('Ver transmisión')); // Abre el en vivo
+    await tester.pumpAndSettle(); // Espera
+    await tester.tap(find.text('Compartir')); // Comparte
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('¿Enviar por WhatsApp sin datos?'), findsNothing); // No pregunta nada
+    expect(pasos, ['soltar solo-app', 'abrir todo el teléfono', 'compartir', 'cerrar todo el teléfono', 'solo la app']); // Abre, comparte, cierra y vuelve a solo la app
+    pasos.clear(); // Otra vez, pero el panel NO lo permite
+    await WifiIglesiaServicio.sincronizar(WifiIglesia.desdeJson({'nombre': 'Canaán Invitados', 'contrasena': 'bendiciones', 'latitud': 13.69, 'longitud': -89.21, 'radio_metros': 150, 'todo_el_telefono': false})); // Panel con la casilla apagada
+    await tester.tap(find.text('Compartir')); // Comparte
+    await tester.pumpAndSettle(); // Espera
+    expect(pasos, ['compartir']); // Comparte normal (WhatsApp enviará cuando haya datos)
+  }); // Fin de la prueba 65
 } // Fin de main

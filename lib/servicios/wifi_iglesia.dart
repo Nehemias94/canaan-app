@@ -1,7 +1,9 @@
+import 'dart:async'; // Completer (esperar a que la persona vuelva de WhatsApp)
 import 'dart:convert'; // jsonEncode / jsonDecode (copia guardada)
 import 'dart:io' show Platform; // ¿Es Android?
 
 import 'package:flutter/foundation.dart'; // kIsWeb (navegador)
+import 'package:flutter/material.dart'; // Ventana "¿Conectar todo el teléfono?" y avisos
 import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // Notificación "¿Sin internet?" al llegar (la crea el teléfono)
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Caja fuerte del teléfono
 import 'package:geolocator/geolocator.dart'; // Ubicación (solo si ya dio permiso: la franja NO pide permisos)
@@ -19,6 +21,9 @@ import 'ubicacion.dart'; // Coordenadas
 //    (Android no deja conectar "solo la app" con la app cerrada: necesita su ventana "¿Conectar a…?", normalmente solo la primera vez.)
 // 2) Con la app abierta sin internet en el área: la franja "¿Sin internet? Toca para conectarte".
 // La conexión se suelta sola al cerrar la app o al salir del alcance del router. La ubicación nunca sale del teléfono.
+// 3) Al COMPARTIR (si el panel lo permite), SIN preguntar: como WhatsApp no tiene internet, la red se abre para TODO el teléfono
+//    solo ese momento (WifiNetworkSuggestion); al volver a Canaán se cierra y queda otra vez SOLO para la app.
+//    Si algo falla, se cierra al salir del área (geocerca) o a las 4 horas.
 class WifiIglesiaServicio { // Solo funciones estáticas
   static const _almacen = FlutterSecureStorage(); // Caja fuerte
   static const _claveCopia = 'wifi_copia'; // Datos de la red (JSON) que mandó el panel
@@ -26,6 +31,9 @@ class WifiIglesiaServicio { // Solo funciones estáticas
   static const _horasEnArea = 4; // Cuánto vale ese dato (un culto largo); después se vuelve a revisar con la ubicación
   static const idNotificacion = 990001; // Número de la notificación "¿Sin internet?" (no choca con anuncios ni recordatorios)
   static const toqueConectar = 'conectar_wifi'; // Marca de la notificación: al tocarla, la app se conecta sola
+  static const _claveTodo = 'wifi_todo_telefono'; // Red puesta para TODO el teléfono ("nombre\ncontraseña\nhora"), para quitarla después
+  static const _horasTodo = 4; // A las 4 horas se quita sola (por si la geocerca no avisó la salida)
+  static final llaveAvisos = GlobalKey<ScaffoldMessengerState>(); // Avisos de abajo de toda la app ("Preparando el Wi-Fi para compartir…")
   static final ValueNotifier<bool> conexionPendiente = ValueNotifier(false); // true = la persona tocó la notificación: la franja conecta en cuanto pueda
 
   // Se pueden cambiar en las pruebas automáticas (no hay Android ni GPS de verdad):
@@ -38,6 +46,10 @@ class WifiIglesiaServicio { // Solo funciones estáticas
   static Future<Coordenadas?> Function() ubicacionSinPreguntar = _ubicacionSinPreguntarReal; // Dónde está (null = sin permiso o no se sabe)
   static Future<bool> Function() wifiEncendido = WifiInvitados.wifiEncendido; // ¿Wi-Fi encendido?
   static Future<bool> Function() abrirPanelWifi = WifiInvitados.abrirPanelWifi; // Abre el panelito de Wi-Fi
+  static Future<bool> Function() appConectada = WifiInvitados.conectado; // ¿La app está usando la red "solo para la app"?
+  static Future<bool> Function(String, String) ponerTodo = WifiInvitados.sugerir; // Pone la red para TODO el teléfono
+  static Future<bool> Function(String, String) quitarTodo = WifiInvitados.quitar; // La quita de todo el teléfono
+  static Duration esperaInternet = const Duration(seconds: 30); // Cuánto se espera a que el teléfono tenga internet (en pruebas, menos)
 
   static Future<bool> _hayInternetReal() async { // Pide una dirección de Google que responde "204" (la misma que usa Android para saber si hay internet)
     try { // Sin internet, o con un portal de bienvenida que intercepta, falla o responde otra cosa
@@ -96,6 +108,7 @@ class WifiIglesiaServicio { // Solo funciones estáticas
       await _almacen.delete(key: _claveEnArea); // Ya no está en el área
       await quitarNotificacion(); // Quita la notificación "¿Sin internet?" (si seguía ahí)
       await desconectarRed(); // Suelta la red si la app la estaba usando (también se suelta sola al salir del alcance)
+      await quitarTodoElTelefono(); // Si se puso para todo el teléfono (al compartir), la quita
     } catch (_) {} // Falló
   } // Fin de alSalir
 
@@ -118,6 +131,8 @@ class WifiIglesiaServicio { // Solo funciones estáticas
   static Future<void> sincronizar(WifiIglesia? wifi) async { // Inicio lo llama con lo que mandó el panel: guarda la copia o, si se apagó, la borra
     if (!soportado()) return; // Solo Android
     try { // Cualquier falla: se intenta la próxima vez
+      final todo = await _leerTodo(); // ¿Se puso la red para todo el teléfono?
+      if (todo != null && (wifi == null || DateTime.now().difference(todo.$3).inHours >= _horasTodo)) await quitarTodoElTelefono(); // Servicio apagado o pasaron 4 horas: la quita
       if (wifi == null) { // El panel apagó el servicio...
         await desconectarRed(); // ...suelta la red (si la app la estaba usando)
         await _almacen.delete(key: _claveCopia); // ...y olvida los datos
@@ -140,6 +155,78 @@ class WifiIglesiaServicio { // Solo funciones estáticas
     final distancia = Geocerca.distanciaMetros(aqui.latitud, aqui.longitud, wifi.latitud, wifi.longitud); // Metros hasta el centro del área
     return distancia <= wifi.radioMetros ? true : null; // Dentro: se ofrece; lejos: no
   } // Fin de ofrecerFranja
+
+  static Future<(String, String, DateTime)?> _leerTodo() async { // Red puesta para todo el teléfono: (nombre, contraseña, hora) o null
+    try { // La caja fuerte puede fallar
+      final partes = (await _almacen.read(key: _claveTodo))?.split('\n'); // "nombre\ncontraseña\nhora"
+      if (partes == null || partes.length < 3) return null; // No hay
+      return (partes[0], partes[1], DateTime.tryParse(partes[2]) ?? DateTime.now()); // Datos
+    } catch (_) { return null; } // Falló
+  } // Fin de _leerTodo
+
+  static Future<void> quitarTodoElTelefono() async { // Quita la red de todo el teléfono (si se había puesto al compartir)
+    final todo = await _leerTodo(); // ¿Había?
+    if (todo == null) return; // No
+    await quitarTodo(todo.$1, todo.$2); // La quita (Android se desconecta de ella)
+    try { await _almacen.delete(key: _claveTodo); } catch (_) {} // Olvida
+  } // Fin de quitarTodoElTelefono
+
+  static bool _compartiendo = false; // true mientras la red está abierta para todo el teléfono por un "Compartir"
+
+  static Future<void> antesDeCompartir() async { // Lo llama cada "Compartir": si la app usa el Wi-Fi "solo para la app", lo abre para TODO el teléfono (sin preguntar) para que WhatsApp pueda enviar
+    if (!soportado()) return; // Solo Android
+    final wifi = await leerCopia(); // ¿El panel ofrece Wi-Fi?
+    if (wifi == null || !wifi.todoElTelefono) return; // No ofrece, o el panel no lo permite: se comparte normal (WhatsApp enviará cuando haya datos)
+    if (!await appConectada()) return; // La app no usa el Wi-Fi "solo para la app": el teléfono tiene sus datos (o no está en la iglesia)
+    final avisos = llaveAvisos.currentState; // Avisos de abajo
+    avisos?.showSnackBar(const SnackBar(content: Text('Preparando el Wi-Fi para compartir…'), duration: Duration(seconds: 30))); // Mientras tanto
+    await desconectarRed(); // Suelta la conexión "solo la app" (ahora la tendrá todo el teléfono)
+    final puesta = await ponerTodo(wifi.nombre, wifi.contrasena); // Pone la red para todo el teléfono
+    if (puesta) { // Anota (para cerrarla al terminar, o a las 4 horas si algo falla)
+      _compartiendo = true; // Abierta por compartir
+      await _almacen.write(key: _claveTodo, value: '${wifi.nombre}\n${wifi.contrasena}\n${DateTime.now().toIso8601String()}'); // Datos
+    } // Fin del if
+    var conInternet = false; // ¿Ya tiene internet todo el teléfono?
+    final limite = DateTime.now().add(esperaInternet); // Hasta cuándo esperar
+    while (puesta && !conInternet && DateTime.now().isBefore(limite)) { // Espera a que Android se conecte
+      conInternet = await hayInternet(); // ¿Ya?
+      if (!conInternet) await Future.delayed(const Duration(seconds: 2)); // Todavía no: espera un poco
+    } // Fin de la espera
+    avisos?.hideCurrentSnackBar(); // Quita "Preparando…"
+    if (conInternet) return; // Listo: se abre la ventana de compartir y WhatsApp tiene internet
+    await despuesDeCompartir(esperar: false); // No se conectó: vuelve a dejar el Wi-Fi solo para la app
+    avisos?.showSnackBar(const SnackBar(duration: Duration(seconds: 10), content: Text('No se pudo abrir el Wi-Fi para WhatsApp: se enviará cuando tengas datos. Si Android muestra arriba "¿Permitir redes sugeridas por Canaán?", toca Permitir.'))); // Explicación
+  } // Fin de antesDeCompartir
+
+  static Future<void> Function() esperarRegreso = _esperarRegresoReal; // Espera a que la persona termine de compartir y vuelva a Canaán (en pruebas, nada)
+
+  static Future<void> _esperarRegresoReal() async { // Espera: salir a WhatsApp → volver a Canaán (+ unos segundos para que termine de enviar)
+    final binding = WidgetsBinding.instance; // Estado de la app
+    final salio = Completer<void>(); // Se completa cuando la app pasa a segundo plano (abrió WhatsApp)
+    final volvio = Completer<void>(); // Se completa cuando la persona regresa a Canaán
+    final escucha = AppLifecycleListener( // Escucha el estado de la app
+      onPause: () { if (!salio.isCompleted) salio.complete(); }, // Se fue a otra app
+      onResume: () { if (salio.isCompleted && !volvio.isCompleted) volvio.complete(); }, // Regresó
+    ); // Fin de la escucha
+    try { // Siempre se suelta la escucha
+      if (binding.lifecycleState != AppLifecycleState.resumed && !salio.isCompleted) salio.complete(); // Ya estaba fuera
+      final seFue = await Future.any([salio.future.then((_) => true), Future.delayed(const Duration(seconds: 4), () => false)]); // ¿Se fue a otra app en 4 s? (si cerró la ventana sin elegir, no)
+      if (!seFue) return; // No compartió: se cierra ya
+      await Future.any([volvio.future, Future.delayed(const Duration(minutes: 15))]); // Espera a que vuelva (máximo 15 min)
+      await Future.delayed(const Duration(seconds: 8)); // Unos segundos para que WhatsApp termine de enviar
+    } finally { // Al final
+      escucha.dispose(); // Deja de escuchar
+    } // Fin del try
+  } // Fin de _esperarRegresoReal
+
+  static Future<void> despuesDeCompartir({bool esperar = true}) async { // Lo llama cada "Compartir" al terminar: vuelve a dejar el Wi-Fi SOLO para la app
+    if (!_compartiendo) return; // No se abrió para todo el teléfono
+    if (esperar) await esperarRegreso(); // Espera a que termine de compartir
+    _compartiendo = false; // Ya no
+    await quitarTodoElTelefono(); // Cierra la red para las demás apps
+    final wifi = await leerCopia(); // Datos guardados
+    if (wifi != null) await conectarRed(wifi.nombre, wifi.contrasena); // Canaán vuelve a usarla (Android normalmente ya no pregunta)
+  } // Fin de despuesDeCompartir
 
   static Future<(bool, String)> conectarConUnToque() async { // Botón de la franja: conecta la app; devuelve (¿conectada?, mensaje)
     final wifi = await leerCopia(); // Datos guardados

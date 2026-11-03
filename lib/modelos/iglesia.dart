@@ -69,13 +69,14 @@ class Iglesia { // Molde con los datos que usa la app
 } // Fin de Iglesia
 
 class WifiIglesia { // Wi-Fi para invitados (Configuración del panel → "Wi-Fi para invitados")
-  const WifiIglesia({required this.nombre, required this.contrasena, required this.latitud, required this.longitud, required this.radioMetros}); // Constructor
+  const WifiIglesia({required this.nombre, required this.contrasena, required this.latitud, required this.longitud, required this.radioMetros, this.todoElTelefono = false}); // Constructor
 
   final String nombre; // Nombre de la red (SSID)
   final String contrasena; // Contraseña ("" = red abierta)
   final double latitud; // Centro del área donde se ofrece
   final double longitud; // Centro del área
   final int radioMetros; // Radio del área (metros)
+  final bool todoElTelefono; // Panel: "Permitir conectar todo el teléfono para compartir" (para que WhatsApp pueda enviar)
 
   String get firma => '$nombre|$contrasena|$latitud|$longitud|$radioMetros'; // Resumen: si cambia, hay que volver a registrar el círculo
 
@@ -85,9 +86,10 @@ class WifiIglesia { // Wi-Fi para invitados (Configuración del panel → "Wi-Fi
         latitud: (json['latitud'] as num?)?.toDouble() ?? 0, // Centro
         longitud: (json['longitud'] as num?)?.toDouble() ?? 0, // Centro
         radioMetros: (json['radio_metros'] as num?)?.toInt() ?? 150, // Radio
+        todoElTelefono: json['todo_el_telefono'] == true, // ¿Se puede conectar todo el teléfono al compartir?
       ); // Fin
 
-  Map<String, dynamic> aJson() => {'nombre': nombre, 'contrasena': contrasena, 'latitud': latitud, 'longitud': longitud, 'radio_metros': radioMetros}; // Para guardar la copia en el teléfono
+  Map<String, dynamic> aJson() => {'nombre': nombre, 'contrasena': contrasena, 'latitud': latitud, 'longitud': longitud, 'radio_metros': radioMetros, 'todo_el_telefono': todoElTelefono}; // Para guardar la copia en el teléfono
 } // Fin de WifiIglesia
 
 class EnVivo { // Datos de la transmisión en vivo

@@ -254,11 +254,14 @@ class _PantallaVideoState extends State<PantallaVideo> { // Estado de la pantall
     ); // Fin de Expanded
   } // Fin de _botonAccion
 
-  void _compartir() { // Comparte el video (en vivo: invita a verlo; repetición: el culto)
-    final enlace = 'https://youtu.be/${widget.youtubeId}'; // Enlace corto de YouTube (abre la app de YouTube o el navegador)
-    final invitacion = widget.enVivo ? '🔴 ¡Estamos en vivo! ${widget.titulo}\nAcompáñanos:' : '${widget.titulo}\nMíralo aquí:'; // Texto según el caso
-    Compartir.texto('$invitacion $enlace'); // Abre la ventana de compartir (con la firma de la iglesia)
-  } // Fin de _compartir
+  String textoParaCompartir() => [ // Lo que se comparte (como los eventos): un dato por renglón
+        if (widget.enVivo) '🔴 ¡Estamos en vivo!', // En vivo: invitación
+        '${widget.enVivo ? '⛪' : '📺'} ${widget.titulo}', // Título
+        if (widget.subtitulo != null && widget.subtitulo!.isNotEmpty) '📍 ${widget.subtitulo}', // Iglesia (o "Repetición · iglesia")
+        '▶️ ${widget.enVivo ? 'Acompáñanos' : 'Míralo aquí'}: https://youtu.be/${widget.youtubeId}', // Enlace corto (abre YouTube o el navegador)
+      ].join('\n'); // Fin
+
+  void _compartir() => Compartir.conImagen(textoParaCompartir(), 'https://i.ytimg.com/vi/${widget.youtubeId}/hqdefault.jpg'); // Imagen del video + datos (como los eventos)
 
   Widget _videoTerminado() { // Recuadro que reemplaza al video cuando el en vivo terminó
     return AspectRatio( // Mismo tamaño que el video (16:9)
