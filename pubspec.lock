@@ -1162,6 +1162,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.27.2"
+  wifi_invitados:
+    dependency: "direct main"
+    description:
+      path: "packages/wifi_invitados"
+      relative: true
+    source: path
+    version: "1.0.0"
   win32:
     dependency: transitive
     description:

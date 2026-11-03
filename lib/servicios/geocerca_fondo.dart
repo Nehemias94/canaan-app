@@ -11,6 +11,7 @@ import '../modelos/anuncio.dart'; // Molde de un anuncio
 import '../modelos/iglesia.dart'; // Molde de la iglesia (ubicación y radio)
 import 'api.dart'; // Para pedir los anuncios cuando el teléfono entra a un área
 import 'geocerca.dart'; // Lista de anuncios ya mostrados y copia guardada (compartidas con la geocerca de la app abierta)
+import 'wifi_iglesia.dart'; // Wi-Fi para invitados (sugerir al entrar, quitar al salir)
 
 // Geocerca con la app CERRADA (Paso 11). Es OPCIONAL: la persona la activa en Servicios → "Avisarme al llegar a la iglesia".
 // Cómo funciona: se le dice al sistema del teléfono "avísame cuando entre (o salga) de este círculo".
@@ -24,6 +25,8 @@ class GeocercaFondo { // Todo lo de la geocerca de fondo
   static const _claveActiva = 'geocerca_fondo'; // Caja fuerte: "si" = la persona la activó
   static const _claveLugar = 'geocerca_fondo_lugar'; // Caja fuerte: lugar de la iglesia registrado ("lat,lng,radio"), para saber si cambió
   static const _claveAnuncios = 'geocerca_fondo_anuncios'; // Caja fuerte: firma de los círculos de anuncios registrados, para saber si cambiaron
+  static const idWifi = 'wifi'; // Nombre del círculo del Wi-Fi para invitados (avisa al entrar y al salir)
+  static const _claveWifi = 'geocerca_fondo_wifi'; // Caja fuerte: firma del círculo del Wi-Fi registrado
   static const _almacen = FlutterSecureStorage(); // Caja fuerte
 
   static bool get soportada => !kIsWeb && (Platform.isAndroid || Platform.isIOS); // Solo en teléfonos (no en el navegador ni en las pruebas)
@@ -46,6 +49,7 @@ class GeocercaFondo { // Todo lo de la geocerca de fondo
       await _almacen.write(key: _claveActiva, value: 'si'); // Recuerda que está activa
       final copia = await Geocerca().leerCopia(); // Anuncios "Solo área" que ya tiene el teléfono
       await sincronizarAnuncios(copia?.anuncios ?? const [], iglesia); // Un círculo por anuncio pendiente
+      await sincronizarWifi(iglesia.wifi ?? await WifiIglesiaServicio.leerCopia()); // Círculo del Wi-Fi para invitados (si el panel lo ofrece)
       return null; // Todo bien
     } catch (error) { // Falló
       debugPrint('Geocerca de fondo: no se pudo registrar: $error'); // Detalle en la consola de desarrollo
@@ -61,6 +65,8 @@ class GeocercaFondo { // Todo lo de la geocerca de fondo
     await _almacen.delete(key: _claveActiva); // Olvida que estaba activa
     await _almacen.delete(key: _claveLugar); // Olvida el lugar
     await _almacen.delete(key: _claveAnuncios); // Olvida los anuncios registrados
+    await _almacen.delete(key: _claveWifi); // Olvida el círculo del Wi-Fi
+    await WifiIglesiaServicio.alSalir(); // Quita la sugerencia de la red (sin el aviso al salir, se quedaría puesta)
   } // Fin de desactivar
 
   static Future<void> actualizar(Iglesia iglesia, [List<Anuncio>? anuncios]) async { // Se llama al cargar Inicio: vuelve a registrar lo que haya cambiado en el panel
@@ -74,6 +80,7 @@ class GeocercaFondo { // Todo lo de la geocerca de fondo
         await _registrar(iglesia); // ...vuelve a registrar
       } // Fin del if
       if (anuncios != null) await sincronizarAnuncios(anuncios, iglesia); // Círculos de los anuncios
+      await sincronizarWifi(iglesia.wifi); // Círculo del Wi-Fi (o lo quita si el panel apagó el servicio)
     } catch (error) { // Falló
       debugPrint('Geocerca de fondo: no se pudo actualizar: $error'); // Solo lo anota
     } // Fin del try
@@ -108,6 +115,37 @@ class GeocercaFondo { // Todo lo de la geocerca de fondo
       debugPrint('Geocerca de fondo: no se pudieron registrar los anuncios: $error'); // Solo lo anota
     } // Fin del try
   } // Fin de sincronizarAnuncios
+
+  static Future<void> sincronizarWifi(WifiIglesia? wifi) async { // Registra (o quita) el círculo del Wi-Fi para invitados
+    if (!WifiIglesiaServicio.soportado() || !await estaActiva()) return; // Solo Android y con el aviso al llegar activado
+    try { // Cualquier falla: se intenta la próxima vez
+      if (!await Permission.locationAlways.isGranted) return; // Sin permiso "todo el tiempo" no se puede
+      final firma = wifi?.firma ?? ''; // Lo que debe quedar ("" = nada)
+      if (await _almacen.read(key: _claveWifi) == firma) return; // Igual que antes: nada que hacer
+      final gestor = NativeGeofenceManager.instance; // Atajo
+      await gestor.initialize(); // Prepara el paquete
+      await _quitar(idWifi); // Quita el anterior
+      if (wifi != null) { // El panel ofrece Wi-Fi: registra el círculo
+        await gestor.createGeofence( // Registra
+          Geofence( // Datos del círculo
+            id: idWifi, // Nombre
+            location: Location(latitude: wifi.latitud, longitude: wifi.longitud), // Centro del área del Wi-Fi
+            radiusMeters: max(wifi.radioMetros, 100).toDouble(), // Radio (mínimo 100 m)
+            triggers: {GeofenceEvent.enter, GeofenceEvent.exit}, // Al ENTRAR (sugerir si no hay internet) y al SALIR (quitar)
+            iosSettings: const IosGeofenceSettings(initialTrigger: true), // iPhone (aún no se usa): si ya está adentro, cuenta como entrar
+            androidSettings: const AndroidGeofenceSettings( // Android
+              initialTriggers: {GeofenceEvent.enter}, // Si ya está adentro al registrarlo, cuenta como entrar
+              notificationResponsiveness: Duration(minutes: 1), // Hasta 1 min de retraso (quien llega sin internet lo necesita pronto)
+            ), // Fin de Android
+          ), // Fin del círculo
+          geocercaEntro, // La misma función de siempre (abajo distingue el círculo "wifi")
+        ); // Fin del registro
+      } // Fin del if
+      await _almacen.write(key: _claveWifi, value: firma); // Anota lo registrado
+    } catch (error) { // Falló
+      debugPrint('Geocerca de fondo: no se pudo registrar el Wi-Fi: $error'); // Solo lo anota
+    } // Fin del try
+  } // Fin de sincronizarWifi
 
   static GeofenceEvent eventoDe(Anuncio anuncio, {required bool esIphone}) { // Qué evento del teléfono corresponde al anuncio
     if (anuncio.alSalir) return GeofenceEvent.exit; // Al salir
@@ -204,6 +242,13 @@ List<Anuncio> anunciosParaAvisar({ // Devuelve los anuncios que tocan
 @pragma('vm:entry-point') // No borrar: sin esto, la versión final de la app la eliminaría por "no usada"
 Future<void> geocercaEntro(GeofenceCallbackParams params) async { // Datos del aviso del teléfono
   try { // Cualquier falla: no hace nada (no hay pantalla donde mostrar errores)
+    final circulos = params.geofences.map((g) => g.id).toList(); // Círculos que avisó el teléfono
+    if (circulos.contains(GeocercaFondo.idWifi)) { // Círculo del Wi-Fi para invitados...
+      if (params.event == GeofenceEvent.enter) await WifiIglesiaServicio.alEntrar(); // ...al entrar: si no hay internet, sugiere la red
+      if (params.event == GeofenceEvent.exit) await WifiIglesiaServicio.alSalir(); // ...al salir: la quita
+      circulos.remove(GeocercaFondo.idWifi); // Ya se atendió
+      if (circulos.isEmpty) return; // Solo era el Wi-Fi: no hay anuncios que revisar
+    } // Fin del if
     final geocerca = Geocerca(); // Copia guardada y lista compartida de anuncios ya mostrados
     final copia = await geocerca.leerCopia(); // 1) Primero la copia que guardó Inicio: es instantánea y no necesita internet
     var anuncios = copia?.anuncios ?? <Anuncio>[]; // Anuncios de la copia (vacío si no hay)
@@ -215,7 +260,7 @@ Future<void> geocercaEntro(GeofenceCallbackParams params) async { // Datos del a
       } catch (_) {} // Sin internet o panel dormido: se queda con la copia (si había)
     } // Fin del if
     final candidatos = anunciosParaAvisar( // ¿Cuáles tocan con este círculo y este evento?
-      circulos: params.geofences.map((g) => g.id).toList(), // Círculos que avisó el teléfono
+      circulos: circulos, // Círculos que avisó el teléfono (sin el del Wi-Fi)
       evento: params.event, // Entró / se quedó / salió
       pendientes: await geocerca.pendientes(anuncios, DateTime.now()), // De área, en su ventana y no mostrados
       esIphone: Platform.isIOS, // iPhone no tiene "quedarse"

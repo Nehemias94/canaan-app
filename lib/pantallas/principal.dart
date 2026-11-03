@@ -3,6 +3,7 @@ import 'package:flutter/material.dart'; // Componentes visuales de Flutter
 import 'package:flutter/services.dart'; // SystemNavigator (salir de la app con el botón atrás)
 
 import '../servicios/ventana_flotante.dart'; // VentanaFlotante.activa: ocultar el menú cuando el video está en la ventanita
+import '../componentes/franja_wifi.dart'; // Franja del Wi-Fi para invitados
 import '../componentes/carga_animada.dart'; // presentacionEnCurso: ocultar el menú mientras se ve el logo animado
 import '../servicios/api.dart'; // Llamadas a la API (se pasa a cada pestaña)
 import '../servicios/conexion.dart'; // Franja "Sin conexión"
@@ -98,7 +99,8 @@ class _PantallaPrincipalState extends State<PantallaPrincipal> { // Estado: recu
         listenable: Listenable.merge([presentacionEnCurso, VentanaFlotante.activa]), // Cualquiera de los dos avisos redibuja el menú
         builder: (context, menu) => presentacionEnCurso.value || VentanaFlotante.activa.value ? const SizedBox.shrink() : Column( // Durante la presentación o en la ventanita: sin menú
           mainAxisSize: MainAxisSize.min, // Solo lo necesario
-          children: [ // Franja "sin conexión" (si aplica) y el menú
+          children: [ // Franja del Wi-Fi y "sin conexión" (si aplican) y el menú
+            const FranjaWifi(), // "¿Sin internet? Toca para conectarte al Wi-Fi de la iglesia" (solo si aplica)
             ValueListenableBuilder<bool>( // Escucha si lo que se ve es la copia guardada
               valueListenable: sinConexion, // true = sin internet
               builder: (context, sinRed, _) => !sinRed ? const SizedBox.shrink() : Container( // Con conexión: nada

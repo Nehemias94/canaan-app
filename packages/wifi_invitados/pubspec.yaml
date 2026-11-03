@@ -1,0 +1,22 @@
+# Complemento propio de Canaán: sugiere a Android la red Wi-Fi de invitados de la iglesia (y la quita)
+# Se hizo propio porque los paquetes publicados abren ventanas o piden permisos de más (ej. "modificar ajustes del sistema").
+# Al ser un complemento, también funciona cuando la geocerca despierta a la app CERRADA.
+name: wifi_invitados # Nombre del paquete
+description: Sugerencias de red Wi-Fi (WifiNetworkSuggestion) para la app Canaán. # Descripción
+version: 1.0.0 # Versión
+publish_to: none # Solo para esta app (no se publica en pub.dev)
+
+environment: # Versiones necesarias
+  sdk: ^3.5.0 # Dart
+  flutter: ">=3.24.0" # Flutter
+
+dependencies: # Dependencias
+  flutter: # Flutter
+    sdk: flutter # Viene con Flutter
+
+flutter: # Configuración del complemento
+  plugin: # Es un complemento con código nativo
+    platforms: # Plataformas
+      android: # Solo Android (iPhone: pendiente, requiere cuenta de desarrollador de Apple)
+        package: com.mcccanaan.wifi_invitados # Paquete Java
+        pluginClass: WifiInvitadosPlugin # Clase que se registra sola

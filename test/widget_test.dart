@@ -27,6 +27,7 @@ import 'package:canaan_app/servicios/recarga.dart'; // "Timbre" para recargar In
 import 'package:canaan_app/componentes/carruseles.dart';
 import 'package:canaan_app/componentes/imagen_guardada.dart'; // Imágenes guardadas (en pruebas: sin guardar) // Ajustes de los carruseles (paso automático)
 import 'package:canaan_app/servicios/radio.dart'; // Control de la radio (para cambiarlo por uno de prueba)
+import 'package:canaan_app/servicios/wifi_iglesia.dart'; // Wi-Fi para invitados (se cambian sus partes por unas de mentira)
 import 'dart:async'; // StreamController (estados de la radio de mentira)
 import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Caja fuerte (en pruebas, una de mentira en memoria)
 
@@ -66,6 +67,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
   final Map<String, dynamic>? avisoArea; // Área del aviso urgente (null = para todos)
   final bool conExtras; // ¿El panel falso tiene WhatsApp, ofrendas y versículo del día?
   List<Map<String, dynamic>>? bienvenida; // Bienvenida configurada (null = el panel no la manda)
+  Map<String, dynamic>? wifi; // Wi-Fi para invitados del panel falso (null = apagado)
   bool enVivoEnPanel = true; // ¿Hay transmisión en vivo en el panel falso? (se puede cambiar a mitad de la prueba)
   bool anuncioAreaAhora = false; // ¿Hay un anuncio "Solo área" en su ventana ahora mismo?
   bool conRepeticion = false; // ¿Hubo transmisión hace poco? (tarjeta "¿Te lo perdiste?")
@@ -149,6 +151,7 @@ class ApiFalsa extends Api { // API de mentira: responde datos fijos sin usar in
       if (conExtras) 'contacto': {'whatsapp': '50370000000'}, // WhatsApp
       if (conExtras) 'ofrendas': {'mostrar': true, 'mensaje': 'Dios ama al dador alegre.', 'cuentas': [{'banco': 'Banco Agrícola', 'tipo': 'Ahorro', 'numero': '3000-123456', 'titular': 'MCC'}], 'qr_url': null}, // Ofrendas
       if (bienvenida != null) 'bienvenida': bienvenida, // Bienvenida configurada en el panel
+      if (wifi != null) 'wifi': wifi, // Wi-Fi para invitados
       if (conExtras) 'versiculo_dia': {'texto': 'Jehová es mi pastor; nada me faltará.', 'referencia': 'Salmos 23:1'}, // Versículo
       if (avisoNivel != null) 'aviso_urgente': {'activo': true, 'titulo': 'Culto cancelado', 'mensaje': 'Hoy no habrá culto por la lluvia.', 'nivel': avisoNivel, 'area': avisoArea}, // Aviso urgente
       if (cuentaRegresiva != null) 'cuenta_regresiva': cuentaRegresiva, // Configuración de la cuenta regresiva
@@ -227,6 +230,8 @@ void main() { // Punto de arranque de las pruebas
     ImagenGuardada.usarGuardado = false; // Imágenes sin guardar en el teléfono (en las pruebas no hay almacenamiento real)
     Carruseles.pasoAutomatico = null; // Los carruseles NO pasan solos (así las tarjetas están donde la prueba las espera); la prueba 54 lo enciende
     PantallaVideo.reproductorDePrueba = const SizedBox(height: 200, child: Text('[video de prueba]')); // Reproductor de mentira (YouTube no carga en las pruebas)
+    sinConexion.value = false; // Con internet (la prueba 43 lo cambia)
+    WifiIglesiaServicio.soportado = () => false; // Wi-Fi para invitados apagado (en la PC no hay Android); las pruebas 63 y 64 lo encienden
   }); // Fin de setUp
 
   testWidgets('Inicio muestra el nombre y EN VIVO', (WidgetTester tester) async { // Prueba 1
@@ -1194,4 +1199,51 @@ void main() { // Punto de arranque de las pruebas
     expect(fila.height, lessThan(140)); // Compacta (antes ~330 con la miniatura grande)
     expect(find.text('📚 La familia · Parte 1 de 2'), findsWidgets); // La serie se sigue viendo
   }); // Fin de la prueba 62
+
+  testWidgets('Wi-Fi para invitados: al entrar sin internet sugiere la red, con internet no, al salir la quita y si el panel lo apaga se olvida', (WidgetTester tester) async { // Prueba 63
+    final sugeridas = <String>[], quitadas = <String>[]; // Lo que se le pidió a "Android"
+    var internet = false; // ¿Hay internet? (se cambia a mitad de la prueba)
+    WifiIglesiaServicio.soportado = () => true; // Como si fuera Android
+    WifiIglesiaServicio.hayInternet = () async => internet; // Internet de mentira
+    WifiIglesiaServicio.sugerirRed = (n, c) async { sugeridas.add('$n/$c'); return true; }; // Anota
+    WifiIglesiaServicio.quitarRed = (n, c) async { quitadas.add(n); return true; }; // Anota
+    final iglesia = Iglesia.desdeJson({'nombre': 'MCC', 'wifi': {'nombre': 'Canaán Invitados', 'contrasena': 'bendiciones', 'latitud': 13.69, 'longitud': -89.21, 'radio_metros': 150}}); // Como lo manda el panel
+    expect(iglesia.wifi?.nombre, 'Canaán Invitados'); // Se leyó el bloque
+    expect(Iglesia.desdeJson({'nombre': 'MCC', 'wifi': null}).wifi, isNull); // Apagado = null
+    await WifiIglesiaServicio.sincronizar(iglesia.wifi); // Inicio guarda la copia
+    await WifiIglesiaServicio.alEntrar(); // Llega a la iglesia SIN internet
+    expect(sugeridas, ['Canaán Invitados/bendiciones']); // Le sugirió la red
+    await WifiIglesiaServicio.alSalir(); // Se va
+    expect(quitadas, ['Canaán Invitados']); // La quitó
+    internet = true; // Ahora llega CON datos
+    await WifiIglesiaServicio.alEntrar(); // Llega otra vez
+    expect(sugeridas.length, 1); // No le sugirió nada (sigue con sus datos)
+    internet = false; // Sin internet otra vez
+    await WifiIglesiaServicio.alEntrar(); // Llega y se le sugiere
+    await WifiIglesiaServicio.sincronizar(null); // El panel apagó el servicio
+    expect(quitadas.length, 2); // Quitó la red del teléfono
+    expect(await WifiIglesiaServicio.leerCopia(), isNull); // Y olvidó los datos
+  }); // Fin de la prueba 63
+
+  testWidgets('Wi-Fi para invitados: sin internet y en el área sale la franja; al tocarla sugiere la red', (WidgetTester tester) async { // Prueba 64
+    final sugeridas = <String>[]; // Lo que se le pidió a "Android"
+    WifiIglesiaServicio.soportado = () => true; // Como si fuera Android
+    WifiIglesiaServicio.sugerirRed = (n, c) async { sugeridas.add(n); return true; }; // Anota
+    WifiIglesiaServicio.ubicacionSinPreguntar = () async => const Coordenadas(13.6901, -89.2101); // A unos metros del centro
+    WifiIglesiaServicio.wifiEncendido = () async => true; // Wi-Fi encendido
+    final api = ApiFalsa()..wifi = {'nombre': 'Canaán Invitados', 'contrasena': 'bendiciones', 'latitud': 13.69, 'longitud': -89.21, 'radio_metros': 150}; // Panel con Wi-Fi
+    await tester.pumpWidget(CanaanApp(api: api)); // Abre la app (Inicio guarda la copia)
+    await tester.pumpAndSettle(); // Espera
+    expect(find.textContaining('Toca para conectarte'), findsNothing); // Con internet: no sale
+    sinConexion.value = true; // Se va el internet
+    await tester.pumpAndSettle(); // Espera
+    expect(find.text('¿Sin internet? Toca para conectarte al Wi-Fi de la iglesia'), findsOneWidget); // Sale la franja
+    await tester.tap(find.text('¿Sin internet? Toca para conectarte al Wi-Fi de la iglesia')); // La toca
+    await tester.pumpAndSettle(); // Espera
+    expect(sugeridas, ['Canaán Invitados']); // Sugirió la red
+    expect(find.textContaining('se conectará a «Canaán Invitados»'), findsOneWidget); // Explica qué pasa (mensaje abajo)
+    WifiIglesiaServicio.ubicacionSinPreguntar = () async => const Coordenadas(13.80, -89.21); // Lejos (12 km)
+    sinConexion.value = false; await tester.pumpAndSettle(); sinConexion.value = true; await tester.pumpAndSettle(); // Vuelve y se va el internet
+    expect(find.textContaining('Toca para conectarte'), findsNothing); // Lejos: no sale
+  }); // Fin de la prueba 64
 } // Fin de main

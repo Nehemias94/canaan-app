@@ -15,6 +15,7 @@ import '../modelos/actividad.dart'; // Molde de una actividad (próximo culto)
 import '../modelos/anuncio.dart'; // Molde de un anuncio
 import '../modelos/evento.dart'; // Molde de un evento especial
 import '../modelos/iglesia.dart'; // Molde de los datos de la iglesia
+import '../servicios/wifi_iglesia.dart'; // Wi-Fi para invitados (guardar la red que manda el panel)
 import '../servicios/api.dart'; // Llamadas a la API
 import '../servicios/compartir.dart'; // Compartir (versículo, anuncios)
 import '../servicios/geocerca.dart'; // Geocerca (anuncios "Solo área", Paso 10)
@@ -100,7 +101,7 @@ class _PantallaInicioState extends State<PantallaInicio> with WidgetsBindingObse
       unawaited(WidgetVersiculo.actualizar(datos.versiculo)); // Pasa el versículo de hoy al widget de la pantalla de inicio (solo Android)
       await _revisarAvisoArea(datos.avisoUrgente); // Aviso urgente con área: ¿está dentro? (solo pide la ubicación si el aviso tiene área)
       await _revisarGeocerca(datos, lista); // Revisa si está en la iglesia (solo pide la ubicación si hay anuncios de área en su ventana)
-      unawaited(GeocercaFondo.actualizar(datos, lista)); // Si la persona activó el aviso con la app cerrada: registra los círculos de la iglesia y de cada anuncio de área (si cambiaron)
+      unawaited(WifiIglesiaServicio.sincronizar(datos.wifi).then((_) => GeocercaFondo.actualizar(datos, lista))); // Guarda (o quita) el Wi-Fi para invitados; luego, si la persona activó el aviso con la app cerrada, registra los círculos de la iglesia, de cada anuncio de área y del Wi-Fi (si cambiaron)
     } catch (_) { // Falló (sin internet, servidor dormido)
       if (mounted && _iglesia == null) setState(() => _fallo = true); // Solo muestra el error si no había nada en pantalla
     } // Fin del try

@@ -19,6 +19,7 @@ class Iglesia { // Molde con los datos que usa la app
   final bool cuentaRegresivaMostrar; // Configuración: ¿mostrar la cuenta regresiva del próximo culto transmitido?
   final int cuentaRegresivaHoras; // Configuración: desde cuántas horas antes
   final List<PasoBienvenida> bienvenida; // Bienvenida de la app (configurada en el panel; vacía si el panel es viejo)
+  final WifiIglesia? wifi; // Wi-Fi para invitados (null = servicio apagado en el panel)
 
   bool get tieneUbicacion => latitud != null && longitud != null; // ¿Se configuró la ubicación en el panel?
 
@@ -41,6 +42,7 @@ class Iglesia { // Molde con los datos que usa la app
     this.cuentaRegresivaMostrar = true, // Por defecto, sí
     this.cuentaRegresivaHoras = 2, // Por defecto, 2 horas antes
     this.bienvenida = const [], // Por defecto, sin configuración (se usan los textos de fábrica)
+    this.wifi, // Opcional
   }); // Fin del constructor
 
   factory Iglesia.desdeJson(Map<String, dynamic> json) { // Convierte el JSON de la API en un objeto Iglesia
@@ -60,10 +62,33 @@ class Iglesia { // Molde con los datos que usa la app
       repeticion: json['repeticion'] == null ? null : Repeticion.desdeJson(json['repeticion'] as Map<String, dynamic>), // ...la repetición del culto (si hubo transmisión en las últimas 12 h)
       cuentaRegresivaMostrar: (json['cuenta_regresiva'] as Map<String, dynamic>?)?['mostrar'] != false, // ...si se muestra la cuenta regresiva (si no viene: sí)
       cuentaRegresivaHoras: ((json['cuenta_regresiva'] as Map<String, dynamic>?)?['horas'] as num?)?.toInt() ?? 2, // ...y desde cuántas horas antes
-      bienvenida: ((json['bienvenida'] as List?) ?? const []).map((p) => PasoBienvenida.desdeJson(p as Map<String, dynamic>)).toList(), // ...y la bienvenida (3 pasos)
+      bienvenida: ((json['bienvenida'] as List?) ?? const []).map((p) => PasoBienvenida.desdeJson(p as Map<String, dynamic>)).toList(), // ...la bienvenida (3 pasos)
+      wifi: json['wifi'] is Map<String, dynamic> ? WifiIglesia.desdeJson(json['wifi'] as Map<String, dynamic>) : null, // ...y el Wi-Fi para invitados (null = apagado)
     ); // Fin del objeto
   } // Fin de desdeJson
 } // Fin de Iglesia
+
+class WifiIglesia { // Wi-Fi para invitados (Configuración del panel → "Wi-Fi para invitados")
+  const WifiIglesia({required this.nombre, required this.contrasena, required this.latitud, required this.longitud, required this.radioMetros}); // Constructor
+
+  final String nombre; // Nombre de la red (SSID)
+  final String contrasena; // Contraseña ("" = red abierta)
+  final double latitud; // Centro del área donde se ofrece
+  final double longitud; // Centro del área
+  final int radioMetros; // Radio del área (metros)
+
+  String get firma => '$nombre|$contrasena|$latitud|$longitud|$radioMetros'; // Resumen: si cambia, hay que volver a registrar el círculo
+
+  factory WifiIglesia.desdeJson(Map<String, dynamic> json) => WifiIglesia( // Desde el JSON de la API (o la copia guardada)
+        nombre: json['nombre'] as String? ?? '', // Nombre
+        contrasena: json['contrasena'] as String? ?? '', // Contraseña
+        latitud: (json['latitud'] as num?)?.toDouble() ?? 0, // Centro
+        longitud: (json['longitud'] as num?)?.toDouble() ?? 0, // Centro
+        radioMetros: (json['radio_metros'] as num?)?.toInt() ?? 150, // Radio
+      ); // Fin
+
+  Map<String, dynamic> aJson() => {'nombre': nombre, 'contrasena': contrasena, 'latitud': latitud, 'longitud': longitud, 'radio_metros': radioMetros}; // Para guardar la copia en el teléfono
+} // Fin de WifiIglesia
 
 class EnVivo { // Datos de la transmisión en vivo
   final bool activo; // true si se está transmitiendo ahora
